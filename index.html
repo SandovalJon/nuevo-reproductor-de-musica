@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f0512f" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="icon" href="data:," />
     <title>Nuevo Reproductor de Música</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,7 +59,9 @@
       header.top{
         padding:calc(14px + env(safe-area-inset-top)) 16px 6px;
       }
-      .top-in{ max-width:1060px; margin:0 auto; display:flex; align-items:center; gap:10px; }
+      .top-in{ max-width:1060px; margin:0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+      #btnInstall[hidden]{ display:none; }
+      @media (max-width:520px){ #btnInstall{ padding:9px 12px; font-size:14px; } }
       .top h1{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin:0; flex:1; line-height:1.1; }
       .top h1 span{ display:block; font-size:13px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:2px; }
       .btn{
@@ -356,6 +363,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
+          <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
         </div>
       </header>
@@ -500,6 +508,7 @@
       heart:'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
       heartO:'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z',
       plus:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+      download:'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
       search:'M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z',
       list:'M3 5h2v2H3zm0 6h2v2H3zm0 6h2v2H3zm4-12h14v2H7zm0 6h14v2H7zm0 6h14v2H7z',
       grid:'M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z',
@@ -1607,6 +1616,66 @@
       }
     })();
     window.addEventListener('beforeunload', ()=>{ saveSettings(); });
+    </script>
+
+    <script>
+    /* ================= Instalar como app (PWA) ================= */
+    (function(){
+      "use strict";
+      // Registro del service worker: si sw.js no existe o el registro falla
+      // (p. ej. en la vista previa), la app sigue funcionando igual, en silencio.
+      if('serviceWorker' in navigator){
+        window.addEventListener('load', function(){
+          try{
+            var reg = navigator.serviceWorker.register('sw.js');
+            if(reg && reg.catch) reg.catch(function(){});
+          }catch(e){ /* sin service worker, sin problema */ }
+        });
+      }
+      var btn = document.getElementById('btnInstall');
+      if(!btn) return;
+      function isStandalone(){
+        try{
+          if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+        }catch(e){}
+        return window.navigator.standalone === true;
+      }
+      if(isStandalone()){ btn.hidden = true; return; }
+      var ua = navigator.userAgent || '';
+      var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isIOSSafari = isIOS && !/crios|fxios|edgios|opios/i.test(ua);
+      var deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault();
+        deferredPrompt = e;
+        if(!isStandalone()) btn.hidden = false;
+      });
+      window.addEventListener('appinstalled', function(){
+        deferredPrompt = null;
+        btn.hidden = true;
+      });
+      try{
+        var mq = window.matchMedia('(display-mode: standalone)');
+        var onMode = function(ev){ if(ev.matches) btn.hidden = true; };
+        if(mq.addEventListener) mq.addEventListener('change', onMode);
+        else if(mq.addListener) mq.addListener(onMode);
+      }catch(e){}
+      // Safari de iOS no ofrece beforeinstallprompt: el botón muestra la indicación manual.
+      if(isIOSSafari) btn.hidden = false;
+      btn.addEventListener('click', function(){
+        if(deferredPrompt){
+          try{
+            deferredPrompt.prompt();
+            var choice = deferredPrompt.userChoice;
+            if(choice && choice.then){
+              choice.then(function(){ deferredPrompt = null; btn.hidden = true; }, function(){ deferredPrompt = null; });
+            }
+          }catch(e){ deferredPrompt = null; }
+        } else if(isIOSSafari){
+          toast('Toca Compartir y luego «Agregar a pantalla de inicio».', 3400);
+        }
+      });
+    })();
     </script>
   </body>
 </html>
