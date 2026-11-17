@@ -64,6 +64,7 @@
       @media (max-width:520px){ #btnInstall{ padding:9px 12px; font-size:14px; } }
       .top h1{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin:0; flex:1; line-height:1.1; }
       .top h1 span{ display:block; font-size:13px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:2px; }
+      .version-tag{ font-size:12.5px; font-weight:700; color:var(--muted); background:var(--surface2); border:1px solid var(--line); padding:6px 10px; border-radius:999px; white-space:nowrap; }
       .btn{
         display:inline-flex; align-items:center; gap:8px; border-radius:999px;
         padding:9px 16px; font-weight:600; min-height:44px; justify-content:center;
@@ -363,6 +364,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v1.1</span>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
         </div>
@@ -996,6 +998,9 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
+    const APP_VERSION = '1.1';
+    const versionTagEl = document.getElementById('versionTag');
+    if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     function playContext(ids, startId, opts){
       opts = opts || {};
       state.baseQueue = ids.slice();
@@ -1006,8 +1011,13 @@
       if(startId && isDisliked(getTrack(startId))){
         queue = [startId].concat(play.filter(id => id !== startId));
       } else if(useShuffle && play.length){
-        const start = startId && play.includes(startId) ? startId : play[0];
-        queue = [start].concat(shuffleArr(play.filter(id => id !== start)));
+        if(startId && play.includes(startId)){
+          // Canción elegida explícitamente (toque en una fila): esa suena primero.
+          queue = [startId].concat(shuffleArr(play.filter(id => id !== startId)));
+        } else {
+          // Aleatorio total (sin canción elegida): TODAS se mezclan, también la primera.
+          queue = shuffleArr(play);
+        }
       } else {
         queue = play.slice();
       }
@@ -1079,7 +1089,11 @@
     function togglePlay(){
       if(!state.currentId){
         const all = sortedTracks(Array.from(state.tracks.values()));
-        if(all.length) playContext(all.map(t => t.id), playable(all.map(t=>t.id))[0]);
+        if(all.length){
+          const ids = all.map(t => t.id);
+          // Si el aleatorio está activo, la primera también sale al azar.
+          playContext(ids, state.shuffle ? null : playable(ids)[0]);
+        }
         return;
       }
       if(audio.paused) audio.play().catch(()=>{}); else audio.pause();
@@ -1501,8 +1515,7 @@
       }
       else if(act === 'shuffleDetail'){
         const ids = viewContextIds.slice();
-        const first = playable(ids)[0];
-        if(first) playContext(ids, first, { shuffle:true });
+        if(playable(ids).length) playContext(ids, null, { shuffle:true });
         else toast('No hay canciones disponibles para el aleatorio.');
       }
       else if(act === 'renamePlaylist'){
@@ -1540,9 +1553,8 @@
     }));
     $('#btnShuffleAll').addEventListener('click', ()=>{
       const ids = Array.from(state.tracks.keys());
-      const first = playable(ids)[0];
-      if(!first){ toast('Agrega música primero y luego mezclamos todo.'); return; }
-      playContext(ids, first, { shuffle:true });
+      if(!playable(ids).length){ toast('Agrega música primero y luego mezclamos todo.'); return; }
+      playContext(ids, null, { shuffle:true });
       toast('Todo en aleatorio');
     });
     function addMenu(){
