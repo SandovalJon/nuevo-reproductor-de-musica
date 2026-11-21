@@ -144,6 +144,22 @@
       #content.screen-in{ animation:screenIn .38s cubic-bezier(.22,.9,.32,1) both; }
       #content.screen-in .rows, #content.screen-in .grid{ animation:viewIn .38s cubic-bezier(.22,.9,.32,1) both; }
       @media (prefers-reduced-motion: reduce){ #content.screen-in, #content.screen-in .rows, #content.screen-in .grid{ animation:none; } }
+      /* Entrada en cascada v2.8: al abrir una vista, sus filas y tarjetas
+         aparecen una tras otra con un leve desfase (fundido + subida corta).
+         El relleno es solo «backwards» para no pisar los transform de cada
+         elemento (inclinación 3D, toques) una vez termina la animación. */
+      @keyframes cascadeIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+      #content.cascade .greet, #content.cascade .home-sec, #content.cascade .row,
+      #content.cascade .card, #content.cascade .group-row, #content.cascade .detail-hero,
+      #content.cascade .detail-head, #content.cascade .detail-actions, #content.cascade .empty{
+        animation:cascadeIn .34s cubic-bezier(.22,.9,.32,1) backwards;
+        animation-delay:calc(var(--ci, 0) * 45ms);
+      }
+      @media (prefers-reduced-motion: reduce){
+        #content.cascade .greet, #content.cascade .home-sec, #content.cascade .row,
+        #content.cascade .card, #content.cascade .group-row, #content.cascade .detail-hero,
+        #content.cascade .detail-head, #content.cascade .detail-actions, #content.cascade .empty{ animation:none; }
+      }
       .row{
         display:flex; align-items:center; gap:13px; padding:10px 10px; border-radius:18px; cursor:pointer;
         -webkit-tap-highlight-color:transparent;
@@ -945,7 +961,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.7</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.8</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1603,11 +1619,32 @@
       const d = VIEW_ORDER.indexOf(cur.view) - VIEW_ORDER.indexOf(prev.view);
       return d > 0 ? 'fwd' : (d < 0 ? 'back' : '');
     }
+    /* Entrada en cascada v2.8: numera los bloques visibles de la vista
+       recién pintada (--ci) y activa la clase que los anima en cadena.
+       Solo se llama al abrir una vista/detalle o en el primer pintado,
+       nunca en repintados de la misma pantalla (buscar, «Me gusta»…). */
+    let renderedOnce = false;
+    let lastCascadeAt = 0;
+    function applyCascade(){
+      if(!content) return;
+      const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      content.classList.remove('cascade');
+      if(rm) return;
+      const now = Date.now();
+      if(now - lastCascadeAt < 120) return; // evita reinicios si render() se reentra
+      const items = content.querySelectorAll('.greet, .home-sec, .row, .card, .group-row, .detail-hero, .detail-head, .detail-actions, .empty');
+      if(!items.length) return;
+      lastCascadeAt = now;
+      items.forEach((el, i) => el.style.setProperty('--ci', Math.min(i, 12)));
+      void content.offsetWidth;
+      content.classList.add('cascade');
+    }
     function render(){
       // Movimiento entre pantallas: deslizamiento direccional según el viaje
+      let dir = '';
       if(content){
         const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const dir = navDirection();
+        dir = navDirection();
         content.classList.remove('screen-in', 'screen-fwd', 'screen-back');
         if(!rm){
           void content.offsetWidth;
@@ -1617,11 +1654,14 @@
       $$('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
       $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
       $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
-      if(state.detail) return renderDetail();
-      if(state.view === 'songs') return renderSongs();
-      if(state.view === 'artists') return renderArtists();
-      if(state.view === 'albums') return renderAlbums();
-      if(state.view === 'playlists') return renderPlaylists();
+      const firstRender = !renderedOnce;
+      renderedOnce = true;
+      if(state.detail) renderDetail();
+      else if(state.view === 'songs') renderSongs();
+      else if(state.view === 'artists') renderArtists();
+      else if(state.view === 'albums') renderAlbums();
+      else if(state.view === 'playlists') renderPlaylists();
+      if(dir || firstRender) applyCascade();
     }
     /* ================= Inicio renovado (v2.0) ================= */
     function greetingText(){
@@ -1780,7 +1820,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.7';
+    const APP_VERSION = '2.8';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
