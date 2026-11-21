@@ -260,13 +260,6 @@
         background:rgba(255,255,255,.13); color:#fff; font-weight:600; font-size:14px;
       }
       .np-actions button.on{ background:#fff; color:#1c1210; }
-      .timer-box{ margin-top:16px; background:rgba(0,0,0,.28); border-radius:18px; padding:14px 16px; display:none; }
-      .timer-box.show{ display:block; }
-      .timer-box h3{ margin:0 0 10px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:8px; }
-      .timer-box h3 span{ margin-left:auto; font-weight:500; opacity:.85; font-size:13px; }
-      .chips{ display:flex; gap:8px; flex-wrap:wrap; }
-      .chips button{ padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.14); color:#fff; font-weight:600; min-height:40px; }
-      .chips button.on{ background:#fff; color:#1c1210; }
       .queue-box{ margin-top:16px; background:rgba(0,0,0,.28); border-radius:18px; padding:8px 6px; display:none; }
       .queue-box.show{ display:block; }
       .queue-box h3{ margin:8px 12px 6px; font-size:14px; font-weight:700; }
@@ -366,7 +359,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v1.5</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v1.6</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -444,19 +437,8 @@
           <span data-ic="volHigh"></span>
         </div>
         <div class="np-actions">
-          <button id="btnTimer"><span data-ic="moon"></span>Temporizador</button>
           <button id="btnQueueToggle"><span data-ic="queue"></span>A continuación</button>
           <button id="btnStage2"><span data-ic="expand"></span>Escenario</button>
-        </div>
-        <div class="timer-box" id="timerBox">
-          <h3><span data-ic="moon"></span>Temporizador de apagado <span id="timerLeft"></span></h3>
-          <div class="chips" id="timerChips">
-            <button data-timer="0">Apagado</button>
-            <button data-timer="15">15 min</button>
-            <button data-timer="30">30 min</button>
-            <button data-timer="60">60 min</button>
-            <button data-timer="song">Al terminar la canción</button>
-          </div>
         </div>
         <div class="queue-box" id="queueBox">
           <h3>A continuación</h3>
@@ -524,7 +506,6 @@
       chevL:'M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z',
       chevR:'M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z',
       expand:'M4 4h6v2H6v4H4zm10-2h6v6h-2V6h-4zm6 14v6h-6v-2h4v-4zm-14 4h4v2H4v-6h2z',
-      moon:'M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-5.4-5.4c0-1.81.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3z',
       queue:'M3 6h12v2H3zm0 4h12v2H3zm0 4h8v2H3zm14.5-1.9v7.4L22 16.75zM15 18.5v-2h6v2z',
       note:'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z',
       folder:'M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z',
@@ -727,12 +708,7 @@
       currentId: null,
       shuffle: false,
       repeat: 0,               // 0 no, 1 todo, 2 una
-      volume: 1,
-      // Temporizador
-      timerMode: 0,            // 0 apagado | minutos | 'song'
-      timerId: null,
-      timerEndsAt: 0,
-      timerTick: null
+      volume: 1
     };
     const audio = $('#audio');
     audio.volume = 1;
@@ -1005,7 +981,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '1.5';
+    const APP_VERSION = '1.6';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     function playContext(ids, startId, opts){
@@ -1174,30 +1150,6 @@
       syncPlayerUI(); render();
     }
 
-    /* ================= Temporizador ================= */
-    function setTimer(mode){
-      state.timerMode = mode;
-      if(state.timerId){ clearTimeout(state.timerId); state.timerId = null; }
-      if(state.timerTick){ clearInterval(state.timerTick); state.timerTick = null; }
-      $('#timerLeft').textContent = '';
-      $$('#timerChips button').forEach(b => b.classList.toggle('on', String(mode) === b.dataset.timer || (mode === 0 && b.dataset.timer === '0')));
-      if(typeof mode === 'number' && mode > 0){
-        state.timerEndsAt = Date.now() + mode * 60000;
-        state.timerId = setTimeout(()=>{
-          audio.pause(); setTimer(0);
-          toast('Temporizador: la música se detuvo. Buenas noches.');
-        }, mode * 60000);
-        const tick = () => {
-          const left = Math.max(0, state.timerEndsAt - Date.now());
-          $('#timerLeft').textContent = 'quedan ' + fmt(Math.ceil(left/1000));
-        };
-        tick(); state.timerTick = setInterval(tick, 1000);
-        toast('La música se detendrá en ' + mode + ' minutos');
-      } else if(mode === 'song'){
-        toast('La música se detendrá al terminar esta canción');
-      }
-    }
-
     /* ================= Sincronizar interfaces ================= */
     function setBigCover(el, t){
       const url = state.coverUrls.get(t.id);
@@ -1281,10 +1233,7 @@
       if(Math.floor(audio.currentTime) % 5 === 0) saveSettings();
     });
     audio.addEventListener('loadedmetadata', syncProgress);
-    audio.addEventListener('ended', ()=>{
-      if(state.timerMode === 'song'){ setTimer(0); audio.pause(); toast('Temporizador: fin de la canción.'); return; }
-      next(true);
-    });
+    audio.addEventListener('ended', ()=>{ next(true); });
     $('#seekRange').addEventListener('input', ()=>{ seeking = true; });
     $('#seekRange').addEventListener('change', e => {
       seeking = false;
@@ -1317,14 +1266,6 @@
     $('#btnQueueToggle').addEventListener('click', ()=>{
       const b = $('#queueBox'); b.classList.toggle('show'); renderQueue();
     });
-    $('#btnTimer').addEventListener('click', ()=>{
-      const b = $('#timerBox'); b.classList.toggle('show');
-      $('#btnTimer').classList.toggle('on', b.classList.contains('show'));
-    });
-    $$('#timerChips button').forEach(b => b.addEventListener('click', ()=>{
-      const v = b.dataset.timer;
-      setTimer(v === 'song' ? 'song' : Number(v));
-    }));
     $('#queueList').addEventListener('click', e => {
       const rm = e.target.closest('[data-qremove]');
       if(rm){ e.stopPropagation(); removeFromQueue(rm.dataset.qremove); return; }
