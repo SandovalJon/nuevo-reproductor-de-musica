@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" data-accent="naranja" data-coversize="comodo" data-density="comoda" data-libbg="halo">
+<html lang="es" data-accent="naranja" data-mode="oscuro" data-coversize="comodo" data-density="comoda" data-libbg="halo">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -29,16 +29,17 @@
         --halo-c1:transparent; --halo-c2:transparent;
         color-scheme:light;
       }
-      @media (prefers-color-scheme: dark){
-        :root{
-          --bg:#100d10; --bg2:#171219; --surface:#1d171d; --surface2:#282029;
-          --ink:#f7f0ea; --muted:#ab9d97; --line:rgba(247,240,234,.10);
-          --acc:#ff6a3d; --acc2:#ffb35c; --acc-ink:#ffffff;
-          --danger:#ff6a5c; --ok:#3ecf8e;
-          --shadow:0 18px 44px rgba(0,0,0,.5);
-          --shadow-soft:0 10px 26px rgba(0,0,0,.38);
-          color-scheme:dark;
-        }
+      /* Modo oscuro (v2.7 · Luz): es el predeterminado y se elige con el
+         ajuste «Modo» de Apariencia (data-mode), ya no sigue al sistema.
+         El :root base de arriba es la paleta clara completa. */
+      :root[data-mode="oscuro"]{
+        --bg:#100d10; --bg2:#171219; --surface:#1d171d; --surface2:#282029;
+        --ink:#f7f0ea; --muted:#ab9d97; --line:rgba(247,240,234,.10);
+        --acc:#ff6a3d; --acc2:#ffb35c; --acc-ink:#ffffff;
+        --danger:#ff6a5c; --ok:#3ecf8e;
+        --shadow:0 18px 44px rgba(0,0,0,.5);
+        --shadow-soft:0 10px 26px rgba(0,0,0,.38);
+        color-scheme:dark;
       }
       *{ box-sizing:border-box; }
       html,body{ height:100%; }
@@ -583,12 +584,11 @@
       :root[data-accent="esmeralda"]{ --acc:#079669; --acc2:#2fce8f; }
       :root[data-accent="azul"]{ --acc:#2470e0; --acc2:#45b6f0; }
       :root[data-accent="rosa"]{ --acc:#e84393; --acc2:#ff8fb0; }
-      @media (prefers-color-scheme: dark){
-        :root[data-accent="violeta"]{ --acc:#a06bff; --acc2:#cda6ff; }
-        :root[data-accent="esmeralda"]{ --acc:#25c98d; --acc2:#74eebd; }
-        :root[data-accent="azul"]{ --acc:#5b97ff; --acc2:#8fd0ff; }
-        :root[data-accent="rosa"]{ --acc:#ff77ad; --acc2:#ffb1cd; }
-      }
+      /* Variantes de acento más luminosas para el modo oscuro (v2.7) */
+      :root[data-mode="oscuro"][data-accent="violeta"]{ --acc:#a06bff; --acc2:#cda6ff; }
+      :root[data-mode="oscuro"][data-accent="esmeralda"]{ --acc:#25c98d; --acc2:#74eebd; }
+      :root[data-mode="oscuro"][data-accent="azul"]{ --acc:#5b97ff; --acc2:#8fd0ff; }
+      :root[data-mode="oscuro"][data-accent="rosa"]{ --acc:#ff77ad; --acc2:#ffb1cd; }
       /* Tipografía display v2.0: más grande y redonda para los títulos */
       .top h1, .np-title h2, .stage h2, .detail-head h2, .empty h2, .sheet h3, .modal h3, .greet h2, .home-sec h3, .splash-name{ font-family:var(--font-display); }
       .top h1{ font-size:31px; }
@@ -741,11 +741,9 @@
         --shadow:0 2px 6px rgba(60,30,10,.07), 0 14px 28px -8px rgba(60,30,10,.16), 0 30px 60px -18px rgba(60,30,10,.22);
         --shadow-soft:0 2px 5px rgba(60,30,10,.06), 0 10px 22px -6px rgba(60,30,10,.13), 0 20px 38px -14px rgba(60,30,10,.15);
       }
-      @media (prefers-color-scheme: dark){
-        :root{
-          --shadow:0 2px 6px rgba(0,0,0,.35), 0 16px 32px -8px rgba(0,0,0,.5), 0 34px 64px -18px rgba(0,0,0,.55);
-          --shadow-soft:0 2px 5px rgba(0,0,0,.3), 0 10px 22px -6px rgba(0,0,0,.42), 0 20px 38px -14px rgba(0,0,0,.45);
-        }
+      :root[data-mode="oscuro"]{
+        --shadow:0 2px 6px rgba(0,0,0,.35), 0 16px 32px -8px rgba(0,0,0,.5), 0 34px 64px -18px rgba(0,0,0,.55);
+        --shadow-soft:0 2px 5px rgba(0,0,0,.3), 0 10px 22px -6px rgba(0,0,0,.42), 0 20px 38px -14px rgba(0,0,0,.45);
       }
       .cover{
         box-shadow:0 3px 8px rgba(30,15,5,.16), 0 14px 26px -8px var(--cover-glow, rgba(60,30,10,.28)), 0 26px 44px -16px var(--cover-glow, rgba(60,30,10,.28)), inset 0 0 0 1px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.22);
@@ -921,6 +919,19 @@
       .badge .ic{ width:11px; height:11px; }
       .badge.fav{ background:color-mix(in srgb, var(--acc) 15%, transparent); color:var(--acc); }
       .badge.new{ background:color-mix(in srgb, var(--ok) 15%, transparent); color:var(--ok); }
+
+      /* ================= v2.7 · Luz ================= */
+      /* Modo claro completo: la paleta clara vive en el :root base y la
+         oscura en :root[data-mode="oscuro"]; el ajuste «Modo» de la
+         sección Apariencia cambia data-mode y toda la interfaz (biblioteca,
+         cabecera, navegación flotante, mini-reproductor, hojas y modales)
+         sigue las mismas variables, con el acento elegido y el halo de la
+         canción adaptados a cada fondo. «Sonando ahora» y el Escenario no
+         usan estas variables: conservan sus fondos inmersivos de portada
+         con su oscurecimiento en ambos modos. El cambio de modo se funde
+         con una transición suave del fondo y del texto. */
+      body{ transition:background-color .45s ease, color .45s ease; }
+      @media (prefers-reduced-motion: reduce){ body{ transition:none; } }
     </style>
   </head>
   <body>
@@ -934,7 +945,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.6</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.7</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -951,6 +962,13 @@
           <span class="theme-name" id="themeName">Naranja</span>
         </div>
         <div class="appearance-row" aria-label="Apariencia">
+          <div class="ap-group">
+            <span class="ap-lbl" id="modeLbl">Modo</span>
+            <div class="aseg" role="group" aria-labelledby="modeLbl">
+              <button data-mode-btn="oscuro" class="on">Oscuro</button>
+              <button data-mode-btn="claro">Claro</button>
+            </div>
+          </div>
           <div class="ap-group">
             <span class="ap-lbl" id="coverSizeLbl">Portadas</span>
             <div class="aseg" role="group" aria-labelledby="coverSizeLbl">
@@ -1335,6 +1353,7 @@
       repeat: 0,               // 0 no, 1 todo, 2 una
       volume: 1,
       accent: 'naranja',
+      mode: 'oscuro',
       coverSize: 'comodo',
       density: 'comoda',
       libBg: 'halo'
@@ -1354,6 +1373,7 @@
           lastTrackId: state.currentId,
           lastPosition: audio.currentTime || 0,
           sort: state.sort, viewMode: state.viewMode, accent: state.accent,
+          mode: state.mode,
           coverSize: state.coverSize, density: state.density, libBg: state.libBg
         }, 'settings');
       }catch(e){}
@@ -1378,9 +1398,12 @@
       if(save) saveSettings();
     }
     /* ================= Apariencia (v2.3 · A tu estilo) =================
-       Tres ajustes solo visuales que viven con el tema en el mismo apartado
-       de ajustes guardados: tamaño de portadas, densidad de la lista y
-       fondo degradado de la biblioteca. No tocan ningún dato musical. */
+       Ajustes solo visuales que viven con el tema en el mismo apartado de
+       ajustes guardados: tamaño de portadas, densidad de la lista y fondo
+       degradado de la biblioteca. La v2.7 · Luz suma el modo claro/oscuro
+       (state.mode): se guarda igual, se aplica al abrir y el oscuro es el
+       predeterminado. No tocan ningún dato musical. */
+    const MODES = ['oscuro', 'claro'];
     const COVER_SIZES = ['compacto', 'comodo', 'grande'];
     const DENSITIES = ['comoda', 'compacta'];
     const LIB_BGS = {
@@ -1391,13 +1414,18 @@
       crepusculo: { name:'Crepúsculo' }
     };
     function applyAppearance(save){
+      if(!MODES.includes(state.mode)) state.mode = 'oscuro';
       if(!COVER_SIZES.includes(state.coverSize)) state.coverSize = 'comodo';
       if(!DENSITIES.includes(state.density)) state.density = 'comoda';
       if(!LIB_BGS[state.libBg]) state.libBg = 'halo';
       const root = document.documentElement;
+      root.setAttribute('data-mode', state.mode);
       root.setAttribute('data-coversize', state.coverSize);
       root.setAttribute('data-density', state.density);
       root.setAttribute('data-libbg', state.libBg);
+      const csMeta = document.querySelector('meta[name="color-scheme"]');
+      if(csMeta) csMeta.setAttribute('content', state.mode === 'oscuro' ? 'dark' : 'light');
+      $$('[data-mode-btn]').forEach(b => b.classList.toggle('on', b.dataset.modeBtn === state.mode));
       $$('[data-coversize-btn]').forEach(b => b.classList.toggle('on', b.dataset.coversizeBtn === state.coverSize));
       $$('[data-density-btn]').forEach(b => b.classList.toggle('on', b.dataset.densityBtn === state.density));
       $$('[data-libbg-btn]').forEach(b => b.classList.toggle('on', b.dataset.libbgBtn === state.libBg));
@@ -1752,7 +1780,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.6';
+    const APP_VERSION = '2.7';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2668,6 +2696,7 @@
       state.view = b.dataset.view; state.detail = null; render();
     }));
     $$('[data-accent-btn]').forEach(b => b.addEventListener('click', ()=> applyAccent(b.dataset.accentBtn, true)));
+    $$('[data-mode-btn]').forEach(b => b.addEventListener('click', ()=>{ state.mode = b.dataset.modeBtn; applyAppearance(true); }));
     $$('[data-coversize-btn]').forEach(b => b.addEventListener('click', ()=>{ state.coverSize = b.dataset.coversizeBtn; applyAppearance(true); }));
     $$('[data-density-btn]').forEach(b => b.addEventListener('click', ()=>{ state.density = b.dataset.densityBtn; applyAppearance(true); }));
     $$('[data-libbg-btn]').forEach(b => b.addEventListener('click', ()=>{ state.libBg = b.dataset.libbgBtn; applyAppearance(true); }));
@@ -2773,6 +2802,7 @@
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
           if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
+          if(settings.mode) state.mode = settings.mode;
           if(settings.coverSize) state.coverSize = settings.coverSize;
           if(settings.density) state.density = settings.density;
           if(settings.libBg) state.libBg = settings.libBg;
