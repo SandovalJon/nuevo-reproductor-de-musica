@@ -366,7 +366,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v1.4</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v1.5</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1005,7 +1005,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '1.4';
+    const APP_VERSION = '1.5';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     function playContext(ids, startId, opts){
@@ -1014,6 +1014,11 @@
       state.contextLabel = opts.label || '';
       const play = playable(ids);
       const useShuffle = opts.shuffle !== undefined ? opts.shuffle : state.shuffle;
+      // Un modo pedido explícitamente («Todo en aleatorio», el «Aleatorio» de un
+      // detalle o «Reproducir» en orden) se queda como el estado de aleatorio de
+      // la app: el botón de las dos flechas en «Sonando ahora» lo refleja y
+      // permanece activado mientras la reproducción siga mezclada.
+      if(opts.shuffle !== undefined) state.shuffle = useShuffle;
       let queue;
       if(startId && isDisliked(getTrack(startId))){
         queue = [startId].concat(play.filter(id => id !== startId));
