@@ -540,6 +540,45 @@
       .mini .cover{ border-radius:50%; }
       @media (prefers-reduced-motion: reduce){ .vinyl-disc{ will-change:auto; } }
 
+      /* ============ v2.9 · Escenario total ============
+         Carrusel de la cola dentro del Escenario: las portadas que siguen
+         en fila horizontal, con la siguiente destacada; tocar una salta a
+         esa canción, igual que en la cola de «Sonando ahora». Si la cola
+         está vacía, el carrusel no aparece. El fondo del Escenario rota
+         lentamente entre la portada actual y las de la cola reutilizando
+         las dos capas difuminadas de siempre (el fundido lo pone su
+         transición); con movimiento reducido no rota. */
+      .stage-queue{ display:none; width:min(88vw, 560px); margin-top:22px; text-align:left; }
+      .stage-queue.show{ display:block; }
+      .stage-queue-lbl{ font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; opacity:.78; margin:0 2px 10px; }
+      .stage-queue-row{
+        display:flex; gap:12px; overflow-x:auto; padding:6px 4px 10px;
+        scroll-snap-type:x proximity; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+      }
+      .stage-queue-row::-webkit-scrollbar{ display:none; }
+      .sq-item{
+        flex:none; width:92px; scroll-snap-align:start; cursor:pointer; text-align:center;
+        -webkit-tap-highlight-color:transparent;
+      }
+      .sq-item .cover{
+        width:92px; height:92px; border-radius:20px; font-size:34px; margin:0 auto;
+        box-shadow:0 14px 30px rgba(0,0,0,.42), 0 8px 22px -6px var(--cover-glow, rgba(0,0,0,.3));
+      }
+      .sq-item.is-next .cover{
+        box-shadow:0 0 0 2.5px var(--np-c1), 0 16px 34px rgba(0,0,0,.48), 0 10px 28px -4px var(--np-c1);
+        transform:scale(1.05);
+      }
+      .sq-item:active .cover{ transform:scale(.96); }
+      .sq-item.is-next:active .cover{ transform:scale(1.01); }
+      .sq-t{ margin-top:8px; font-size:12.5px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .sq-a{ font-size:11.5px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .sq-tag{
+        display:inline-block; margin-top:4px; font-size:9.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+        color:#ffd9a8; background:rgba(0,0,0,.4); border:1px solid rgba(255,217,168,.4);
+        padding:2px 7px; border-radius:999px;
+      }
+      @media (prefers-reduced-motion: reduce){ .sq-item .cover, .sq-item:active .cover{ transform:none; } .sq-item.is-next .cover{ transform:none; } }
+
       /* Sheets & modals */
       .scrim{ position:fixed; inset:0; z-index:70; background:rgba(10,5,5,.5); opacity:0; pointer-events:none; transition:opacity .25s; }
       .scrim.show{ opacity:1; pointer-events:auto; }
@@ -961,7 +1000,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.8</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.9</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1108,6 +1147,10 @@
         <p class="stage-artist" id="stageArtist">—</p>
         <div class="stage-spec" id="stageSpec" aria-hidden="true"></div>
         <div class="stage-next" id="stageNextBox" aria-label="A continuación en el Escenario"></div>
+        <div class="stage-queue" id="stageQueue">
+          <div class="stage-queue-lbl" id="stageQueueLbl">A continuación</div>
+          <div class="stage-queue-row" id="stageQueueRow" role="list" aria-labelledby="stageQueueLbl"></div>
+        </div>
         <div class="stage-prog">
           <div class="bar"><i id="stageProg"></i></div>
           <div class="times"><span id="stageCur">0:00</span><span id="stageDur">0:00</span></div>
@@ -1820,7 +1863,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.8';
+    const APP_VERSION = '2.9';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2231,6 +2274,90 @@
       // La portada de la siguiente puede no estar hidratada aún; si llega, sync la refresca vía renderQueue/syncPlayerUI
       if(nxt.hasCover && !state.coverUrls.has(nxt.id)) ensureCoverUrl(nxt.id).then(()=>{ if(state.currentId) updateStageNext(); }).catch(()=>{});
     }
+    /* ============ v2.9 · Escenario total ============
+       SOLO presentación: el Escenario suma un carrusel con las portadas
+       que siguen en la cola (tocar una salta a esa canción, igual que en
+       la cola de «Sonando ahora») y su fondo difuminado rota lentamente
+       entre la portada actual y las de la cola, con los fundidos de las
+       dos capas de siempre. Sin cola no hay carrusel ni rotación, y con
+       movimiento reducido el fondo se queda con la portada actual. */
+    function upcomingQueueTracks(limit){
+      if(!state.queue.length || state.qIndex < 0) return [];
+      const out = [];
+      for(let i = state.qIndex + 1; i < state.queue.length && out.length < limit; i++){
+        const t = getTrack(state.queue[i]);
+        if(t && !isDisliked(t)) out.push(t);
+      }
+      return out;
+    }
+    let stageQueueSig = '', stageQueueFirstId = null;
+    function renderStageQueue(){
+      const box = $('#stageQueue'), row = $('#stageQueueRow');
+      if(!box || !row) return;
+      const ups = upcomingQueueTracks(14);
+      if(!ups.length){ box.classList.remove('show'); row.innerHTML = ''; stageQueueSig = ''; stageQueueFirstId = null; return; }
+      const sig = ups.map(t => t.id + (state.coverUrls.has(t.id) ? ':u' : ':g')).join('|');
+      if(sig === stageQueueSig && box.classList.contains('show')) return;
+      const keepScroll = stageQueueFirstId !== null && ups[0].id === stageQueueFirstId;
+      stageQueueSig = sig;
+      stageQueueFirstId = ups[0].id;
+      row.innerHTML = ups.map((t, i) =>
+        '<div class="sq-item' + (i === 0 ? ' is-next' : '') + '" role="listitem" data-sqjump="' + t.id + '" title="' + esc(t.title) + ' · ' + esc(t.artist) + '">' +
+          coverHTML(t) +
+          '<div class="sq-t">' + esc(t.title) + '</div>' +
+          '<div class="sq-a">' + esc(t.artist) + '</div>' +
+          (i === 0 ? '<span class="sq-tag">Siguiente</span>' : '') +
+        '</div>'
+      ).join('');
+      box.classList.add('show');
+      if(!keepScroll) row.scrollLeft = 0;
+      ups.forEach(t => {
+        if(t.hasCover && !state.coverUrls.has(t.id)) ensureCoverUrl(t.id).then(()=>{ if(state.currentId) renderStageQueue(); }).catch(()=>{});
+      });
+    }
+    /* Fondo del Escenario que rota: la lista es la portada actual seguida
+       de las de la cola; cada ~7 s avanza un paso con el fundido cruzado
+       de applyImmersive. El temporizador solo corre con el Escenario
+       abierto; al cambiar de canción vuelve enseguida a la actual. */
+    const stageBgRot = { list: [], idx: 0, timer: null, curId: null };
+    function refreshStageBg(t, c1, c2){
+      const ups = upcomingQueueTracks(6);
+      const changed = stageBgRot.curId !== t.id;
+      stageBgRot.curId = t.id;
+      const list = [{ id: t.id, bg: immersiveBg(t, c1, c2) }];
+      ups.forEach(ut => {
+        const [u1, u2] = trackColors(ut);
+        list.push({ id: ut.id, bg: immersiveBg(ut, u1, u2) });
+      });
+      stageBgRot.list = list;
+      if(changed || stageBgRot.idx >= list.length){
+        stageBgRot.idx = 0;
+        stageFlip = applyImmersive($('#stageBgA'), $('#stageBgB'), list[0].bg, stageFlip);
+      }
+      ups.forEach(ut => {
+        if(ut.hasCover && !state.coverUrls.has(ut.id)){
+          ensureCoverUrl(ut.id).then(()=>{
+            const ct = currentTrack();
+            if(ct){ const [a, b] = trackColors(ct); refreshStageBg(ct, a, b); }
+          }).catch(()=>{});
+        }
+      });
+    }
+    function stageBgTick(){
+      const st = $('#stage');
+      if(!st || !st.classList.contains('open')){ stopStageBgRotation(); return; }
+      if(motionReduced() || stageBgRot.list.length < 2) return;
+      stageBgRot.idx = (stageBgRot.idx + 1) % stageBgRot.list.length;
+      stageFlip = applyImmersive($('#stageBgA'), $('#stageBgB'), stageBgRot.list[stageBgRot.idx].bg, stageFlip);
+    }
+    function startStageBgRotation(){
+      stopStageBgRotation();
+      if(motionReduced()) return;
+      stageBgRot.timer = setInterval(stageBgTick, 7000);
+    }
+    function stopStageBgRotation(){
+      if(stageBgRot.timer){ clearInterval(stageBgRot.timer); stageBgRot.timer = null; }
+    }
     let haloTimer = null, lastHaloId = null;
     function updateHalo(t, c1, c2){
       const root = document.documentElement;
@@ -2272,7 +2399,8 @@
       updateHalo(t, c1, c2);
       const bgCss = immersiveBg(t, c1, c2);
       npFlip = applyImmersive($('#npBgA'), $('#npBgB'), bgCss, npFlip);
-      stageFlip = applyImmersive($('#stageBgA'), $('#stageBgB'), bgCss, stageFlip);
+      // Escenario v2.9: su fondo rota entre la actual y las de la cola
+      refreshStageBg(t, c1, c2);
       const trackChanged = lastImmersiveId !== null && lastImmersiveId !== t.id;
       lastImmersiveId = t.id;
       const npCoverEl = $('#npCover'), stageCoverEl = $('#stageCover'), titleBox = $('#npTitleBox');
@@ -2320,6 +2448,7 @@
     }
     function renderQueue(){
       updateStageNext();
+      renderStageQueue();
       const box = $('#queueList');
       if(!box) return;
       const upcoming = state.queue.slice(state.qIndex + 1).filter(id => { const t = getTrack(id); return t && !isDisliked(t); });
@@ -2395,6 +2524,12 @@
       const jump = e.target.closest('[data-qjump]');
       if(jump) jumpToQueueIndex(state.queue.indexOf(jump.dataset.qjump));
     });
+    /* Carrusel de la cola del Escenario (v2.9): tocar una portada salta a
+       esa canción, igual que tocarla en la cola de «Sonando ahora». */
+    $('#stageQueueRow').addEventListener('click', e => {
+      const item = e.target.closest('[data-sqjump]');
+      if(item) jumpToQueueIndex(state.queue.indexOf(item.dataset.sqjump));
+    });
 
     /* ================= Modo Escenario ================= */
     function openStage(){
@@ -2402,10 +2537,12 @@
       $('#stage').classList.add('open');
       syncPlayerUI();
       startStageParallax();
+      startStageBgRotation();
       try{ const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if(p && p.catch) p.catch(()=>{}); }catch(e){}
     }
     function closeStage(){
       stopStageParallax();
+      stopStageBgRotation();
       setParty(false);
       $('#stage').classList.remove('open');
       try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch(e){}
@@ -2413,7 +2550,7 @@
     $('#npStage').addEventListener('click', openStage);
     $('#btnStage2').addEventListener('click', openStage);
     $('#stageClose').addEventListener('click', closeStage);
-    document.addEventListener('fullscreenchange', ()=>{ if(!document.fullscreenElement){ $('#stage').classList.remove('open'); setParty(false); } });
+    document.addEventListener('fullscreenchange', ()=>{ if(!document.fullscreenElement){ $('#stage').classList.remove('open'); setParty(false); stopStageBgRotation(); } });
 
     /* ============ v2.5 · La guinda: visualizador decorativo y Fiesta ============
        SOLO animación: las barras del espectro bailan con keyframes CSS
