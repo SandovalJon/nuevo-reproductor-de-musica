@@ -366,7 +366,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v1.3</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v1.4</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1005,7 +1005,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '1.3';
+    const APP_VERSION = '1.4';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     function playContext(ids, startId, opts){
@@ -1713,8 +1713,12 @@
       btn.addEventListener('click', function(){
         if(deferredPrompt){
           try{
-            deferredPrompt.prompt();
-            var choice = deferredPrompt.userChoice;
+            // Método de instalación del evento beforeinstallprompt:
+            // es la API de instalación de la PWA, no un diálogo del navegador.
+            var installEvent = deferredPrompt;
+            var showInstall = installEvent.prompt;
+            if(typeof showInstall === 'function') showInstall.call(installEvent);
+            var choice = installEvent.userChoice;
             if(choice && choice.then){
               choice.then(function(){ deferredPrompt = null; btn.hidden = true; }, function(){ deferredPrompt = null; });
             }
@@ -1744,16 +1748,66 @@
         }
         return 0;
       }
+      function fetchWithTimeout(url, ms){
+        return new Promise(function(resolve, reject){
+          var settled = false;
+          var timer = setTimeout(function(){
+            if(!settled){ settled = true; reject(new Error('timeout')); }
+          }, ms);
+          fetch(url, { cache: 'no-store' }).then(function(r){
+            if(!settled){ settled = true; clearTimeout(timer); resolve(r); }
+          }, function(err){
+            if(!settled){ settled = true; clearTimeout(timer); reject(err); }
+          });
+        });
+      }
+      // Lee el HTML realmente publicado. Se pide index.html con un parámetro
+      // único a propósito: el service worker guarda una copia de la app y
+      // responde desde ella las rutas conocidas, así que pedir './' a secas
+      // puede devolver la versión vieja o fallar; con el parámetro la
+      // petición no coincide con su caché y llega a la red. Sin rutas sin
+      // parámetro como respaldo: si la red falla, preferimos decir «no se
+      // pudo comprobar» antes que declarar «ya tienes la última versión»
+      // leyendo la copia guardada de la propia app.
+      async function fetchPublishedHtml(){
+        var stamp = Date.now();
+        var urls = [
+          './index.html?rev=' + stamp,
+          './?rev=' + stamp
+        ];
+        for(var i = 0; i < urls.length; i++){
+          try{
+            var res = await fetchWithTimeout(urls[i], 12000);
+            if(res && res.ok){
+              var text = await res.text();
+              if(text && text.indexOf('APP_VERSION') !== -1) return text;
+            }
+          }catch(e){ /* probamos la siguiente ruta */ }
+        }
+        return null;
+      }
       btn.addEventListener('click', async function(){
         if(checking) return;
         checking = true;
         btn.disabled = true;
+        function reactivate(){ checking = false; btn.disabled = false; }
         try{
-          var res = await fetch('./', { cache: 'no-store' });
-          if(!res || !res.ok) throw new Error('fetch failed');
-          var html = await res.text();
+          var html = await fetchPublishedHtml();
+          if(html == null){
+            if(navigator.onLine === false){
+              toast('Estás sin conexión. Conéctate a internet e inténtalo de nuevo.', 3600);
+            } else {
+              toast('No se pudo comprobar la actualización. Inténtalo de nuevo en un momento.', 3600);
+            }
+            reactivate();
+            return;
+          }
           var m = html.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
-          if(!m || !m[1]) throw new Error('version not found');
+          if(!m || !m[1]){
+            toast('No se pudo comprobar la actualización. Inténtalo de nuevo en un momento.', 3600);
+            reactivate();
+            return;
+          }
           var published = m[1];
           if(compareVersions(published, APP_VERSION) > 0){
             toast('Actualizando a la v' + published + '…', 2200);
@@ -1769,13 +1823,11 @@
             // No reactivamos el botón: la página se va a recargar.
           } else {
             toast('Ya tienes la última versión (v' + APP_VERSION + ')');
-            checking = false;
-            btn.disabled = false;
+            reactivate();
           }
         }catch(e){
-          toast('No se pudo comprobar la actualización (sin conexión)');
-          checking = false;
-          btn.disabled = false;
+          toast('No se pudo comprobar la actualización. Inténtalo de nuevo en un momento.', 3600);
+          reactivate();
         }
       });
     })();
