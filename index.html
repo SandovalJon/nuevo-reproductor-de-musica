@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-accent="naranja">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -13,7 +13,7 @@
     <title>Nuevo Reproductor de Música</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2rem; }
     </style>
@@ -484,17 +484,154 @@
         .search{ flex:1 1 100%; min-width:0; }
       }
     </style>
+    <style>
+      /* ================= v2.0 · Temas de color ================= */
+      :root{ --font-display:"Baloo 2", "Outfit", system-ui, sans-serif; }
+      :root[data-accent="violeta"]{ --acc:#7c3aed; --acc2:#b478f5; }
+      :root[data-accent="esmeralda"]{ --acc:#079669; --acc2:#2fce8f; }
+      :root[data-accent="azul"]{ --acc:#2470e0; --acc2:#45b6f0; }
+      :root[data-accent="rosa"]{ --acc:#e84393; --acc2:#ff8fb0; }
+      @media (prefers-color-scheme: dark){
+        :root[data-accent="violeta"]{ --acc:#a06bff; --acc2:#cda6ff; }
+        :root[data-accent="esmeralda"]{ --acc:#25c98d; --acc2:#74eebd; }
+        :root[data-accent="azul"]{ --acc:#5b97ff; --acc2:#8fd0ff; }
+        :root[data-accent="rosa"]{ --acc:#ff77ad; --acc2:#ffb1cd; }
+      }
+      /* Tipografía display v2.0: más grande y redonda para los títulos */
+      .top h1, .np-title h2, .stage h2, .detail-head h2, .empty h2, .sheet h3, .modal h3, .greet h2, .home-sec h3, .splash-name{ font-family:var(--font-display); }
+      .top h1{ font-size:31px; }
+      .np-title h2{ font-size:35px; }
+      .btn-acc{ box-shadow:0 8px 20px color-mix(in srgb, var(--acc) 34%, transparent); }
+      .mini .prog i{ box-shadow:0 0 8px color-mix(in srgb, var(--acc) 55%, transparent); }
+      .empty .art{ box-shadow:0 14px 30px color-mix(in srgb, var(--acc) 30%, transparent); }
+
+      /* Selector de tema: visible en la cabecera, se guarda como ajuste visual */
+      .theme-row{ max-width:1060px; margin:8px auto 0; display:flex; align-items:center; gap:10px; padding:2px 2px 4px; flex-wrap:wrap; }
+      .theme-lbl{ font-size:13px; font-weight:700; color:var(--muted); }
+      .swatches{ display:flex; gap:9px; }
+      .sw{ width:32px; height:32px; min-height:32px; border-radius:50%; background:linear-gradient(135deg, var(--sw1), var(--sw2)); box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 4px 10px rgba(0,0,0,.18); transition:transform .18s ease, box-shadow .18s ease; }
+      .sw:active{ transform:scale(.92); }
+      .sw.on{ box-shadow:0 0 0 2px var(--bg), 0 0 0 4.5px var(--sw1), 0 6px 14px rgba(0,0,0,.2); transform:scale(1.1); }
+      .theme-name{ font-size:13.5px; font-weight:600; color:var(--muted); }
+      @media (prefers-reduced-motion: reduce){ .sw{ transition:none; } }
+
+      /* Navegación flotante de cristal v2.0: la barra de pestañas flota abajo */
+      .tabs{
+        position:fixed; left:50%; transform:translateX(-50%); bottom:calc(10px + env(safe-area-inset-bottom)); z-index:44;
+        width:min(680px, calc(100% - 20px)); max-width:none; margin:0; padding:6px; gap:4px; overflow:visible;
+        background:color-mix(in srgb, var(--surface) 68%, transparent);
+        backdrop-filter:blur(20px) saturate(1.5); -webkit-backdrop-filter:blur(20px) saturate(1.5);
+        border:1px solid var(--line); border-radius:999px; box-shadow:var(--shadow);
+      }
+      .tab{ flex:1; background:transparent; border:1px solid transparent; box-shadow:none; padding:9px 6px; font-size:14.5px; text-align:center; }
+      .tab.on{ background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff; box-shadow:0 6px 16px color-mix(in srgb, var(--acc) 38%, transparent); }
+      @media (max-width:520px){ .tab{ font-size:13.5px; padding:9px 2px; } }
+      /* En el teléfono la cabecera y el estado vacío se compactan para que
+         ningún botón quede bajo la navegación flotante */
+      @media (max-width:520px){
+        .top h1{ font-size:27px; }
+        .theme-row{ margin-top:4px; }
+        .greet{ padding-top:8px; }
+        .greet h2{ font-size:26px; }
+        .empty{ padding:26px 20px 22px; margin-top:12px; }
+        .empty .art{ width:68px; height:68px; border-radius:22px; margin-bottom:12px; }
+        .empty .art .ic{ width:34px; height:34px; }
+        .empty h2{ font-size:20px; }
+        .empty p{ margin-bottom:14px; font-size:14px; }
+        .empty .hint{ margin-top:10px; }
+        .empty .cta{ flex-wrap:nowrap; gap:8px; }
+        .empty .cta .btn{ padding:8px 11px; font-size:13.5px; white-space:nowrap; }
+      }
+      .mini{ bottom:calc(84px + env(safe-area-inset-bottom)); z-index:46; }
+      .main{ padding:6px 16px 118px; scroll-padding-bottom:126px; }
+      body.has-track .main{ padding-bottom:206px; scroll-padding-bottom:214px; }
+      .toast{ bottom:calc(178px + env(safe-area-inset-bottom)); }
+
+      /* Pantalla de bienvenida v2.0: breve, se desvanece sola y nunca bloquea */
+      #splash{
+        position:fixed; inset:0; z-index:120; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+        background:var(--bg); pointer-events:none; animation:splashHide .55s ease 1.1s forwards;
+      }
+      .splash-logo{
+        width:98px; height:98px; border-radius:30px; background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 20px 44px color-mix(in srgb, var(--acc) 38%, transparent);
+        animation:splashPop .65s cubic-bezier(.22,.9,.3,1.15) both;
+      }
+      .splash-logo [data-ic]{ display:flex; }
+      .splash-logo .ic{ width:52px; height:52px; }
+      .splash-name{ font-size:31px; font-weight:800; letter-spacing:-.01em; line-height:1.1; text-align:center; padding:0 20px; }
+      .splash-sub{ color:var(--muted); font-size:14.5px; margin-top:-8px; }
+      @keyframes splashPop{ from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
+      @keyframes splashHide{ to{ opacity:0; visibility:hidden; } }
+      @media (prefers-reduced-motion: reduce){ #splash{ animation:splashHide .3s ease .3s forwards; } .splash-logo{ animation:none; } }
+
+      /* Inicio renovado v2.0: saludo y carruseles grandes */
+      .greet{ padding:14px 2px 2px; }
+      .greet h2{ margin:0; font-size:32px; font-weight:800; letter-spacing:-.01em; line-height:1.08; }
+      .greet p{ margin:5px 0 0; color:var(--muted); font-size:15px; }
+      .home-sec{ margin-top:20px; }
+      .home-sec-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 2px; }
+      .home-sec h3{ margin:0; font-size:22px; font-weight:800; }
+      .link-btn{ color:var(--acc); font-weight:700; font-size:14px; padding:8px 6px; min-height:40px; }
+      .rail{ display:flex; gap:14px; overflow-x:auto; padding:10px 2px 12px; scrollbar-width:none; scroll-snap-type:x proximity; }
+      .rail::-webkit-scrollbar{ display:none; }
+      .rail-card{ flex:0 0 148px; min-width:0; cursor:pointer; scroll-snap-align:start; border-radius:24px; padding:4px; margin:-4px; transition:transform .18s ease; -webkit-tap-highlight-color:transparent; }
+      .rail-card:active{ transform:scale(.97); }
+      .rail-card .cover{ width:148px; height:148px; border-radius:22px; font-size:52px; }
+      .rail-card.artist .cover{ border-radius:50%; }
+      .rail-card .t{ font-weight:700; font-size:14.5px; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .rail-card .a{ color:var(--muted); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      @media (prefers-reduced-motion: reduce){ .rail-card{ transition:none; } .rail-card:active{ transform:none; } }
+
+      /* Artista y Álbum inmersivos v2.0: cabecera grande con la portada difuminada */
+      .detail-hero{ position:relative; border-radius:26px; overflow:hidden; margin:12px 0 14px; color:#fff; box-shadow:var(--shadow); }
+      .detail-hero-bg{ position:absolute; inset:-42px; background-size:cover; background-position:center; filter:blur(34px) saturate(1.45) brightness(.82); transform:scale(1.08); }
+      .detail-hero-shade{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.38) 55%, rgba(0,0,0,.62)); }
+      .detail-hero-in{ position:relative; padding:12px 16px 20px; }
+      .detail-hero .back-row{ padding-top:2px; }
+      .detail-hero .back-row button{ color:#fff; background:rgba(255,255,255,.14); border-radius:999px; padding:8px 14px 8px 8px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
+      .detail-hero-main{ display:flex; gap:18px; align-items:flex-end; margin-top:10px; flex-wrap:wrap; }
+      .detail-hero .cover{ width:126px; height:126px; border-radius:24px; font-size:50px; box-shadow:0 22px 44px rgba(0,0,0,.45); }
+      .detail-hero h2{ margin:0; font-family:var(--font-display); font-size:clamp(29px, 6vw, 44px); font-weight:800; line-height:1.05; letter-spacing:-.01em; text-shadow:0 2px 16px rgba(0,0,0,.4); overflow-wrap:break-word; min-width:0; }
+      .detail-hero p{ margin:6px 0 2px; font-size:14.5px; opacity:.92; text-shadow:0 1px 10px rgba(0,0,0,.4); }
+
+      /* La portada vuela v2.0: transición de elemento compartido */
+      .fly-cover{ position:fixed; z-index:110; pointer-events:none; overflow:hidden; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.92); font-weight:800; box-shadow:0 24px 50px rgba(0,0,0,.35); will-change:transform; }
+      .fly-cover img{ width:100%; height:100%; object-fit:cover; }
+      .overlay.np-instant{ transition:none !important; }
+      .np.np-flying .np-cover{ animation:none !important; }
+      .np.np-flying .np-top, .np.np-flying .np-title, .np.np-flying .np-rate, .np.np-flying .seek, .np.np-flying .np-controls, .np.np-flying .vol, .np.np-flying .np-actions{ animation:npContentIn .5s ease .14s both; }
+      @keyframes npContentIn{ from{ opacity:0; } to{ opacity:1; } }
+      @media (prefers-reduced-motion: reduce){ .np.np-flying .np-top, .np.np-flying .np-title, .np.np-flying .np-rate, .np.np-flying .seek, .np.np-flying .np-controls, .np.np-flying .vol, .np.np-flying .np-actions{ animation:none; } }
+    </style>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <div class="splash-logo"><span data-ic="note"></span></div>
+      <div class="splash-name">Nuevo Reproductor</div>
+      <div class="splash-sub">Tu música, en tu dispositivo</div>
+    </div>
     <div id="halo" aria-hidden="true"></div>
     <div class="app">
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v1.9</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.0</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
+        </div>
+        <div class="theme-row">
+          <span class="theme-lbl" id="themeLbl">Tema</span>
+          <div class="swatches" role="group" aria-labelledby="themeLbl">
+            <button class="sw on" data-accent-btn="naranja" style="--sw1:#f0512f;--sw2:#ff9e4f" aria-label="Tema naranja" title="Naranja"></button>
+            <button class="sw" data-accent-btn="violeta" style="--sw1:#7c3aed;--sw2:#b478f5" aria-label="Tema violeta" title="Violeta"></button>
+            <button class="sw" data-accent-btn="esmeralda" style="--sw1:#079669;--sw2:#2fce8f" aria-label="Tema esmeralda" title="Esmeralda"></button>
+            <button class="sw" data-accent-btn="azul" style="--sw1:#2470e0;--sw2:#45b6f0" aria-label="Tema azul" title="Azul"></button>
+            <button class="sw" data-accent-btn="rosa" style="--sw1:#e84393;--sw2:#ff8fb0" aria-label="Tema rosa" title="Rosa"></button>
+          </div>
+          <span class="theme-name" id="themeName">Naranja</span>
         </div>
       </header>
 
@@ -847,7 +984,8 @@
       currentId: null,
       shuffle: false,
       repeat: 0,               // 0 no, 1 todo, 2 una
-      volume: 1
+      volume: 1,
+      accent: 'naranja'
     };
     const audio = $('#audio');
     audio.volume = 1;
@@ -863,9 +1001,28 @@
           volume: state.volume,
           lastTrackId: state.currentId,
           lastPosition: audio.currentTime || 0,
-          sort: state.sort, viewMode: state.viewMode
+          sort: state.sort, viewMode: state.viewMode, accent: state.accent
         }, 'settings');
       }catch(e){}
+    }
+    /* ================= Temas de color (v2.0) ================= */
+    const ACCENTS = {
+      naranja:   { name:'Naranja',   color:'#f0512f' },
+      violeta:   { name:'Violeta',   color:'#7c3aed' },
+      esmeralda: { name:'Esmeralda', color:'#079669' },
+      azul:      { name:'Azul',      color:'#2470e0' },
+      rosa:      { name:'Rosa',      color:'#e84393' }
+    };
+    function applyAccent(name, save){
+      if(!ACCENTS[name]) name = 'naranja';
+      state.accent = name;
+      document.documentElement.setAttribute('data-accent', name);
+      const tn = document.getElementById('themeName');
+      if(tn) tn.textContent = ACCENTS[name].name;
+      $$('[data-accent-btn]').forEach(b => b.classList.toggle('on', b.dataset.accentBtn === name));
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if(meta) meta.setAttribute('content', ACCENTS[name].color);
+      if(save) saveSettings();
     }
     async function saveTrackMeta(t){ try{ await dbPut('tracks', t); }catch(e){} }
     async function savePlaylist(pl){
@@ -1015,12 +1172,37 @@
       if(state.view === 'albums') return renderAlbums();
       if(state.view === 'playlists') return renderPlaylists();
     }
+    /* ================= Inicio renovado (v2.0) ================= */
+    function greetingText(){
+      const h = new Date().getHours();
+      const g = h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+      return g + ', Sando';
+    }
+    function greetHTML(){
+      return '<div class="greet"><h2>' + esc(greetingText()) + '</h2><p>Tu música está lista. ¿Qué quieres escuchar?</p></div>';
+    }
+    function homeHTML(){
+      if(state.search) return '';
+      let h = greetHTML();
+      const favs = favPlaylist();
+      if(favs.trackIds.length){
+        h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
+          favs.trackIds.slice(0, 12).map(id => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
+      }
+      const map = groupBy(t => t.artist);
+      const names = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
+      if(names.length){
+        h += '<div class="home-sec"><div class="home-sec-head"><h3>Tus artistas</h3></div><div class="rail">' +
+          names.slice(0, 12).map(n => { const ts = map.get(n); const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
+      }
+      return h;
+    }
     function renderSongs(){
       const all = Array.from(state.tracks.values());
-      if(!all.length){ content.innerHTML = emptyHTML('library'); bindContent(); return; }
+      if(!all.length){ content.innerHTML = greetHTML() + emptyHTML('library'); bindContent(); return; }
       const list = sortedTracks(all.filter(matchesSearch));
       if(!list.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      content.innerHTML = songListHTML(list);
+      content.innerHTML = homeHTML() + songListHTML(list);
       bindContent(list.map(t => t.id));
     }
     function groupBy(keyFn){
@@ -1114,9 +1296,22 @@
         actions += '<button class="btn btn-ghost" data-act="renamePlaylist">' + icon('pencil','sm') + 'Renombrar</button>' +
                    '<button class="btn btn-ghost" data-act="deletePlaylist">' + icon('trash','sm') + 'Borrar</button>';
       }
+      const immersive = (d.type === 'artist' || d.type === 'album') && !!repTrack;
+      let head;
+      if(immersive){
+        const cols = trackColors(repTrack);
+        const curl = state.coverUrls.get(repTrack.id);
+        const bgStyle = curl ? 'background-image:url("' + curl + '")' : 'background-image:linear-gradient(150deg,' + cols[0] + ',' + cols[1] + ')';
+        head = '<div class="detail-hero"><div class="detail-hero-bg" style="' + bgStyle + '"></div><div class="detail-hero-shade"></div><div class="detail-hero-in">' +
+          '<div class="back-row"><button data-act="back">' + icon('chevL') + 'Volver</button></div>' +
+          '<div class="detail-hero-main">' + cover + '<div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div></div>' +
+          '</div></div>';
+      } else {
+        head = '<div class="back-row"><button data-act="back">' + icon('chevL') + 'Volver</button></div>' +
+          '<div class="detail-head">' + cover + '<div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div></div>';
+      }
       content.innerHTML =
-        '<div class="back-row"><button data-act="back">' + icon('chevL') + 'Volver</button></div>' +
-        '<div class="detail-head">' + cover + '<div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div></div>' +
+        head +
         '<div class="detail-actions">' + actions + '</div>' +
         (tracks.length ? songListHTML(tracks) : emptyHTML(d.type === 'playlist' ? 'playlistEmpty' : 'search'));
       bindContent(tracks.map(t => t.id));
@@ -1134,9 +1329,79 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '1.9';
+    const APP_VERSION = '2.0';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
+    /* ============ La portada vuela (v2.0): elemento compartido ============ */
+    function coverSnapshot(fromEl){
+      if(!fromEl) return null;
+      const r = fromEl.getBoundingClientRect();
+      if(!r.width) return null;
+      const img = fromEl.querySelector('img');
+      return {
+        left: r.left, top: r.top, width: r.width, height: r.height,
+        bg: fromEl.style.background || '',
+        radius: window.getComputedStyle ? getComputedStyle(fromEl).borderRadius : '16px',
+        imgSrc: img ? img.src : null,
+        letter: img ? '' : (fromEl.textContent || '').trim().charAt(0)
+      };
+    }
+    function flyCoverToPlayer(snap){
+      if(!snap || reducedMotion) return;
+      let tries = 0;
+      const attempt = () => {
+        const npOpen = $('#np').classList.contains('open');
+        const ready = npOpen || $('#mini').classList.contains('show');
+        if(!ready){ if(tries++ < 45) requestAnimationFrame(attempt); return; }
+        const targetEl = npOpen ? $('#npCover') : $('#miniCover');
+        const tr = targetEl.getBoundingClientRect();
+        if(tr.width < 4) return;
+        const el = document.createElement('div');
+        el.className = 'fly-cover';
+        el.style.left = snap.left + 'px'; el.style.top = snap.top + 'px';
+        el.style.width = snap.width + 'px'; el.style.height = snap.height + 'px';
+        el.style.borderRadius = snap.radius || '16px';
+        el.style.background = snap.bg;
+        el.style.fontSize = Math.max(16, Math.round(snap.width * 0.4)) + 'px';
+        el.innerHTML = snap.imgSrc ? '<img src="' + snap.imgSrc + '" alt="" />' : '<span>' + esc(snap.letter || '♪') + '</span>';
+        document.body.appendChild(el);
+        const dx = tr.left - snap.left, dy = tr.top - snap.top;
+        const sx = tr.width / snap.width, sy = tr.height / snap.height;
+        try{
+          const anim = el.animate([
+            { transform: 'translate(0px, 0px) scale(1, 1)', opacity: 1 },
+            { transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + sx + ', ' + sy + ')', opacity: .97 }
+          ], { duration: 540, easing: 'cubic-bezier(.22,.9,.3,1)' });
+          anim.onfinish = () => el.remove();
+        }catch(e){ el.remove(); }
+        setTimeout(() => { if(el.parentNode) el.remove(); }, 1000);
+      };
+      requestAnimationFrame(attempt);
+    }
+    function openNowPlaying(){
+      if(!state.currentId) return;
+      const np = $('#np');
+      if(reducedMotion){ np.classList.add('open'); return; }
+      const from = $('#miniCover').getBoundingClientRect();
+      if(!from.width){ np.classList.add('open'); return; }
+      np.classList.add('open', 'np-instant', 'np-flying');
+      const cover = $('#npCover');
+      const tr = cover.getBoundingClientRect();
+      const dx = from.left - tr.left, dy = from.top - tr.top;
+      const s = Math.max(.05, from.width / tr.width);
+      cover.style.transition = 'none';
+      cover.style.transformOrigin = 'top left';
+      cover.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) scale(' + s + ')';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        cover.style.transition = 'transform .55s cubic-bezier(.22,.9,.3,1)';
+        cover.style.transform = '';
+        setTimeout(() => {
+          np.classList.remove('np-instant', 'np-flying');
+          cover.style.transition = '';
+          cover.style.transformOrigin = '';
+        }, 600);
+      }));
+    }
     function playContext(ids, startId, opts){
       opts = opts || {};
       state.baseQueue = ids.slice();
@@ -1373,6 +1638,7 @@
       document.body.classList.toggle('is-paused', !!t && !playing);
       if(!t) updateHalo(null);
       $('#mini').classList.toggle('show', !!t);
+      document.body.classList.toggle('has-track', !!t);
       document.title = t ? (playing ? '▶ ' : '') + t.title + ' · ' + t.artist : 'Nuevo Reproductor de Música';
       if(!t) return;
       // Mini
@@ -1504,7 +1770,7 @@
     });
     $('#npLike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'like'); });
     $('#npDislike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'dislike'); });
-    $('#mini').addEventListener('click', ()=>{ if(state.currentId) $('#np').classList.add('open'); });
+    $('#mini').addEventListener('click', openNowPlaying);
     $('#npClose').addEventListener('click', ()=> $('#np').classList.remove('open'));
     $('#btnQueueToggle').addEventListener('click', ()=>{
       const b = $('#queueBox'); b.classList.toggle('show'); renderQueue();
@@ -1678,6 +1944,15 @@
       if(rate){ e.stopPropagation(); rateCycle(rate.dataset.rate); return; }
       const more = e.target.closest('[data-more]');
       if(more){ e.stopPropagation(); songMenu(more.dataset.more); return; }
+      const favSong = e.target.closest('[data-favsong]');
+      if(favSong){
+        const snap = coverSnapshot(favSong.querySelector('.cover'));
+        playContext(favPlaylist().trackIds, favSong.dataset.favsong, { label:'Favoritas' });
+        flyCoverToPlayer(snap);
+        return;
+      }
+      const gotoFavs = e.target.closest('[data-goto-favs]');
+      if(gotoFavs){ state.view = 'playlists'; state.detail = { type:'playlist', key:'__favs' }; render(); $('#main').scrollTop = 0; return; }
       const act = e.target.closest('[data-act]');
       if(act){ handleAct(act.dataset.act); return; }
       const artist = e.target.closest('[data-artist]');
@@ -1688,8 +1963,10 @@
       if(pl){ state.detail = { type:'playlist', key: pl.dataset.playlist }; render(); $('#main').scrollTop = 0; return; }
       const song = e.target.closest('[data-song]');
       if(song){
+        const snap = coverSnapshot(song.querySelector('.cover'));
         const ctx = viewContextIds.length ? viewContextIds : Array.from(state.tracks.keys());
         playContext(ctx, song.dataset.song, { label:'' });
+        flyCoverToPlayer(snap);
       }
     });
     function rateCycle(id){
@@ -1736,6 +2013,7 @@
     $$('#tabs .tab').forEach(b => b.addEventListener('click', ()=>{
       state.view = b.dataset.view; state.detail = null; render();
     }));
+    $$('[data-accent-btn]').forEach(b => b.addEventListener('click', ()=> applyAccent(b.dataset.accentBtn, true)));
     let searchDeb = null;
     $('#searchInput').addEventListener('input', e => {
       clearTimeout(searchDeb);
@@ -1823,6 +2101,8 @@
 
     /* ================= Arranque ================= */
     (async function init(){
+      // Pantalla de bienvenida: se desvanece sola (CSS) y aquí se retira del DOM.
+      setTimeout(()=>{ const sp = document.getElementById('splash'); if(sp) sp.remove(); }, 2100);
       try{
         await openDB();
         const [tracks, playlists, settings] = await Promise.all([
@@ -1832,6 +2112,7 @@
         state.playlists = playlists.sort((a,b)=> a.createdAt - b.createdAt);
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
+          if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
           if(settings.sort){ state.sort = settings.sort; $('#sortSel').value = settings.sort; }
           if(settings.viewMode){
             state.viewMode = settings.viewMode;
