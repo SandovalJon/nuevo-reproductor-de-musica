@@ -640,6 +640,60 @@
         100%{ transform:translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(.25) rotate(120deg); opacity:0; }
       }
       @media (prefers-reduced-motion: reduce){ .burst{ display:none; } }
+
+      /* ================= v2.2 · Profundidad ================= */
+      /* Sombras con relieve: capas más ricas (contacto, cuerpo y halo de
+         color) para portadas y tarjetas, en la línea de las sombras de
+         color que ya existían. */
+      :root{
+        --shadow:0 2px 6px rgba(60,30,10,.07), 0 14px 28px -8px rgba(60,30,10,.16), 0 30px 60px -18px rgba(60,30,10,.22);
+        --shadow-soft:0 2px 5px rgba(60,30,10,.06), 0 10px 22px -6px rgba(60,30,10,.13), 0 20px 38px -14px rgba(60,30,10,.15);
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --shadow:0 2px 6px rgba(0,0,0,.35), 0 16px 32px -8px rgba(0,0,0,.5), 0 34px 64px -18px rgba(0,0,0,.55);
+          --shadow-soft:0 2px 5px rgba(0,0,0,.3), 0 10px 22px -6px rgba(0,0,0,.42), 0 20px 38px -14px rgba(0,0,0,.45);
+        }
+      }
+      .cover{
+        box-shadow:0 3px 8px rgba(30,15,5,.16), 0 14px 26px -8px var(--cover-glow, rgba(60,30,10,.28)), 0 26px 44px -16px var(--cover-glow, rgba(60,30,10,.28)), inset 0 0 0 1px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.22);
+      }
+      .card:hover{ box-shadow:var(--shadow); }
+      .group-row:hover{ box-shadow:var(--shadow-soft); }
+      .detail-hero .cover{ box-shadow:0 6px 14px rgba(0,0,0,.3), 0 26px 48px -10px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.16); }
+      .np-cover{ box-shadow:0 10px 24px rgba(0,0,0,.4), 0 34px 70px rgba(0,0,0,.55), 0 18px 52px -8px var(--np-c1); }
+      .stage-cover{ box-shadow:0 12px 28px rgba(0,0,0,.42), 0 40px 90px rgba(0,0,0,.6), 0 20px 60px -10px var(--np-c1); }
+
+      /* Portadas con inclinación 3D: al mantenerlas tocadas se inclinan
+         siguiendo el puntero, con un brillo que acompaña el ángulo; al
+         soltar, la transición propia de cada portada la devuelve suave. */
+      .tilting{ will-change:transform; }
+      .cover.tilting, .np-cover.tilting, .stage-cover.tilting{ transition:transform .12s ease-out, box-shadow .3s ease; }
+      .np-cover.tilting, .stage-cover.tilting{ animation:none !important; }
+      .cover::after, .np-cover::after, .stage-cover::after{
+        content:""; position:absolute; inset:0; z-index:3; pointer-events:none; opacity:0; transition:opacity .3s ease;
+        background:radial-gradient(circle at var(--shine-x, 50%) var(--shine-y, 50%), rgba(255,255,255,.38), rgba(255,255,255,.10) 42%, transparent 68%);
+      }
+      .cover.tilting::after, .np-cover.tilting::after, .stage-cover.tilting::after{ opacity:1; }
+      @media (prefers-reduced-motion: reduce){ .cover::after, .np-cover::after, .stage-cover::after{ display:none; } }
+
+      /* Escenario con fondo en capas y parallax suave: la portada
+         difuminada, la aurora y la viñeta se desplazan a ritmos distintos
+         según --par-x / --par-y (puntero u orientación del dispositivo). */
+      .stage{ --par-x:0; --par-y:0; }
+      .stage-bg{ transform:translate3d(calc(var(--par-x) * -9px), calc(var(--par-y) * -9px), 0); will-change:transform; }
+      .stage-aurora{
+        position:absolute; inset:-16%; z-index:1; pointer-events:none;
+        background:
+          radial-gradient(ellipse 52% 42% at 30% 28%, color-mix(in srgb, var(--np-c1) 55%, transparent), transparent 70%),
+          radial-gradient(ellipse 48% 52% at 72% 70%, color-mix(in srgb, var(--np-c2, var(--np-c1)) 60%, transparent), transparent 72%),
+          radial-gradient(ellipse 36% 34% at 74% 16%, color-mix(in srgb, var(--np-c1) 34%, transparent), transparent 70%);
+        filter:blur(28px); mix-blend-mode:screen; opacity:.45;
+        transform:translate3d(calc(var(--par-x) * 16px), calc(var(--par-y) * 16px), 0) scale(1.06);
+        will-change:transform;
+      }
+      .stage::after{ transform:translate3d(calc(var(--par-x) * -4px), calc(var(--par-y) * -4px), 0) scale(1.05); }
+      @media (prefers-reduced-motion: reduce){ .stage-bg, .stage-aurora, .stage::after{ transform:none; } }
     </style>
   </head>
   <body>
@@ -653,7 +707,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.1</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.2</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -755,7 +809,7 @@
 
     <!-- Stage mode -->
     <section class="overlay stage" id="stage" aria-label="Modo Escenario">
-      <div class="stage-bg" id="stageBg"><div class="stage-bg-layer" id="stageBgA"></div><div class="stage-bg-layer" id="stageBgB"></div></div>
+      <div class="stage-bg" id="stageBg"><div class="stage-bg-layer" id="stageBgA"></div><div class="stage-bg-layer" id="stageBgB"></div><div class="stage-aurora" aria-hidden="true"></div></div>
       <button class="stage-close" id="stageClose" aria-label="Salir del Modo Escenario"><span data-ic="x"></span></button>
       <div class="stage-in">
         <div class="stage-cover" id="stageCover"></div>
@@ -1386,7 +1440,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.1';
+    const APP_VERSION = '2.2';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -1677,6 +1731,55 @@
       if(id === state.currentId && $('#np').classList.contains('open')){ heartBurst($('#npLike')); return; }
       heartBurst(content.querySelector('[data-rate="' + id + '"]'));
     }
+    /* ============ Profundidad v2.2: inclinación 3D de portadas ============
+       Al mantener tocada una portada (biblioteca, detalle, cola y las
+       grandes de «Sonando ahora» y Escenario) se inclina en 3D siguiendo
+       el puntero, con un brillo que acompaña el ángulo; al soltar regresa
+       suave con la transición propia de la portada. Es solo visual: no se
+       intercepta ningún evento, así que el toque que reproduce la canción
+       y el desplazamiento de la lista funcionan exactamente igual. */
+    let tiltState = null;
+    function applyTilt(e){
+      if(!tiltState) return;
+      const r = tiltState.rect, el = tiltState.el;
+      if(!r.width || !r.height) return;
+      let px = (e.clientX - r.left) / r.width - .5;
+      let py = (e.clientY - r.top) / r.height - .5;
+      px = Math.max(-.5, Math.min(.5, px));
+      py = Math.max(-.5, Math.min(.5, py));
+      const maxA = r.width > 180 ? 10 : 16;
+      el.style.transform = 'perspective(720px) rotateX(' + (-py * maxA).toFixed(2) + 'deg) rotateY(' + (px * maxA).toFixed(2) + 'deg) scale(1.035)';
+      el.style.setProperty('--shine-x', ((px + .5) * 100).toFixed(1) + '%');
+      el.style.setProperty('--shine-y', ((py + .5) * 100).toFixed(1) + '%');
+    }
+    function endTilt(){
+      if(!tiltState) return;
+      const el = tiltState.el;
+      tiltState = null;
+      el.classList.remove('tilting');
+      el.style.transform = '';
+      el.style.removeProperty('--shine-x');
+      el.style.removeProperty('--shine-y');
+    }
+    document.addEventListener('pointerdown', e => {
+      if(motionReduced()) return;
+      if(e.button !== undefined && e.button > 0) return;
+      if(!e.target || !e.target.closest) return;
+      const el = e.target.closest('.cover, .np-cover, .stage-cover');
+      if(!el || el.id === 'miniCover') return;
+      endTilt();
+      tiltState = { el, id: e.pointerId, rect: el.getBoundingClientRect() };
+      el.classList.add('tilting');
+      applyTilt(e);
+    }, { passive:true });
+    document.addEventListener('pointermove', e => {
+      if(tiltState && e.pointerId === tiltState.id) applyTilt(e);
+    }, { passive:true });
+    document.addEventListener('pointerup', e => {
+      if(tiltState && e.pointerId === tiltState.id) endTilt();
+    }, { passive:true });
+    document.addEventListener('pointercancel', ()=> endTilt(), { passive:true });
+    window.addEventListener('blur', endTilt);
     async function setRating(id, rating){
       const t = getTrack(id); if(!t) return;
       t.rating = (t.rating === rating) ? null : rating;
@@ -1780,6 +1883,7 @@
       np.style.setProperty('--np-c1', c1);
       np.style.setProperty('--np-c2', c2);
       $('#stage').style.setProperty('--np-c1', c1);
+      $('#stage').style.setProperty('--np-c2', c2);
       $('#stage').style.setProperty('--np-c2', c2);
       updateHalo(t, c1, c2);
       const bgCss = immersiveBg(t, c1, c2);
@@ -1913,9 +2017,11 @@
       if(!state.currentId){ toast('Primero elige una canción.'); return; }
       $('#stage').classList.add('open');
       syncPlayerUI();
+      startStageParallax();
       try{ const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if(p && p.catch) p.catch(()=>{}); }catch(e){}
     }
     function closeStage(){
+      stopStageParallax();
       $('#stage').classList.remove('open');
       try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch(e){}
     }
@@ -1930,6 +2036,52 @@
         closeSheet();
       }
     });
+
+    /* ============ Profundidad v2.2: parallax suave del Escenario ============
+       Las capas del fondo (portada difuminada, aurora, viñeta) se desplazan
+       a ritmos distintos siguiendo el puntero o la inclinación del
+       dispositivo, con interpolación suave. El contenido no se mueve, así
+       que la legibilidad no cambia. Con movimiento reducido, no arranca. */
+    let parState = null;
+    function stageParallaxLoop(){
+      if(!parState) return;
+      const st = $('#stage');
+      if(!st || !st.classList.contains('open')){ parState = null; return; }
+      parState.cx += (parState.tx - parState.cx) * .06;
+      parState.cy += (parState.ty - parState.cy) * .06;
+      st.style.setProperty('--par-x', parState.cx.toFixed(3));
+      st.style.setProperty('--par-y', parState.cy.toFixed(3));
+      requestAnimationFrame(stageParallaxLoop);
+    }
+    function startStageParallax(){
+      if(motionReduced() || parState) return;
+      parState = { tx:0, ty:0, cx:0, cy:0 };
+      requestAnimationFrame(stageParallaxLoop);
+      // En iOS el sensor de orientación pide permiso: se solicita una sola
+      // vez, con el gesto de abrir el Escenario, y en silencio si se niega.
+      try{
+        if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && !startStageParallax._asked){
+          startStageParallax._asked = true;
+          const p = DeviceOrientationEvent.requestPermission();
+          if(p && p.catch) p.catch(()=>{});
+        }
+      }catch(e){}
+    }
+    function stopStageParallax(){
+      parState = null;
+      const st = $('#stage');
+      if(st){ st.style.setProperty('--par-x', '0'); st.style.setProperty('--par-y', '0'); }
+    }
+    document.addEventListener('pointermove', e => {
+      if(!parState) return;
+      parState.tx = Math.max(-1, Math.min(1, (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1));
+      parState.ty = Math.max(-1, Math.min(1, (e.clientY / Math.max(1, window.innerHeight)) * 2 - 1));
+    }, { passive:true });
+    window.addEventListener('deviceorientation', e => {
+      if(!parState || e.gamma == null || e.beta == null) return;
+      parState.tx = Math.max(-1, Math.min(1, e.gamma / 22));
+      parState.ty = Math.max(-1, Math.min(1, (e.beta - 42) / 22));
+    }, { passive:true });
 </script>
 
     <script>
