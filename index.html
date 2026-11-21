@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" data-accent="naranja">
+<html lang="es" data-accent="naranja" data-coversize="comodo" data-density="comoda" data-libbg="halo">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -694,6 +694,61 @@
       }
       .stage::after{ transform:translate3d(calc(var(--par-x) * -4px), calc(var(--par-y) * -4px), 0) scale(1.05); }
       @media (prefers-reduced-motion: reduce){ .stage-bg, .stage-aurora, .stage::after{ transform:none; } }
+
+      /* ================= v2.3 · A tu estilo ================= */
+      /* Sección «Apariencia» en la cabecera: tres ajustes solo visuales
+         (tamaño de portadas, densidad de la lista y fondo de la biblioteca)
+         que se guardan junto al tema de color y se aplican al abrir. */
+      .appearance-row{ max-width:1060px; margin:2px auto 0; display:flex; align-items:center; gap:8px 20px; padding:2px 2px 6px; flex-wrap:wrap; }
+      .ap-group{ display:flex; align-items:center; gap:8px; }
+      .ap-lbl{ font-size:13px; font-weight:700; color:var(--muted); white-space:nowrap; }
+      .aseg{ display:flex; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:3px; box-shadow:var(--shadow-soft); }
+      .aseg button{ padding:6px 12px; border-radius:999px; font-size:13px; font-weight:600; color:var(--muted); min-height:32px; white-space:nowrap; transition:background .2s ease, color .2s ease; }
+      .aseg button.on{ background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff; box-shadow:0 4px 12px color-mix(in srgb, var(--acc) 32%, transparent); }
+      .bgsw{ width:30px; height:30px; min-height:30px; border-radius:50%; background:linear-gradient(150deg, var(--bg1), var(--bg2)); box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 4px 10px rgba(0,0,0,.16); transition:transform .18s ease, box-shadow .18s ease; }
+      .bgsw:active{ transform:scale(.92); }
+      .bgsw.on{ box-shadow:0 0 0 2px var(--bg), 0 0 0 4.5px var(--bg2), 0 6px 14px rgba(0,0,0,.18); transform:scale(1.1); }
+      @media (prefers-reduced-motion: reduce){ .aseg button, .bgsw{ transition:none; } }
+      @media (max-width:520px){ .appearance-row{ gap:6px 14px; } .aseg button{ padding:6px 9px; font-size:12.5px; } }
+
+      /* Tamaño de portadas a elegir: cambia las portadas de la biblioteca
+         (lista, cuadrícula, grupos y carruseles del inicio). */
+      :root[data-coversize="compacto"] .row .cover{ width:46px; height:46px; border-radius:13px; font-size:19px; }
+      :root[data-coversize="grande"] .row .cover{ width:78px; height:78px; border-radius:19px; font-size:31px; }
+      :root[data-coversize="compacto"] .group-row .cover{ width:52px; height:52px; border-radius:15px; font-size:21px; }
+      :root[data-coversize="grande"] .group-row .cover{ width:84px; height:84px; border-radius:21px; font-size:33px; }
+      :root[data-coversize="compacto"] .grid{ grid-template-columns:repeat(3, 1fr); gap:16px 12px; }
+      :root[data-coversize="compacto"] .card .cover{ font-size:36px; }
+      :root[data-coversize="grande"] .card .cover{ font-size:58px; }
+      @media (min-width:560px){
+        :root[data-coversize="compacto"] .grid{ grid-template-columns:repeat(4, 1fr); }
+        :root[data-coversize="grande"] .grid{ grid-template-columns:repeat(2, 1fr); }
+      }
+      @media (min-width:860px){
+        :root[data-coversize="compacto"] .grid{ grid-template-columns:repeat(5, 1fr); }
+        :root[data-coversize="grande"] .grid{ grid-template-columns:repeat(3, 1fr); }
+      }
+      @media (min-width:1100px){
+        :root[data-coversize="compacto"] .grid{ grid-template-columns:repeat(6, 1fr); }
+        :root[data-coversize="grande"] .grid{ grid-template-columns:repeat(4, 1fr); }
+      }
+      :root[data-coversize="compacto"] .rail-card{ flex-basis:118px; }
+      :root[data-coversize="compacto"] .rail-card .cover{ width:118px; height:118px; border-radius:19px; font-size:42px; }
+      :root[data-coversize="grande"] .rail-card{ flex-basis:178px; }
+      :root[data-coversize="grande"] .rail-card .cover{ width:178px; height:178px; border-radius:25px; font-size:62px; }
+
+      /* Densidad de la lista: filas más juntas o con su aire de siempre. */
+      :root[data-density="compacta"] .row{ padding:6px 10px; gap:11px; border-radius:15px; }
+      :root[data-density="compacta"] .group-row{ padding:8px 10px; gap:12px; border-radius:15px; }
+      :root[data-density="compacta"] .q-row{ padding:5px 10px; }
+
+      /* Fondos de biblioteca a escoger: degradados sutiles sobre la zona de
+         la biblioteca; el halo de la canción actual sigue brillando detrás
+         y el texto se lee igual de bien en claro y en oscuro. */
+      :root[data-libbg="amanecer"] .main{ background:linear-gradient(180deg, rgba(255,176,84,.17), rgba(240,81,47,.07) 42%, transparent 78%); }
+      :root[data-libbg="oceano"] .main{ background:linear-gradient(180deg, rgba(56,150,235,.15), rgba(38,198,190,.07) 45%, transparent 78%); }
+      :root[data-libbg="bosque"] .main{ background:linear-gradient(180deg, rgba(46,170,110,.14), rgba(150,200,80,.06) 45%, transparent 78%); }
+      :root[data-libbg="crepusculo"] .main{ background:linear-gradient(180deg, rgba(150,90,235,.14), rgba(235,90,160,.07) 45%, transparent 78%); }
     </style>
   </head>
   <body>
@@ -707,7 +762,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.2</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.3</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -722,6 +777,34 @@
             <button class="sw" data-accent-btn="rosa" style="--sw1:#e84393;--sw2:#ff8fb0" aria-label="Tema rosa" title="Rosa"></button>
           </div>
           <span class="theme-name" id="themeName">Naranja</span>
+        </div>
+        <div class="appearance-row" aria-label="Apariencia">
+          <div class="ap-group">
+            <span class="ap-lbl" id="coverSizeLbl">Portadas</span>
+            <div class="aseg" role="group" aria-labelledby="coverSizeLbl">
+              <button data-coversize-btn="compacto">Compacto</button>
+              <button data-coversize-btn="comodo" class="on">Cómodo</button>
+              <button data-coversize-btn="grande">Grande</button>
+            </div>
+          </div>
+          <div class="ap-group">
+            <span class="ap-lbl" id="densityLbl">Lista</span>
+            <div class="aseg" role="group" aria-labelledby="densityLbl">
+              <button data-density-btn="comoda" class="on">Cómoda</button>
+              <button data-density-btn="compacta">Compacta</button>
+            </div>
+          </div>
+          <div class="ap-group">
+            <span class="ap-lbl" id="libBgLbl">Fondo</span>
+            <div class="swatches" role="group" aria-labelledby="libBgLbl">
+              <button class="bgsw on" data-libbg-btn="halo" style="--bg1:#faf6f2;--bg2:#e9ded2" aria-label="Fondo original" title="Original"></button>
+              <button class="bgsw" data-libbg-btn="amanecer" style="--bg1:#ffb054;--bg2:#f0512f" aria-label="Fondo amanecer" title="Amanecer"></button>
+              <button class="bgsw" data-libbg-btn="oceano" style="--bg1:#3896eb;--bg2:#26c6be" aria-label="Fondo océano" title="Océano"></button>
+              <button class="bgsw" data-libbg-btn="bosque" style="--bg1:#2eaa6e;--bg2:#96c850" aria-label="Fondo bosque" title="Bosque"></button>
+              <button class="bgsw" data-libbg-btn="crepusculo" style="--bg1:#965aeb;--bg2:#eb5aa0" aria-label="Fondo crepúsculo" title="Crepúsculo"></button>
+            </div>
+            <span class="theme-name" id="libBgName">Original</span>
+          </div>
         </div>
       </header>
 
@@ -1075,7 +1158,10 @@
       shuffle: false,
       repeat: 0,               // 0 no, 1 todo, 2 una
       volume: 1,
-      accent: 'naranja'
+      accent: 'naranja',
+      coverSize: 'comodo',
+      density: 'comoda',
+      libBg: 'halo'
     };
     const audio = $('#audio');
     audio.volume = 1;
@@ -1091,7 +1177,8 @@
           volume: state.volume,
           lastTrackId: state.currentId,
           lastPosition: audio.currentTime || 0,
-          sort: state.sort, viewMode: state.viewMode, accent: state.accent
+          sort: state.sort, viewMode: state.viewMode, accent: state.accent,
+          coverSize: state.coverSize, density: state.density, libBg: state.libBg
         }, 'settings');
       }catch(e){}
     }
@@ -1112,6 +1199,34 @@
       $$('[data-accent-btn]').forEach(b => b.classList.toggle('on', b.dataset.accentBtn === name));
       const meta = document.querySelector('meta[name="theme-color"]');
       if(meta) meta.setAttribute('content', ACCENTS[name].color);
+      if(save) saveSettings();
+    }
+    /* ================= Apariencia (v2.3 · A tu estilo) =================
+       Tres ajustes solo visuales que viven con el tema en el mismo apartado
+       de ajustes guardados: tamaño de portadas, densidad de la lista y
+       fondo degradado de la biblioteca. No tocan ningún dato musical. */
+    const COVER_SIZES = ['compacto', 'comodo', 'grande'];
+    const DENSITIES = ['comoda', 'compacta'];
+    const LIB_BGS = {
+      halo:       { name:'Original' },
+      amanecer:   { name:'Amanecer' },
+      oceano:     { name:'Océano' },
+      bosque:     { name:'Bosque' },
+      crepusculo: { name:'Crepúsculo' }
+    };
+    function applyAppearance(save){
+      if(!COVER_SIZES.includes(state.coverSize)) state.coverSize = 'comodo';
+      if(!DENSITIES.includes(state.density)) state.density = 'comoda';
+      if(!LIB_BGS[state.libBg]) state.libBg = 'halo';
+      const root = document.documentElement;
+      root.setAttribute('data-coversize', state.coverSize);
+      root.setAttribute('data-density', state.density);
+      root.setAttribute('data-libbg', state.libBg);
+      $$('[data-coversize-btn]').forEach(b => b.classList.toggle('on', b.dataset.coversizeBtn === state.coverSize));
+      $$('[data-density-btn]').forEach(b => b.classList.toggle('on', b.dataset.densityBtn === state.density));
+      $$('[data-libbg-btn]').forEach(b => b.classList.toggle('on', b.dataset.libbgBtn === state.libBg));
+      const bn = document.getElementById('libBgName');
+      if(bn) bn.textContent = LIB_BGS[state.libBg].name;
       if(save) saveSettings();
     }
     async function saveTrackMeta(t){ try{ await dbPut('tracks', t); }catch(e){} }
@@ -1440,7 +1555,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.2';
+    const APP_VERSION = '2.3';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2292,6 +2407,9 @@
       state.view = b.dataset.view; state.detail = null; render();
     }));
     $$('[data-accent-btn]').forEach(b => b.addEventListener('click', ()=> applyAccent(b.dataset.accentBtn, true)));
+    $$('[data-coversize-btn]').forEach(b => b.addEventListener('click', ()=>{ state.coverSize = b.dataset.coversizeBtn; applyAppearance(true); }));
+    $$('[data-density-btn]').forEach(b => b.addEventListener('click', ()=>{ state.density = b.dataset.densityBtn; applyAppearance(true); }));
+    $$('[data-libbg-btn]').forEach(b => b.addEventListener('click', ()=>{ state.libBg = b.dataset.libbgBtn; applyAppearance(true); }));
     let searchDeb = null;
     $('#searchInput').addEventListener('input', e => {
       clearTimeout(searchDeb);
@@ -2391,6 +2509,10 @@
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
           if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
+          if(settings.coverSize) state.coverSize = settings.coverSize;
+          if(settings.density) state.density = settings.density;
+          if(settings.libBg) state.libBg = settings.libBg;
+          applyAppearance(false);
           if(settings.sort){ state.sort = settings.sort; $('#sortSel').value = settings.sort; }
           if(settings.viewMode){
             state.viewMode = settings.viewMode;
