@@ -749,6 +749,86 @@
       :root[data-libbg="oceano"] .main{ background:linear-gradient(180deg, rgba(56,150,235,.15), rgba(38,198,190,.07) 45%, transparent 78%); }
       :root[data-libbg="bosque"] .main{ background:linear-gradient(180deg, rgba(46,170,110,.14), rgba(150,200,80,.06) 45%, transparent 78%); }
       :root[data-libbg="crepusculo"] .main{ background:linear-gradient(180deg, rgba(150,90,235,.14), rgba(235,90,160,.07) 45%, transparent 78%); }
+
+      /* ================= v2.4 · Detalles finos ================= */
+      /* Pantallas vacías ilustradas: resplandor suave del color de la app,
+         notitas flotantes decorativas y el icono central con su anillo
+         punteado girando despacio y un leve vaivén. Solo decoración: el
+         texto y los botones de cada estado vacío son los de siempre. */
+      .empty{
+        position:relative; overflow:hidden;
+        background:
+          radial-gradient(ellipse 75% 52% at 50% -6%, color-mix(in srgb, var(--acc) 11%, transparent), transparent 70%),
+          radial-gradient(ellipse 55% 40% at 88% 108%, color-mix(in srgb, var(--acc2) 10%, transparent), transparent 70%),
+          var(--surface);
+      }
+      .empty::before, .empty::after{
+        position:absolute; font-family:var(--font-display); font-weight:800; line-height:1;
+        color:var(--acc); opacity:.13; pointer-events:none;
+      }
+      .empty::before{ content:"♪"; font-size:66px; top:8px; left:14px; transform:rotate(-14deg); }
+      .empty::after{ content:"♫"; font-size:42px; bottom:10px; right:18px; transform:rotate(12deg); color:var(--acc2); }
+      .empty .art{ position:relative; animation:emptyFloat 5.5s ease-in-out infinite; }
+      .empty .art::before{
+        content:""; position:absolute; inset:-13px; border-radius:50%; pointer-events:none;
+        border:2px dashed color-mix(in srgb, var(--acc) 38%, transparent);
+        animation:emptyRing 16s linear infinite;
+      }
+      .empty .art::after{
+        content:""; position:absolute; top:-7px; right:-9px; width:13px; height:13px; border-radius:50%;
+        background:linear-gradient(135deg, var(--acc), var(--acc2));
+        box-shadow:0 3px 8px color-mix(in srgb, var(--acc) 45%, transparent);
+      }
+      @keyframes emptyFloat{ 0%,100%{ transform:translateY(0) rotate(-1.4deg); } 50%{ transform:translateY(-6px) rotate(1.4deg); } }
+      @keyframes emptyRing{ to{ transform:rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce){ .empty .art, .empty .art::before{ animation:none; } }
+
+      /* Brillos de carga (skeleton): filas fantasma con un brillo suave que
+         recorre la pantalla mientras la biblioteca abre; sustituyen a la
+         pantalla en blanco durante la carga inicial. */
+      .skel{ padding-top:12px; }
+      .skel-greet{ width:46%; max-width:300px; height:30px; border-radius:12px; margin:6px 2px 20px; }
+      .skel-row{ display:flex; align-items:center; gap:13px; padding:10px; }
+      .skel-cover{ width:60px; height:60px; border-radius:16px; flex:none; }
+      .skel-meta{ flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; }
+      .skel-line{ height:13px; border-radius:7px; }
+      .skel-line.short{ height:11px; }
+      .skel-chip{ width:34px; height:13px; border-radius:7px; flex:none; }
+      .skel-block{
+        background:linear-gradient(100deg, var(--surface2) 38%, color-mix(in srgb, var(--surface2) 35%, var(--surface)) 50%, var(--surface2) 62%);
+        background-size:220% 100%;
+        animation:skelShine 1.5s ease-in-out infinite;
+      }
+      @keyframes skelShine{ from{ background-position:120% 0; } to{ background-position:-120% 0; } }
+      @media (prefers-reduced-motion: reduce){ .skel-block{ animation:none; } }
+
+      /* Avisos (toasts) rediseñados: tarjeta flotante de cristal con los
+         colores de la app y un puntito de acento; mismo texto y duración. */
+      .toast{
+        display:flex; align-items:center; justify-content:center; gap:10px;
+        background:color-mix(in srgb, var(--surface) 82%, transparent);
+        backdrop-filter:blur(18px) saturate(1.45); -webkit-backdrop-filter:blur(18px) saturate(1.45);
+        color:var(--ink); border:1px solid var(--line); border-radius:18px;
+        padding:13px 20px; box-shadow:var(--shadow);
+      }
+      .toast::before{
+        content:""; width:9px; height:9px; border-radius:50%; flex:none;
+        background:linear-gradient(135deg, var(--acc), var(--acc2));
+        box-shadow:0 0 10px color-mix(in srgb, var(--acc) 65%, transparent);
+      }
+
+      /* Insignias visuales en las canciones: «Favorita» (con «Me gusta») y
+         «Recién agregada» (de la última semana), calculadas solo con los
+         datos que ya guarda cada canción. Solo se ven; no cambian nada. */
+      .badges{ display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
+      .badge{
+        display:inline-flex; align-items:center; gap:4px;
+        font-size:11px; font-weight:700; letter-spacing:.01em; line-height:1;
+        padding:4px 8px; border-radius:999px; white-space:nowrap;
+      }
+      .badge .ic{ width:11px; height:11px; }
+      .badge.fav{ background:color-mix(in srgb, var(--acc) 15%, transparent); color:var(--acc); }
+      .badge.new{ background:color-mix(in srgb, var(--ok) 15%, transparent); color:var(--ok); }
     </style>
   </head>
   <body>
@@ -762,7 +842,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.3</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.4</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1333,13 +1413,23 @@
       const q = state.search.toLowerCase();
       return t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q) || t.album.toLowerCase().includes(q);
     }
+    /* Insignias visuales v2.4: solo se calculan con datos que ya existen —
+       la marca de «Me gusta» y la fecha en que la canción se agregó. */
+    const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+    function badgesHTML(t){
+      let h = '';
+      if(t.rating === 'like') h += '<span class="badge fav">' + icon('heart') + 'Favorita</span>';
+      const age = t.addedAt ? Date.now() - t.addedAt : Infinity;
+      if(age >= 0 && age < RECENT_MS) h += '<span class="badge new">' + icon('clock') + 'Recién agregada</span>';
+      return h ? '<div class="badges">' + h + '</div>' : '';
+    }
     function songRowHTML(t){
       const playing = t.id === state.currentId;
       const likeCls = t.rating === 'like' ? 'like' : (t.rating === 'dislike' ? 'dislike' : '');
       const heartIcon = t.rating === 'like' ? 'heart' : (t.rating === 'dislike' ? 'heartSlash' : 'heartO');
       return '<div class="row ' + (playing ? 'playing' : '') + ' ' + (isDisliked(t) ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-song="' + t.id + '">' +
         coverHTML(t) +
-        '<div class="meta"><div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') + '</div></div>' +
+        '<div class="meta"><div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') + '</div>' + badgesHTML(t) + '</div>' +
         '<span class="dur">' + fmt(t.duration) + '</span>' +
         '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="Me gusta / No me gusta">' + icon(heartIcon) + '</button>' +
         '<button class="more" data-more="' + t.id + '" aria-label="Más opciones">' + icon('more') + '</button></div>';
@@ -1348,11 +1438,22 @@
       const playing = t.id === state.currentId;
       return '<div class="card ' + (playing ? 'playing' : '') + ' ' + (isDisliked(t) ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-song="' + t.id + '">' +
         coverHTML(t) +
-        '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>';
+        '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div>' + badgesHTML(t) + '</div>';
     }
     function songListHTML(tracks, contextIds){
       if(state.viewMode === 'grid') return '<div class="grid">' + tracks.map(songCardHTML).join('') + '</div>';
       return '<div class="rows">' + tracks.map(songRowHTML).join('') + '</div>';
+    }
+    /* Brillos de carga v2.4: filas fantasma mientras la biblioteca abre */
+    function skeletonHTML(){
+      let rows = '';
+      for(let i = 0; i < 6; i++){
+        rows += '<div class="skel-row"><div class="skel-block skel-cover"></div>' +
+          '<div class="skel-meta"><div class="skel-block skel-line" style="width:' + (52 + (i * 13) % 34) + '%"></div>' +
+          '<div class="skel-block skel-line short" style="width:' + (34 + (i * 7) % 22) + '%"></div></div>' +
+          '<div class="skel-block skel-chip"></div></div>';
+      }
+      return '<div class="skel" aria-hidden="true"><div class="skel-block skel-greet"></div>' + rows + '</div>';
     }
     function emptyHTML(kind){
       if(kind === 'search') return '<div class="empty"><div class="art">' + icon('search') + '</div><h2>Nada por aquí</h2><p>No encontré canciones que coincidan con tu búsqueda. Prueba con otro título, artista o álbum.</p></div>';
@@ -1555,7 +1656,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.3';
+    const APP_VERSION = '2.4';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2499,6 +2600,9 @@
     (async function init(){
       // Pantalla de bienvenida: se desvanece sola (CSS) y aquí se retira del DOM.
       setTimeout(()=>{ const sp = document.getElementById('splash'); if(sp) sp.remove(); }, 2100);
+      // Brillos de carga v2.4: mientras la biblioteca abre, filas fantasma
+      // con brillo suave en lugar de una pantalla en blanco.
+      content.innerHTML = skeletonHTML();
       try{
         await openDB();
         const [tracks, playlists, settings] = await Promise.all([
