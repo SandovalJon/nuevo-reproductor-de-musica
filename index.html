@@ -604,6 +604,42 @@
       .np.np-flying .np-top, .np.np-flying .np-title, .np.np-flying .np-rate, .np.np-flying .seek, .np.np-flying .np-controls, .np.np-flying .vol, .np.np-flying .np-actions{ animation:npContentIn .5s ease .14s both; }
       @keyframes npContentIn{ from{ opacity:0; } to{ opacity:1; } }
       @media (prefers-reduced-motion: reduce){ .np.np-flying .np-top, .np.np-flying .np-title, .np.np-flying .np-rate, .np.np-flying .seek, .np.np-flying .np-controls, .np.np-flying .vol, .np.np-flying .np-actions{ animation:none; } }
+
+      /* ================= v2.1 · Movimiento ================= */
+      /* Transiciones direccionales: la pantalla nueva entra desde el lado
+         hacia el que «viaja» la navegación (avanzar: desde la derecha;
+         volver: desde la izquierda). Sin cambio de vista, se mantiene el
+         fundido + deslizamiento vertical de siempre (.screen-in). */
+      @keyframes screenInFwd{ from{ opacity:0; transform:translateX(34px); } to{ opacity:1; transform:none; } }
+      @keyframes screenInBack{ from{ opacity:0; transform:translateX(-34px); } to{ opacity:1; transform:none; } }
+      #content.screen-fwd{ animation:screenInFwd .38s cubic-bezier(.22,.9,.32,1) both; }
+      #content.screen-back{ animation:screenInBack .38s cubic-bezier(.22,.9,.32,1) both; }
+      @media (prefers-reduced-motion: reduce){ #content.screen-fwd, #content.screen-back{ animation:none; } }
+
+      /* Efecto onda (ripple): una ondita de color se expande desde el punto
+         de toque en los botones; es solo visual, no toca ningún comportamiento. */
+      .rip-host{ position:relative; overflow:hidden; }
+      .ripple{
+        position:absolute; border-radius:50%; pointer-events:none; z-index:0;
+        background:currentColor; opacity:.22; transform:scale(0);
+        animation:rippleGo .55s ease-out forwards;
+      }
+      @keyframes rippleGo{ to{ transform:scale(1); opacity:0; } }
+      @media (prefers-reduced-motion: reduce){ .ripple{ display:none; } }
+
+      /* Estallido del corazón de Favoritas: chispitas breves al marcar «Me gusta» */
+      .burst{ position:fixed; z-index:130; width:0; height:0; pointer-events:none; }
+      .burst i{
+        position:absolute; left:0; top:0; border-radius:50%;
+        transform:translate(-50%,-50%) scale(1); opacity:1;
+        animation:burstGo .65s cubic-bezier(.17,.67,.35,1) forwards;
+      }
+      .burst i.dia{ border-radius:2px; }
+      @keyframes burstGo{
+        0%{ transform:translate(-50%,-50%) scale(1) rotate(0deg); opacity:1; }
+        100%{ transform:translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(.25) rotate(120deg); opacity:0; }
+      }
+      @media (prefers-reduced-motion: reduce){ .burst{ display:none; } }
     </style>
   </head>
   <body>
@@ -617,7 +653,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v2.0</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v2.1</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1156,12 +1192,33 @@
       return '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Tu escenario está vacío</h2><p>Agrega las canciones que ya tienes en tu teléfono o computadora. Se guardan <strong>solo en este dispositivo</strong>, sin subir nada a internet, y estarán aquí cuando vuelvas.</p><div class="cta"><button class="btn btn-acc" data-act="addFiles">' + icon('plus','sm') + 'Elegir archivos</button><button class="btn btn-ghost" data-act="addFolder">' + icon('folder','sm') + 'Elegir carpeta</button></div><p class="hint">También puedes arrastrar y soltar tus archivos aquí.</p></div>';
     }
 
+    /* Movimiento direccional v2.1: recuerda la última vista/detalle para
+       saber si la navegación avanza (entra desde la derecha), vuelve
+       (desde la izquierda) o es la misma pantalla (fundido vertical). */
+    const VIEW_ORDER = ['songs', 'artists', 'albums', 'playlists'];
+    let lastNav = null;
+    function navDirection(){
+      const cur = { view: state.view, detail: state.detail ? state.detail.type + ':' + state.detail.key : null };
+      const prev = lastNav;
+      lastNav = cur;
+      if(!prev) return '';
+      if(prev.view === cur.view && prev.detail === cur.detail) return '';
+      if(!prev.detail && cur.detail) return 'fwd';   // abrir un detalle: avanza
+      if(prev.detail && !cur.detail) return 'back';  // cerrar el detalle: vuelve
+      if(prev.detail && cur.detail) return 'fwd';    // de un detalle a otro: avanza
+      const d = VIEW_ORDER.indexOf(cur.view) - VIEW_ORDER.indexOf(prev.view);
+      return d > 0 ? 'fwd' : (d < 0 ? 'back' : '');
+    }
     function render(){
-      // Movimiento entre pantallas: cada cambio de vista entra con fundido + deslizamiento
+      // Movimiento entre pantallas: deslizamiento direccional según el viaje
       if(content){
         const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if(!rm){ content.classList.remove('screen-in'); void content.offsetWidth; }
-        content.classList.add('screen-in');
+        const dir = navDirection();
+        content.classList.remove('screen-in', 'screen-fwd', 'screen-back');
+        if(!rm){
+          void content.offsetWidth;
+          content.classList.add(dir === 'fwd' ? 'screen-fwd' : dir === 'back' ? 'screen-back' : 'screen-in');
+        }
       }
       $$('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
       $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
@@ -1329,7 +1386,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '2.0';
+    const APP_VERSION = '2.1';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -1553,6 +1610,73 @@
       }
       syncPlayerUI(); renderQueue();
     }
+    /* ================= Movimiento v2.1: onda y estallido ================= */
+    function motionReduced(){
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    /* Efecto onda: al tocar un botón, una ondita de su propio color se
+       expande desde el punto exacto del toque. Solo visual. */
+    document.addEventListener('pointerdown', e => {
+      if(motionReduced()) return;
+      if(e.button !== undefined && e.button !== 0) return;
+      if(!e.target || !e.target.closest) return;
+      const host = e.target.closest('button, [role="button"]');
+      if(!host || host.disabled || host.tagName === 'SELECT') return;
+      const rect = host.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      host.classList.add('rip-host');
+      const d = Math.max(rect.width, rect.height) * 2.2;
+      const s = document.createElement('span');
+      s.className = 'ripple';
+      s.setAttribute('aria-hidden', 'true');
+      s.style.width = d + 'px';
+      s.style.height = d + 'px';
+      s.style.left = (e.clientX - rect.left - d / 2) + 'px';
+      s.style.top = (e.clientY - rect.top - d / 2) + 'px';
+      host.appendChild(s);
+      setTimeout(()=>{ s.remove(); }, 650);
+    }, { passive:true });
+    /* Estallido del corazón: chispitas breves alrededor del corazón cuando
+       una canción se marca como favorita. Al quitarla, no hay estallido. */
+    function heartBurst(el){
+      if(!el || motionReduced()) return;
+      const r = el.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if(cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return;
+      const box = document.createElement('div');
+      box.className = 'burst';
+      box.setAttribute('aria-hidden', 'true');
+      box.style.left = cx + 'px';
+      box.style.top = cy + 'px';
+      const colors = ['var(--acc)', '#ff5b7f', '#ffb340', 'var(--acc2)'];
+      for(let i = 0; i < 10; i++){
+        const p = document.createElement('i');
+        const ang = (Math.PI * 2 * i) / 10 + Math.random() * .5;
+        const dist = 26 + Math.random() * 24;
+        const sz = 4 + Math.random() * 4;
+        p.style.width = sz + 'px';
+        p.style.height = sz + 'px';
+        p.style.background = colors[i % colors.length];
+        if(i % 3 === 2) p.className = 'dia';
+        p.style.setProperty('--bx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+        p.style.setProperty('--by', (Math.sin(ang) * dist).toFixed(1) + 'px');
+        box.appendChild(p);
+      }
+      document.body.appendChild(box);
+      setTimeout(()=>{ box.remove(); }, 750);
+      if(el.animate){
+        el.animate(
+          [{ transform:'scale(1)' }, { transform:'scale(1.28)' }, { transform:'scale(1)' }],
+          { duration:380, easing:'cubic-bezier(.22,.9,.32,1.2)' }
+        );
+      }
+    }
+    function heartBurstFor(id){
+      // Si «Sonando ahora» está abierto, el corazón que se ve es el suyo.
+      if(id === state.currentId && $('#np').classList.contains('open')){ heartBurst($('#npLike')); return; }
+      heartBurst(content.querySelector('[data-rate="' + id + '"]'));
+    }
     async function setRating(id, rating){
       const t = getTrack(id); if(!t) return;
       t.rating = (t.rating === rating) ? null : rating;
@@ -1566,6 +1690,8 @@
         }
       } else if(t.rating === 'like'){ toast('«' + t.title + '» se queda en la rotación ❤'); }
       syncPlayerUI(); render();
+      // Estallido v2.1: solo al marcar favorita, nunca al quitarla
+      if(t.rating === 'like') heartBurstFor(id);
     }
 
     /* ================= Sincronizar interfaces ================= */
