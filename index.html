@@ -660,6 +660,13 @@
       .sheet-item:hover{ background:var(--surface2); }
       .sheet-item .ic{ color:var(--muted); }
       .sheet-item.danger{ color:var(--danger); } .sheet-item.danger .ic{ color:var(--danger); }
+      /* v4.7 · Sincronización de calificaciones */
+      .sync-dot{ width:9px; height:9px; border-radius:50%; background:#2fce8f; flex:none; box-shadow:0 0 0 3px color-mix(in srgb, #2fce8f 25%, transparent); }
+      .sync-line{ display:flex; align-items:center; gap:9px; margin:0 6px 10px; font-size:14.5px; line-height:1.45; }
+      .sync-line.muted{ color:var(--muted); font-size:13.5px; }
+      .sync-state{ width:10px; height:10px; border-radius:50%; background:var(--muted); flex:none; }
+      .sync-state.on{ background:#2fce8f; }
+      .sync-note{ margin:14px 6px 2px; padding:12px 14px; background:var(--surface2); border-radius:14px; color:var(--muted); font-size:13.5px; line-height:1.55; }
       .modal{
         position:fixed; inset:0; z-index:72; display:none; align-items:center; justify-content:center; padding:20px;
       }
@@ -1953,7 +1960,8 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.6</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.7</span>
+          <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2186,6 +2194,7 @@
       refresh:'M17.65 6.35A8 8 0 1 0 19.73 14h-2.08a6 6 0 1 1-1.41-6.24L13 11h7V4l-2.35 2.35z',
       check:'M9.55 16.05 4.9 11.4a1.68 1.68 0 0 0-2.38 2.38l6.15 6.15a1.68 1.68 0 0 0 2.38 0L21.4 9.58a1.68 1.68 0 0 0-2.38-2.38L9.55 16.05z',
       clock:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z',
+      cloud:'M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.99 5.99 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z',
       sparkle:'M12 2l2.1 6.9L21 11l-6.9 2.1L12 20l-2.1-6.9L3 11l6.9-2.1zM19.2 15.6l.85 2.75 2.75.85-2.75.85-.85 2.75-.85-2.75-2.75-.85 2.75-.85z'
     };
     function icon(name, cls){
@@ -2608,6 +2617,9 @@
       if(added && skipped) toast('Se agregaron ' + added + ' canciones · ' + skipped + ' omitidas (repetidas o con error).', 3600);
       else if(added) toast(added === 1 ? 'Se agregó 1 canción a tu biblioteca.' : 'Se agregaron ' + added + ' canciones a tu biblioteca.', 3200);
       else toast('Esas canciones ya estaban en tu biblioteca.');
+      // v4.7: una canción recién agregada hereda su calificación si su
+      // huella ya está en el mapa (p. ej. tras «Vaciar biblioteca»).
+      if(added) syncApplyToTracks();
     }
 
     /* ================= Render de la biblioteca ================= */
@@ -3006,7 +3018,7 @@
        render() y el resto vive en el CSS de la ronda) y el
        esqueleto de carga con acabado de cristal. Solo
        presentación: ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.6';
+    const APP_VERSION = '4.7';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3358,6 +3370,7 @@
       const t = getTrack(id); if(!t) return;
       t.rating = (t.rating === rating) ? null : rating;
       await saveTrackMeta(t);
+      syncNoteRating(t); // v4.7: el cambio entra al mapa de sincronización
       if(t.rating === 'dislike'){
         toast('«' + t.title + '» quedó fuera de la rotación');
         if(id === state.currentId && !audio.paused){
@@ -4213,6 +4226,303 @@
       }
     });
 
+    /* ================= Sincronización de calificaciones (v4.7) =================
+       Las calificaciones (Me gusta / No me gusta) se guardan también en la
+       nube con la cuenta de Google, para que sean las mismas en todos los
+       dispositivos. La música NUNCA se sube: solo viaja un mapa
+       huella → calificación, y la huella es artista|título|duración, así
+       la misma canción se reconoce en cualquier dispositivo aunque su ID
+       local sea distinto. El SDK de Firebase se carga solo cuando hace
+       falta; si no carga (sin conexión, CDN caído), la app sigue 100%
+       local como siempre, con un aviso honesto en la hoja. */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAUgyp7onjZkOYWM9jBmrgSWSLQCkoUG6s",
+      authDomain: "sonando-dd064.firebaseapp.com",
+      projectId: "sonando-dd064",
+      storageBucket: "sonando-dd064.firebasestorage.app",
+      messagingSenderId: "638865917438",
+      appId: "1:638865917438:web:daf969e48609184cbb6caf"
+    };
+    const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    let ratingsMap = {};        // huella -> {r:'like'|'dislike'|'', t:ms}
+    let syncUser = null;        // usuario de Firebase o null
+    let syncReady = false;      // SDK cargado e inicializado
+    let syncFailed = false;     // el SDK no pudo cargar
+    let syncLastAt = 0;         // última sincronización (ms)
+    let syncUnsub = null;       // baja del listener en vivo
+    let syncUploadTimer = null;
+    let syncLastHash = '';      // hash del último mapa subido o bajado
+    let syncApplying = false;   // aplicando cambios que bajaron de la nube
+    let syncStartedFor = null;  // uid con la fusión inicial ya hecha
+    let syncBootWanted = false; // había sesión (o redirección) al arrancar
+    let syncSdkPromise = null;
+
+    function fpNorm(s){
+      return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+    function trackFingerprint(t){
+      return fpNorm(t.artist) + '|' + fpNorm(t.title) + '|' + Math.round(t.duration || 0);
+    }
+    function ratingsHash(map){
+      const keys = Object.keys(map).sort();
+      let s = '';
+      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.r : '') + '@' + (e ? e.t : 0) + ';'; }
+      return String(hashStr(s));
+    }
+    async function syncSaveLocal(){
+      try{ await dbPut('kv', ratingsMap, 'ratingsMap'); }catch(e){}
+    }
+    async function syncSaveMeta(){
+      try{ await dbPut('kv', { signedIn: !!syncUser, email: syncUser ? (syncUser.email || '') : '', lastSync: syncLastAt }, 'syncMeta'); }catch(e){}
+    }
+    async function syncLoadLocal(){
+      try{
+        const m = await dbGet('kv', 'ratingsMap');
+        if(m && typeof m === 'object') ratingsMap = m;
+        const meta = await dbGet('kv', 'syncMeta');
+        if(meta){
+          if(typeof meta.lastSync === 'number') syncLastAt = meta.lastSync;
+          syncBootWanted = !!(meta.signedIn || meta.pendingRedirect);
+        }
+      }catch(e){}
+      // Semilla: las canciones calificadas antes de la v4.7 entran al mapa
+      // con marca 0, para que cualquier dato real (de este dispositivo o
+      // de la nube, con su marca de tiempo) siempre las gane.
+      let seeded = false;
+      state.tracks.forEach(t => {
+        if(!t.rating) return;
+        const fp = trackFingerprint(t);
+        if(!ratingsMap[fp]){ ratingsMap[fp] = { r: t.rating, t: 0 }; seeded = true; }
+      });
+      if(seeded) syncSaveLocal();
+    }
+    function mergeRatings(a, b){
+      const out = {};
+      for(const k in a) out[k] = a[k];
+      for(const k in b){
+        if(!out[k] || (b[k].t || 0) >= (out[k].t || 0)) out[k] = b[k];
+      }
+      return out;
+    }
+    // Aplica el mapa a todas las canciones locales que coincidan por huella.
+    async function syncApplyToTracks(){
+      let changed = false;
+      const byFp = {};
+      state.tracks.forEach(t => {
+        const fp = trackFingerprint(t);
+        (byFp[fp] = byFp[fp] || []).push(t);
+      });
+      for(const fp in ratingsMap){
+        const e = ratingsMap[fp]; if(!e) continue;
+        const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
+        const list = byFp[fp]; if(!list) continue;
+        for(const t of list){
+          if(t.rating !== want){ t.rating = want; await saveTrackMeta(t); changed = true; }
+        }
+      }
+      if(changed){ render(); if(typeof syncPlayerUI === 'function') syncPlayerUI(); }
+      return changed;
+    }
+    // Cada cambio de calificación pasa por aquí (lo llama setRating):
+    // entra al mapa local siempre, haya sesión o no, y sube si hay sesión.
+    function syncNoteRating(t){
+      if(!t) return;
+      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: Date.now() };
+      syncSaveLocal();
+      if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+    }
+    function syncScheduleUpload(){
+      clearTimeout(syncUploadTimer);
+      syncUploadTimer = setTimeout(syncUpload, 1200);
+    }
+    function syncDocRef(){
+      return firebase.firestore().doc('users/' + syncUser.uid + '/data/ratings');
+    }
+    async function syncUpload(){
+      if(!syncUser || !syncReady) return;
+      const h = ratingsHash(ratingsMap);
+      if(h === syncLastHash) return;
+      try{
+        await syncDocRef().set({ ratings: ratingsMap });
+        syncLastHash = h;
+        syncLastAt = Date.now();
+        syncSaveMeta();
+        syncRefreshSheet();
+      }catch(e){ /* sin conexión: se reintenta con el próximo cambio */ }
+    }
+    function loadScript(src){
+      return new Promise((res, rej)=>{
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = () => res();
+        s.onerror = () => rej(new Error('sdk'));
+        document.head.appendChild(s);
+      });
+    }
+    function syncEnsureFirebase(){
+      if(syncReady) return Promise.resolve(true);
+      if(!syncSdkPromise){
+        syncSdkPromise = (async () => {
+          try{
+            if(typeof firebase === 'undefined' || !firebase.initializeApp){
+              await loadScript(FB_SDK + 'firebase-app-compat.js');
+              await loadScript(FB_SDK + 'firebase-auth-compat.js');
+              await loadScript(FB_SDK + 'firebase-firestore-compat.js');
+            }
+            if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            try{ await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
+            syncReady = true;
+            // Si volvemos de un acceso por redirección, aquí se recoge.
+            try{ await firebase.auth().getRedirectResult(); }catch(e){}
+            firebase.auth().onAuthStateChanged(u => { syncOnAuth(u); });
+            return true;
+          }catch(e){
+            syncFailed = true;
+            syncSdkPromise = null;
+            return false;
+          }
+        })();
+      }
+      return syncSdkPromise;
+    }
+    async function syncOnAuth(u){
+      syncUser = u || null;
+      syncUpdateDot();
+      syncRefreshSheet();
+      if(!u){
+        if(syncUnsub){ syncUnsub(); syncUnsub = null; }
+        syncStartedFor = null;
+        syncSaveMeta();
+        return;
+      }
+      syncSaveMeta();
+      if(syncStartedFor === u.uid) return;
+      syncStartedFor = u.uid;
+      await syncInitialMerge();
+      if(syncUnsub) syncUnsub();
+      try{
+        syncUnsub = syncDocRef().onSnapshot(snap => { syncOnRemote(snap); }, () => {});
+      }catch(e){}
+    }
+    // Al iniciar sesión: leer la nube, fusionar por marca de tiempo,
+    // aplicar a las canciones locales, guardar y subir el mapa fusionado.
+    async function syncInitialMerge(){
+      if(!syncUser) return;
+      try{
+        const snap = await syncDocRef().get();
+        const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
+        ratingsMap = mergeRatings(ratingsMap, remote);
+        await syncSaveLocal();
+        await syncApplyToTracks();
+        syncLastHash = ''; // forzar la subida del mapa fusionado
+        await syncUpload();
+        syncLastAt = Date.now();
+        syncSaveMeta();
+        toast('Calificaciones sincronizadas ☁');
+      }catch(e){
+        toast('No se pudo sincronizar ahora; tus calificaciones siguen en este dispositivo.', 3600);
+      }
+      syncRefreshSheet();
+    }
+    // Cambios que llegan de otro dispositivo: se fusionan igual y NO se
+    // re-sube lo que acaba de bajar (el hash bajado queda registrado).
+    async function syncOnRemote(snap){
+      if(!snap || !snap.exists || !syncUser) return;
+      const remote = (snap.data() && snap.data().ratings) || {};
+      const rh = ratingsHash(remote);
+      if(rh === syncLastHash) return; // es lo que acabamos de subir
+      syncApplying = true;
+      try{
+        ratingsMap = mergeRatings(ratingsMap, remote);
+        syncLastHash = rh;
+        await syncSaveLocal();
+        await syncApplyToTracks();
+        syncLastAt = Date.now();
+        syncSaveMeta();
+      }catch(e){}
+      syncApplying = false;
+      // Si la fusión dejó algo local más nuevo que la nube, sí se sube.
+      if(ratingsHash(ratingsMap) !== rh) syncScheduleUpload();
+      syncRefreshSheet();
+    }
+    function syncUseRedirect(){
+      try{
+        if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+        if(window.navigator.standalone === true) return true;
+      }catch(e){}
+      return window.innerWidth < 700;
+    }
+    async function syncSignIn(){
+      const ok = await syncEnsureFirebase();
+      if(!ok){
+        toast('La sincronización necesita conexión para cargar. Tu música sigue sonando igual.', 3600);
+        syncRefreshSheet();
+        return;
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try{
+        if(syncUseRedirect()){
+          try{ await dbPut('kv', { signedIn: false, pendingRedirect: true, lastSync: syncLastAt }, 'syncMeta'); }catch(e){}
+          await firebase.auth().signInWithRedirect(provider);
+        } else {
+          await firebase.auth().signInWithPopup(provider);
+        }
+      }catch(e){
+        toast('No se pudo iniciar sesión. Inténtalo de nuevo.', 3200);
+      }
+    }
+    async function syncSignOut(){
+      if(syncUnsub){ syncUnsub(); syncUnsub = null; }
+      syncStartedFor = null;
+      try{ if(syncReady) await firebase.auth().signOut(); }catch(e){}
+      syncUser = null;
+      syncSaveMeta();
+      syncUpdateDot();
+      syncRefreshSheet();
+      toast('Sesión cerrada. Tus calificaciones quedan como están en este dispositivo.', 3400);
+    }
+    function syncUpdateDot(){
+      const d = document.getElementById('syncDot');
+      if(d) d.hidden = !syncUser;
+    }
+    function syncFmtLast(){
+      if(!syncLastAt) return 'Aún sin sincronizar en este dispositivo';
+      try{ return 'Última sincronización: ' + new Date(syncLastAt).toLocaleString(); }
+      catch(e){ return 'Última sincronización: hace un momento'; }
+    }
+    function syncRefreshSheet(){
+      // Solo repinta si la hoja abierta es la de sincronización.
+      if(sheet.classList.contains('show') && sheet.querySelector('.sync-note')) openSyncSheet();
+    }
+    function openSyncSheet(){
+      let body = '<h3>Sincronización</h3>' +
+        '<p class="sub">Tus calificaciones, iguales en todos tus dispositivos.</p>';
+      if(syncFailed){
+        body += '<p class="sync-line">No se pudo cargar la sincronización (sin conexión o servicio no disponible). La app sigue funcionando 100% local, como siempre.</p>';
+      } else if(syncUser){
+        body += '<p class="sync-line"><span class="sync-state on"></span><span>Conectado como <strong>' + esc(syncUser.email || 'tu cuenta de Google') + '</strong></span></p>' +
+          '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
+          '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
+      } else {
+        body += '<p class="sync-line"><span class="sync-state"></span><span>Sin sesión</span></p>' +
+          '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
+          '<button class="sheet-item" id="syncIn">' + icon('cloud') + 'Iniciar sesión con Google</button>';
+      }
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista, título y duración de cada canción. Tu música nunca se sube a internet.</p>';
+      openSheet(body);
+      const bi = document.getElementById('syncIn');
+      if(bi) bi.addEventListener('click', syncSignIn);
+      const bo = document.getElementById('syncOut');
+      if(bo) bo.addEventListener('click', syncSignOut);
+    }
+    const btnSyncEl = document.getElementById('btnSync');
+    if(btnSyncEl) btnSyncEl.addEventListener('click', () => {
+      openSyncSheet();
+      // El SDK se carga al abrir la hoja; si ya había sesión guardada,
+      // el estado se refleja solo en cuanto Firebase Auth responde.
+      syncEnsureFirebase().then(ok => { if(!ok) syncRefreshSheet(); });
+    });
+
     /* ================= Arranque ================= */
     (async function init(){
       // Pantalla de bienvenida: se desvanece sola (CSS) y aquí se retira del DOM.
@@ -4227,6 +4537,7 @@
         ]);
         tracks.forEach(t => state.tracks.set(t.id, t));
         state.playlists = playlists.sort((a,b)=> a.createdAt - b.createdAt);
+        await syncLoadLocal(); // v4.7: mapa local de calificaciones (kv)
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
           if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
@@ -4251,6 +4562,9 @@
           state.queue = [id]; state.baseQueue = [id]; state.qIndex = 0;
           await loadTrack(id, false, settings.lastPosition || 0);
         }
+        // v4.7: si había sesión guardada (o volvemos de la redirección de
+        // acceso), el SDK se carga solo para retomarla; si no, ni se toca.
+        if(syncBootWanted) syncEnsureFirebase();
       }catch(err){
         content.innerHTML = '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Algo salió mal al abrir tu biblioteca</h2><p>Tu música sigue guardada en este dispositivo. Cierra y vuelve a abrir la página para intentarlo de nuevo.</p></div>';
       }
