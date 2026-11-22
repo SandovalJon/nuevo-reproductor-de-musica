@@ -1753,6 +1753,113 @@
         .rail-card.hero .cover{ width:176px; height:176px; font-size:62px; }
       }
     </style>
+    <style>
+      /* ============ v4.5 · Gracia ============
+         Ronda del plan hasta la 4.5 — solo visual e interfaz, sin
+         funciones nuevas, sin rendimiento y sin cambios de datos.
+         1) TRANSICIONES ENTRE PESTAÑAS Y VISTAS, pulidas: el paso
+         entre Canciones/Artistas/Álbumes/Playlists y al abrir o
+         cerrar un detalle deja de ser un salto con entrada — la
+         vista que SALE se desvanece en un respiro brevísimo
+         (125 ms) desplazándose apenas en la dirección del viaje
+         (las clases .view-out-* las pone render() solo cuando la
+         navegación cambia de pantalla) y la que ENTRA llega con
+         un fundido direccional más corto y suave que el de la
+         v2.1: 18 px en vez de 34, curva de salida elegante sin
+         rebotes (cubic-bezier(.22,1,.36,1)) y 0.34 s en total,
+         sin esperas perceptibles. La cascada de entrada de filas
+         de la v2.8 se conserva intacta y sigue a la entrada.
+         «Sonando ahora» y el Escenario heredan la misma gracia:
+         su desplazamiento usa la misma curva y el contenido del
+         Escenario (y la columna principal de «Sonando ahora»,
+         sin tocar la portada que vuela de la v2.0) entra con un
+         fundido mínimo acompañando al panel; las hojas y su
+         velo comparten la curva.
+         2) ESTADOS DE CARGA más finos: el esqueleto gana el
+         acabado de cristal de la app — superficie con degradado
+         suave, filo de luz superior, borde con la línea de
+         siempre y sombra asentada —, sus piezas se redondean
+         como píldoras, y el brillo que lo recorre es más ancho,
+         más suave y con un ritmo más pausado (1.9 s), escalonado
+         fila a fila; su brevedad de siempre no cambia (solo se
+         ve mientras la biblioteca abre).
+         3) Con prefers-reduced-motion, todo lo anterior se
+         apaga: los cambios de vista son instantáneos (render()
+         ya no pone la salida ni la entrada) y el brillo del
+         esqueleto queda quieto, como manda la app desde la
+         v2.4. */
+
+      /* 1a · La salida: fundido brevísimo con desplazamiento
+         mínimo en la dirección del movimiento. */
+      @keyframes screenOutFwd{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(-10px); } }
+      @keyframes screenOutBack{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(10px); } }
+      #content.view-out-fwd{ animation:screenOutFwd .13s ease-in both; pointer-events:none; }
+      #content.view-out-back{ animation:screenOutBack .13s ease-in both; pointer-events:none; }
+
+      /* 1b · La entrada, refinada: menos desplazamiento, curva
+         elegante sin rebote y un pelín más breve que la v2.1.
+         Los @keyframes redefinidos aquí son los que usan las
+         clases .screen-in/.screen-fwd/.screen-back de siempre. */
+      @keyframes screenIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+      @keyframes viewIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+      @keyframes screenInFwd{ from{ opacity:0; transform:translateX(18px); } to{ opacity:1; transform:none; } }
+      @keyframes screenInBack{ from{ opacity:0; transform:translateX(-18px); } to{ opacity:1; transform:none; } }
+      #content.screen-in{ animation:screenIn .34s cubic-bezier(.22,1,.36,1) both; }
+      #content.screen-in .rows, #content.screen-in .grid{ animation:viewIn .34s cubic-bezier(.22,1,.36,1) both; }
+      #content.screen-fwd{ animation:screenInFwd .34s cubic-bezier(.22,1,.36,1) both; }
+      #content.screen-back{ animation:screenInBack .34s cubic-bezier(.22,1,.36,1) both; }
+
+      /* 1c · Los paneles («Sonando ahora» y Escenario) y las
+         hojas, con la misma curva de gracia; en los overlays se
+         conserva la transición de color de la v3.8. El contenido
+         del Escenario y el principal de «Sonando ahora» acompañan
+         con un fundido mínimo; la portada-vinilo no se toca
+         (su vuelo de la v2.0 sigue mandando al abrir). */
+      .overlay{ transition:transform .44s cubic-bezier(.22,1,.36,1); }
+      .np, .stage{ transition:transform .44s cubic-bezier(.22,1,.36,1), --np-c1 .9s ease, --np-c2 .9s ease; }
+      .sheet{ transition:transform .36s cubic-bezier(.22,1,.36,1); }
+      .scrim{ transition:opacity .3s ease; }
+      @keyframes gracePanelIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+      .stage.open .stage-in{ animation:gracePanelIn .45s cubic-bezier(.22,1,.36,1) both; }
+      .np.open:not(.np-flying) .np-col-main{ animation:gracePanelIn .4s cubic-bezier(.22,1,.36,1) both; }
+
+      /* 2 · El esqueleto, con acabado de cristal: superficie en
+         degradado suave, filo de luz, borde y sombra; piezas en
+         píldora y portada al radio de las filas; brillo más
+         ancho y suave, con ritmo pausado y escalonado por fila. */
+      .skel{ animation:graceSkelIn .35s ease both; }
+      @keyframes graceSkelIn{ from{ opacity:0; } to{ opacity:1; } }
+      .skel-greet{ border-radius:14px; }
+      .skel-cover{ border-radius:18px; }
+      .skel-line, .skel-chip{ border-radius:999px; }
+      .skel-block{
+        background:linear-gradient(180deg, color-mix(in srgb, var(--surface) 62%, var(--surface2)), var(--surface2));
+        box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--line) 65%, transparent), inset 0 1px 0 rgba(255,255,255,.16), 0 8px 18px -12px rgba(60,30,10,.25);
+      }
+      .skel-block::after{
+        background:linear-gradient(100deg, transparent 28%, color-mix(in srgb, var(--surface) 45%, transparent) 44%, color-mix(in srgb, var(--surface) 88%, transparent) 50%, color-mix(in srgb, var(--surface) 45%, transparent) 56%, transparent 72%);
+        animation-duration:1.9s;
+      }
+      .skel-row:nth-child(2) .skel-block::after{ animation-delay:.07s; }
+      .skel-row:nth-child(3) .skel-block::after{ animation-delay:.14s; }
+      .skel-row:nth-child(4) .skel-block::after{ animation-delay:.21s; }
+      .skel-row:nth-child(5) .skel-block::after{ animation-delay:.28s; }
+      .skel-row:nth-child(6) .skel-block::after{ animation-delay:.35s; }
+      .skel-row:nth-child(7) .skel-block::after{ animation-delay:.42s; }
+
+      /* 3 · Movimiento reducido: nada de lo nuevo se mueve —
+         ni salida, ni entrada, ni fundidos de panel, ni la
+         aparición del esqueleto (su brillo ya quedaba quieto
+         desde la v2.4). */
+      @media (prefers-reduced-motion: reduce){
+        #content.view-out-fwd, #content.view-out-back,
+        #content.screen-in, #content.screen-fwd, #content.screen-back,
+        #content.screen-in .rows, #content.screen-in .grid{ animation:none; }
+        .overlay, .np, .stage, .sheet, .scrim{ transition:none; }
+        .stage.open .stage-in, .np.open:not(.np-flying) .np-col-main{ animation:none; }
+        .skel{ animation:none; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1782,7 +1889,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.4</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.5</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2584,14 +2691,43 @@
       void content.offsetWidth;
       content.classList.add('cascade');
     }
+    /* v4.5 · Gracia: la vista que sale se desvanece antes de pintar
+       la que entra. viewLeaving bloquea salidas encadenadas y
+       pendingInDir conserva la dirección del viaje entre la salida
+       y la entrada (navDirection ya habrá registrado el destino). */
+    let viewLeaving = false;
+    let pendingInDir = '';
     function render(){
       paintToken++; // v3.2: cancela las tandas pendientes de la vista anterior
       // Movimiento entre pantallas: deslizamiento direccional según el viaje
       let dir = '';
       if(content){
         const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        dir = navDirection();
-        content.classList.remove('screen-in', 'screen-fwd', 'screen-back');
+        const hadPending = !!pendingInDir;
+        dir = hadPending ? pendingInDir : navDirection();
+        pendingInDir = '';
+        /* Salida elegante v4.5: solo al cambiar de pantalla (dir),
+           con contenido ya pintado y sin movimiento reducido, la
+           vista actual se funde 125 ms en la dirección contraria
+           al viaje y entonces se pinta la nueva; las pestañas y la
+           barra se actualizan al instante, como siempre. Los
+           repintados de la misma pantalla nunca pasan por aquí. */
+        if(dir && renderedOnce && !rm && !viewLeaving && !hadPending && content.firstElementChild){
+          viewLeaving = true;
+          pendingInDir = dir;
+          $$('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+          $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
+          $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+          content.classList.remove('screen-in', 'screen-fwd', 'screen-back', 'cascade');
+          content.classList.add(dir === 'fwd' ? 'view-out-fwd' : 'view-out-back');
+          setTimeout(()=>{
+            content.classList.remove('view-out-fwd', 'view-out-back');
+            viewLeaving = false;
+            render();
+          }, 125);
+          return;
+        }
+        content.classList.remove('view-out-fwd', 'view-out-back', 'screen-in', 'screen-fwd', 'screen-back');
         if(!rm){
           void content.offsetWidth;
           content.classList.add(dir === 'fwd' ? 'screen-fwd' : dir === 'back' ? 'screen-back' : 'screen-in');
@@ -2798,7 +2934,15 @@
        un botón junto a «Todo en aleatorio» que arranca una cola mezclada
        solo con las canciones sin calificar. Es un arranque filtrado, no
        un modo nuevo: la biblioteca y su estructura no cambian. */
-    const APP_VERSION = '4.4';
+    /* v4.4 · Inicio con presencia: banda de marca en el inicio y
+       primera tarjeta de cada carrusel destacada (solo CSS y la
+       estructura del saludo). Solo presentación. */
+    /* v4.5 · Gracia: transiciones entre pestañas y vistas con
+       salida y entrada direccionales pulidas (la salida la pone
+       render() y el resto vive en el CSS de la ronda) y el
+       esqueleto de carga con acabado de cristal. Solo
+       presentación: ninguna función ni ningún dato cambian. */
+    const APP_VERSION = '4.5';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
