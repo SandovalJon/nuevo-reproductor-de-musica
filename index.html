@@ -2025,7 +2025,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.22</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.23</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2507,22 +2507,28 @@
     const isDisliked = t => t && t.rating === 'dislike';
     /* v4.21 · Marca «No me gusta» SOLO de una copia, propia de la vista
        Duplicadas: vive en la ficha de esa copia (dupDislike), no en su
-       calificación ni en el mapa de sincronización. Las copias de un
-       grupo pueden compartir la huella de la sincro (artista|título), y
-       la aplicación de la v4.15 reparte la calificación de una huella
-       entre todas sus copias: si la marca de una versión viajara por
-       esa vía, al reabrir caería también sobre la copia que Sando se
-       quiere quedar. Por eso la marca es por copia y solo por copia:
-       isPurgeMarked es quien la suma al «No me gusta» de siempre a la
-       hora de borrar en conjunto. */
+       calificación. Las copias de un grupo pueden compartir la huella
+       de la sincro (artista|título), y la aplicación de la v4.15
+       reparte la calificación de una huella entre todas sus copias:
+       si la marca de una versión viajara por esa vía, caería también
+       sobre la copia que Sando se quiere quedar.
+       v4.23 · A petición de Sando («pero no se sincronizan esos
+       dislike por duplicados»), la marca SÍ se sincroniza desde esta
+       versión — pero por un mapa propio (dupMarksMap, en el bloque
+       de sincronización), identificado por copia con el nombre y el
+       tamaño de su archivo, jamás por la huella de calificaciones:
+       en el otro dispositivo cae solo sobre la copia con el mismo
+       archivo y tamaño, y la copia que se queda no se entera.
+       isPurgeMarked es quien la suma al «No me gusta» de siempre a
+       la hora de borrar en conjunto. */
     const isDupMarked = t => !!(t && t.dupDislike);
     const isPurgeMarked = t => !!(t && (t.rating === 'dislike' || t.dupDislike));
     /* v4.22 · «Quedarme con las 2»: Sando encontró un grupo cuyas
        versiones quiere conservar TODAS, pero quiere que deje de
        aparecer en Duplicadas. La decisión se guarda por copia con
-       otro campo opcional de la ficha (dupKeep), igual de local
-       que dupDislike: no borra nada, no toca calificaciones ni la
-       sincronización. Un grupo se considera conservado —y sale de
+       otro campo opcional de la ficha (dupKeep), solo local (esta
+       decisión no se sincroniza): no borra nada ni toca las
+       calificaciones. Un grupo se considera conservado —y sale de
        la vista— solo cuando TODAS sus copias llevan la marca; si
        más adelante llega otra versión de esa canción (sin marca),
        el grupo vuelve a aparecer para que la revise. */
@@ -2749,7 +2755,9 @@
       else toast('Esas canciones ya estaban en tu biblioteca.');
       // v4.7: una canción recién agregada hereda su calificación si su
       // huella ya está en el mapa (p. ej. tras «Vaciar biblioteca»).
-      if(added) syncApplyToTracks();
+      // v4.23: y hereda su marca de duplicado si su archivo (nombre y
+      // tamaño) ya estaba marcado en el mapa de marcas.
+      if(added){ syncApplyToTracks(); syncApplyDupMarks(); }
     }
 
     /* ================= Render de la biblioteca ================= */
@@ -3249,7 +3257,7 @@
       const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
       const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
       const dislikedCount = all.filter(isPurgeMarked).length;
-      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones. Y si de un grupo quieres quedarte con todas sus versiones, pulsa «Quedarme con las 2» en su cabecera: no se borra nada y el grupo deja de aparecer aquí.</p></div>';
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: la marca se sincroniza con tus demás dispositivos y cae solo sobre esa misma versión (se reconoce por su archivo), nunca sobre la copia que te quieres quedar; las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones. Y si de un grupo quieres quedarte con todas sus versiones, pulsa «Quedarme con las 2» en su cabecera: no se borra nada y el grupo deja de aparecer aquí.</p></div>';
       if(dislikedCount){
         h += '<div class="dup-purge"><button class="btn btn-danger-soft" data-dup-purge-disliked>' + icon('trash','sm') + 'Borrar las que no me gustan (' + dislikedCount + ')</button></div>';
       }
@@ -3277,18 +3285,24 @@
        copia ya trae el «No me gusta» de siempre (su calificación), el
        botón lo quita por esa misma vía (setRating). Si no, el botón
        mueve SOLO la marca por copia (dupDislike): se guarda en la
-       ficha con saveTrackMeta, no toca la calificación, no entra al
-       mapa de sincronización y no se extiende a las demás copias del
-       grupo aunque compartan huella — la copia que Sando se queda
-       queda a salvo. La copia marcada se sigue pudiendo escuchar
-       aquí para comparar, y sale de este dispositivo con «Borrar
-       las que no me gustan» (isPurgeMarked), igual que cualquier
-       otra canción con «No me gusta». */
+       ficha con saveTrackMeta y no toca la calificación.
+       v4.23 · La marca se sincroniza por el mapa de marcas
+       (syncNoteDupMark), con su marca de tiempo en la ficha
+       (dupDislikeAt): viaja a los demás dispositivos identificada
+       por el nombre y el tamaño del archivo de ESTA copia, nunca por
+       la huella compartida del grupo, así que no se extiende a las
+       demás copias — la que Sando se queda queda a salvo. La copia
+       marcada se sigue pudiendo escuchar aquí para comparar, y sale
+       de este dispositivo con «Borrar las que no me gustan»
+       (isPurgeMarked), igual que cualquier otra canción con
+       «No me gusta». */
     async function toggleDupDislike(id){
       const t = getTrack(id); if(!t) return;
       if(t.rating === 'dislike'){ setRating(id, 'dislike'); return; }
       t.dupDislike = t.dupDislike ? null : true;
+      t.dupDislikeAt = Date.now();
       const saved = await saveTrackMeta(t);
+      await syncNoteDupMark(t); // v4.23: la marca (o su retirada) entra al mapa de marcas y sube si hay sesión
       if(!saved) toast('La marca no se pudo guardar en este dispositivo.', 4200);
       else if(t.dupDislike) toast('«' + t.title + '» se borrará junto con las que no te gustan');
       else toast('«' + t.title + '» ya no está marcada para borrar');
@@ -3298,8 +3312,8 @@
        conservar TODAS las versiones de un grupo y que el grupo
        desaparezca de Duplicadas. No se borra nada: cada copia del
        grupo recibe su marca dupKeep en su ficha (saveTrackMeta),
-       tan local como dupDislike — no entra al mapa de
-       sincronización ni sube a la nube — y duplicateGroups() deja
+       solo local — no entra a ningún mapa de sincronización ni
+       sube a la nube — y duplicateGroups() deja
        de mostrar los grupos cuyas copias la llevan todas. Si
        mañana agrega otra versión de esa canción, vendrá sin marca
        y el grupo reaparecerá para que la revise. */
@@ -3330,7 +3344,9 @@
       // v4.21: quedarse con una copia le quita su marca por copia, si
       // la tenía: es la que se queda, no debe caer en la próxima
       // barrida de «Borrar las que no me gustan».
-      if(keep.dupDislike){ keep.dupDislike = null; saveTrackMeta(keep); }
+      // v4.23: esa retirada también se sincroniza (syncNoteDupMark),
+      // para que la copia quede desmarcada en todos los dispositivos.
+      if(keep.dupDislike){ keep.dupDislike = null; keep.dupDislikeAt = Date.now(); saveTrackMeta(keep); syncNoteDupMark(keep); }
       const others = group.filter(t => t.id !== keepId);
       if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); return; }
       const freed = others.reduce((s, t) => s + (t.size || 0), 0);
@@ -3572,7 +3588,30 @@
        nueva de esa canción, sin marca, el grupo reaparece solo
        para su revisión. Sin tocar la agrupación (dupKey), la
        huella de la sincro, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.22';
+    /* v4.23 · Pedido por Sando: «pero no se sincronizan esos dislike
+       por duplicados». Tenía razón: la marca por copia de Duplicadas
+       (v4.21) era solo local a propósito, para que la sincro por
+       huella no se la pasara a la copia buena. Ahora SÍ se sincroniza,
+       por un camino propio y seguro: un segundo mapa en el mismo
+       documento de la nube (dupMarks, junto a ratings), guardado en
+       este dispositivo como «dupMarksMap», cuyas claves identifican
+       cada copia por el nombre y el tamaño de su archivo —la misma
+       identidad que la importación ya usa para reconocer un mismo
+       archivo— y nunca por la huella artista|título. Al bajar, cada
+       marca cae solo sobre la copia con ese archivo y tamaño; la
+       copia que Sando se queda, con otro archivo u otro tamaño, no
+       se entera, y el mapa de calificaciones no se toca. Marcar y
+       desmarcar llevan marca de tiempo (dupDislikeAt en la ficha) y
+       manda la más reciente, con las guardias de antigüedad de
+       siempre; desmarcar calificando la copia (setRating) o con
+       «Quedarme con esta» también viaja. Las marcas hechas con la
+       v4.21/v4.22 entran al mapa como semilla al abrir y suben en la
+       primera sincronización. La hoja de Sincronización cuenta las
+       marcas de duplicados de este dispositivo y de la nube.
+       dupKeep («Quedarme con las 2») sigue siendo solo local: no era
+       lo pedido. Sin tocar la agrupación (dupKey), la huella de la
+       sincro de calificaciones, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.23';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3926,7 +3965,11 @@
       // v4.21: calificar la copia con el «Me gusta»/«No me gusta» de
       // siempre sustituye a su marca por copia de Duplicadas: a partir
       // de aquí manda la calificación (y su sincronización).
-      if(t.dupDislike) t.dupDislike = null;
+      // v4.23: la retirada de la marca también se anota en el mapa de
+      // marcas, para que la copia quede desmarcada en los demás
+      // dispositivos igual que aquí.
+      const hadDupMark = !!t.dupDislike;
+      if(t.dupDislike){ t.dupDislike = null; t.dupDislikeAt = Date.now(); }
       // v4.12: la ficha guarda cuándo cambió su calificación; la sincro
       // solo podrá borrarla ante una descalificación explícita con una
       // marca posterior a esta (ver syncApplyToTracks).
@@ -3934,6 +3977,7 @@
       const saved = await saveTrackMeta(t);
       if(!saved) toast('Tu calificación no se pudo guardar en este dispositivo.', 4200);
       await syncNoteRating(t); // v4.7: el cambio entra al mapa de sincronización · v4.13: se espera a que el mapa quede guardado
+      if(hadDupMark) await syncNoteDupMark(t); // v4.23: la desmarcada de la copia también viaja a los demás dispositivos
       if(t.rating === 'dislike'){
         toast('«' + t.title + '» quedó fuera de la rotación');
         if(id === state.currentId && !audio.paused){
@@ -4903,6 +4947,8 @@
     };
     const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
     let ratingsMap = {};        // huella (artista|título) -> {r:'like'|'dislike'|'', t:ms, d?:segundos}
+    let dupMarksMap = {};       // v4.23: clave por copia (archivo|tamaño) -> {m:1|0, t:ms} — las marcas «No me gusta» de Duplicadas
+    let syncCloudDupCount = 0;  // v4.23: marcas de duplicados vistas en la nube en la última lectura/fusión
     let syncCloudCount = 0;     // v4.9: calificaciones (like/dislike) vistas en la nube en la última lectura/fusión
     let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
     let syncOrphanCount = 0;     // v4.14: entradas con calificación que no casaron con ninguna canción en la última aplicación
@@ -5013,6 +5059,10 @@
           ratingsMap = migrateRatingsMap(m);
           migrated = ratingsHash(ratingsMap) !== before || Object.keys(ratingsMap).length !== Object.keys(m).length;
         }
+        // v4.23: el mapa de marcas de duplicados vive en su propia
+        // clave de kv, junto al de calificaciones.
+        const dm = await dbGet('kv', 'dupMarksMap');
+        if(dm && typeof dm === 'object') dupMarksMap = sanitizeDupMap(dm);
         const meta = await dbGet('kv', 'syncMeta');
         if(meta){
           if(typeof meta.lastSync === 'number') syncLastAt = meta.lastSync;
@@ -5060,6 +5110,21 @@
         }
       });
       if(seeded || migrated) syncSaveLocal();
+      // v4.23 · Semilla de marcas de duplicados: las marcas por copia
+      // que ya viven en las fichas —incluidas las hechas con la
+      // v4.21/v4.22, cuando aún no se sincronizaban— entran al mapa de
+      // marcas para poder subir en la primera sincronización. Una
+      // entrada del mapa más nueva que la ficha (p. ej. una copia
+      // desmarcada en otro dispositivo) no se pisa: manda ella.
+      let dupSeeded = false;
+      state.tracks.forEach(t => {
+        if(!t.dupDislike) return;
+        const k = dupCopyKey(t);
+        const lt = (typeof t.dupDislikeAt === 'number' && t.dupDislikeAt > 0) ? t.dupDislikeAt : 0;
+        const e = dupMarksMap[k];
+        if(!e || lt > (e.t || 0)){ dupMarksMap[k] = { m: 1, t: lt }; dupSeeded = true; }
+      });
+      if(dupSeeded) syncSaveDupLocal();
     }
     function mergeRatings(a, b){
       // v4.9: ambos lados se migran primero (claves antiguas con
@@ -5083,6 +5148,126 @@
         }
       }
       return out;
+    }
+    /* ============ v4.23 · Sincronización de las marcas de Duplicadas ============
+       Las marcas por copia viajan en su PROPIO mapa (dupMarksMap aquí,
+       «dupMarks» junto a «ratings» en el documento de la nube), con
+       claves que identifican la copia por el nombre y el tamaño de su
+       archivo —la misma identidad (fileName|size) que la importación
+       usa para reconocer un mismo archivo— y NUNCA por la huella
+       artista|título de las calificaciones: así una marca jamás puede
+       caer sobre otra copia del grupo, y la de la v4.15 sigue intacta. */
+    function dupCopyKey(t){
+      // La identidad de UNA copia: su archivo. Dos versiones de la
+      // misma canción con el mismo nombre y tamaño serían el mismo
+      // archivo, y la importación ya las trata como una sola.
+      return fpNorm(t && (t.fileName || t.title) || '') + '|' + ((t && t.size) || 0);
+    }
+    function sanitizeDupMap(map){
+      if(!map || typeof map !== 'object') return {};
+      const out = {};
+      for(const k in map){
+        const e = map[k]; if(!e) continue;
+        out[k] = { m: (e.m === 1 || e.m === true) ? 1 : 0, t: (typeof e.t === 'number' && e.t > 0) ? e.t : 0 };
+      }
+      return out;
+    }
+    function mergeDupMarks(a, b){
+      // Fusión por marca de tiempo, como la de calificaciones: gana
+      // la decisión más reciente; en empate, la marca puesta gana a
+      // la retirada (una retirada real siempre lleva su marca nueva).
+      const A = sanitizeDupMap(a), B = sanitizeDupMap(b);
+      const out = {};
+      for(const k in A) out[k] = A[k];
+      for(const k in B){
+        if(!out[k]){ out[k] = B[k]; continue; }
+        const bt = B[k].t || 0, ot = out[k].t || 0;
+        if(bt > ot){ out[k] = B[k]; continue; }
+        if(bt === ot && B[k].m === 1 && out[k].m !== 1) out[k] = B[k];
+      }
+      return out;
+    }
+    function countDupMarks(map){
+      let n = 0;
+      if(!map || typeof map !== 'object') return 0;
+      for(const k in map){ const e = map[k]; if(e && e.m === 1) n++; }
+      return n;
+    }
+    function dupMarksHash(map){
+      const keys = Object.keys(map || {}).sort();
+      let s = '';
+      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.m : '') + '@' + (e ? e.t : 0) + ';'; }
+      return String(hashStr(s));
+    }
+    // La huella de «ya subido / ya bajado» cubre AMBOS mapas desde la
+    // v4.23: un cambio solo de marcas de duplicados también cuenta
+    // como cambio de sincronización (sube y baja igual).
+    function syncCombinedHash(){
+      return ratingsHash(ratingsMap) + '/' + dupMarksHash(dupMarksMap);
+    }
+    async function syncSaveDupLocal(){
+      try{ await dbPut('kv', dupMarksMap, 'dupMarksMap'); return true; }
+      catch(e){ reportSaveError('No se pudo guardar el mapa de marcas de duplicados', e); return false; }
+    }
+    // Cada cambio de marca por copia pasa por aquí (lo llaman
+    // toggleDupDislike, setRating y «Quedarme con esta» al retirar una
+    // marca): entra al mapa de marcas siempre, haya sesión o no, y
+    // sube si hay sesión. La marca de tiempo la pone quien llama,
+    // antes de guardar la ficha, para que ficha y mapa hablen del
+    // mismo instante; si falta, se pone aquí.
+    async function syncNoteDupMark(t){
+      if(!t) return;
+      if(!(typeof t.dupDislikeAt === 'number' && t.dupDislikeAt > 0)) t.dupDislikeAt = Date.now();
+      dupMarksMap[dupCopyKey(t)] = { m: t.dupDislike ? 1 : 0, t: t.dupDislikeAt };
+      await syncSaveDupLocal();
+      if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+    }
+    // Aplica el mapa de marcas a las copias locales. Cada entrada cae
+    // SOLO sobre la copia con su mismo archivo y tamaño; las demás
+    // copias del grupo ni se miran. La antigüedad manda en los dos
+    // sentidos, como en las calificaciones (v4.12/v4.13): una entrada
+    // más nueva marca o desmarca la copia; una marca local más nueva
+    // que su entrada repara la entrada, para que el dato bueno sea el
+    // que quede y suba. Las marcas locales sin entrada (las hechas
+    // antes de la v4.23) entran al mapa como semilla.
+    async function syncApplyDupMarks(){
+      let changed = false;
+      let repaired = false;
+      for(const t of state.tracks.values()){
+        const k = dupCopyKey(t);
+        const e = dupMarksMap[k];
+        const lt = (typeof t.dupDislikeAt === 'number' && t.dupDislikeAt > 0) ? t.dupDislikeAt : 0;
+        if(!e){
+          if(t.dupDislike){ dupMarksMap[k] = { m: 1, t: lt }; repaired = true; }
+          continue;
+        }
+        const et = e.t || 0;
+        if(t.dupDislike){
+          if(e.m !== 1 && et > lt){
+            // Desmarcada en otro dispositivo, más recientemente.
+            t.dupDislike = null; t.dupDislikeAt = et;
+            await saveTrackMeta(t); changed = true;
+          } else if(lt > et || e.m !== 1){
+            dupMarksMap[k] = { m: 1, t: lt }; repaired = true;
+          }
+        } else if(e.m === 1){
+          if(et > lt || lt === 0){
+            t.dupDislike = true; t.dupDislikeAt = et;
+            await saveTrackMeta(t); changed = true;
+          }
+        } else if(et > lt){
+          // La copia ya está desmarcada: solo se anota la marca de la
+          // retirada, para que una marca vieja no la resucite luego.
+          t.dupDislikeAt = et;
+          await saveTrackMeta(t);
+        }
+      }
+      if(repaired){
+        await syncSaveDupLocal();
+        if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+      }
+      if(changed) render();
+      return changed;
     }
     // Aplica el mapa a todas las canciones locales que coincidan por huella.
     // v4.9 · Aplicación tolerante: las canciones se agrupan por
@@ -5365,12 +5550,17 @@
     async function syncUpload(){
       if(!syncUser || !syncReady) return;
       ratingsMap = migrateRatingsMap(ratingsMap);
-      const h = ratingsHash(ratingsMap);
+      dupMarksMap = sanitizeDupMap(dupMarksMap);
+      const h = syncCombinedHash();
       if(h === syncLastHash) return;
       try{
-        await syncDocRef().set({ ratings: ratingsMap });
+        // v4.23: el documento lleva los dos mapas: «ratings» (por
+        // huella) y «dupMarks» (por copia). Los documentos antiguos,
+        // solo con «ratings», se leen igual: dupMarks llega vacío.
+        await syncDocRef().set({ ratings: ratingsMap, dupMarks: dupMarksMap });
         syncLastHash = h;
         syncCloudCount = countRatings(ratingsMap);
+        syncCloudDupCount = countDupMarks(dupMarksMap);
         syncLastAt = Date.now();
         syncSaveMeta();
         syncRefreshSheet();
@@ -5473,10 +5663,15 @@
       try{
         const snap = await syncDocRef().get();
         const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
+        const remoteDup = (snap.exists && snap.data() && snap.data().dupMarks) || {};
         syncCloudCount = countRatings(migrateRatingsMap(remote));
+        syncCloudDupCount = countDupMarks(remoteDup);
         ratingsMap = mergeRatings(ratingsMap, remote);
+        dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
         await syncSaveLocal();
+        await syncSaveDupLocal();
         await syncApplyToTracks();
+        await syncApplyDupMarks();
         syncLastHash = ''; // forzar la subida del mapa fusionado
         await syncUpload();
         syncLastAt = Date.now();
@@ -5494,22 +5689,30 @@
     async function syncOnRemote(snap){
       if(!snap || !snap.exists || !syncUser) return;
       const remote = (snap.data() && snap.data().ratings) || {};
+      const remoteDup = sanitizeDupMap((snap.data() && snap.data().dupMarks) || {});
       const remoteMigrated = migrateRatingsMap(remote);
-      const rh = ratingsHash(remoteMigrated);
+      // v4.23: la comparación «es lo que acabamos de subir» cubre los
+      // dos mapas; un cambio remoto solo de marcas de duplicados ya
+      // no pasa inadvertido.
+      const rh = ratingsHash(remoteMigrated) + '/' + dupMarksHash(remoteDup);
       syncCloudCount = countRatings(remoteMigrated);
+      syncCloudDupCount = countDupMarks(remoteDup);
       if(rh === syncLastHash) return; // es lo que acabamos de subir
       syncApplying = true;
       try{
         ratingsMap = mergeRatings(ratingsMap, remote);
+        dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
         syncLastHash = rh;
         await syncSaveLocal();
+        await syncSaveDupLocal();
         await syncApplyToTracks();
+        await syncApplyDupMarks();
         syncLastAt = Date.now();
         syncSaveMeta();
       }catch(e){}
       syncApplying = false;
       // Si la fusión dejó algo local más nuevo que la nube, sí se sube.
-      if(ratingsHash(ratingsMap) !== rh) syncScheduleUpload();
+      if(syncCombinedHash() !== rh) syncScheduleUpload();
       syncRefreshSheet();
     }
     // v4.8: el acceso usa signInWithPopup como vía PRINCIPAL en todos los
@@ -5589,6 +5792,8 @@
           '<p class="sync-line">En la nube: ' + syncCloudCount + ' calificaciones</p>' +
           '<p class="sync-line">Aplicadas en este dispositivo: ' + syncAppliedCount + '</p>' +
           (syncOrphanCount > 0 ? '<p class="sync-line">Sin coincidencia en este dispositivo: ' + syncOrphanCount + '</p>' : '') +
+          '<p class="sync-line">Marcas de duplicados en este dispositivo: ' + countDupMarks(dupMarksMap) + '</p>' +
+          '<p class="sync-line">Marcas de duplicados en la nube: ' + syncCloudDupCount + '</p>' +
           '</div>';
         if(syncCloudCount > 0 && syncAppliedCount === 0){
           body += '<p class="sync-warn">⚠ La nube tiene calificaciones que no coinciden con ninguna canción de este dispositivo</p>';
@@ -5602,7 +5807,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
@@ -5670,12 +5875,12 @@
         content.innerHTML = '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Algo salió mal al abrir tu biblioteca</h2><p>Tu música sigue guardada en este dispositivo. Cierra y vuelve a abrir la página para intentarlo de nuevo.</p></div>';
       }
     })();
-    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); }catch(e){} });
+    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); syncSaveDupLocal(); }catch(e){} });
     // v4.13: al pasar la app a segundo plano se deja el mapa de
     // calificaciones guardado en disco. En el móvil es el momento en
     // que el sistema puede matar la app durante una escucha larga, y
     // es justo ahí donde la subida en espera podía no salir nunca.
-    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); }catch(e){} } });
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); syncSaveDupLocal(); }catch(e){} } });
     </script>
 
     <script>
