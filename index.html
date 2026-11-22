@@ -3021,7 +3021,7 @@
        render() y el resto vive en el CSS de la ronda) y el
        esqueleto de carga con acabado de cristal. Solo
        presentación: ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.9';
+    const APP_VERSION = '4.10';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4218,7 +4218,15 @@
           if(entry.isFile){ await new Promise(r => entry.file(f => { files.push(f); r(); }, () => r())); }
           else if(entry.isDirectory){
             const reader = entry.createReader();
-            const kids = await new Promise(r => reader.readEntries(r, () => r([])));
+            /* readEntries() devuelve como máximo 100 entradas por llamada:
+               se repite en bucle acumulando hasta que una tanda llegue vacía,
+               para no perder archivos en carpetas con más de 100 entradas. */
+            const kids = [];
+            for(;;){
+              const batch = await new Promise(r => reader.readEntries(r, () => r([])));
+              if(!batch || !batch.length) break;
+              kids.push(...batch);
+            }
             for(const k of kids) await walk(k);
           }
         }
