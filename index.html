@@ -92,13 +92,6 @@
       .btn-ghost{ background:var(--surface2); color:var(--ink); box-shadow:var(--shadow-soft); }
       .btn-danger{ background:var(--danger); color:#fff; }
       .btn-danger-soft{ background:var(--surface2); color:var(--danger); }
-      .icon-btn{
-        width:44px; height:44px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
-        background:var(--surface2); color:var(--ink); flex:none;
-      }
-      .icon-btn.plain{ background:transparent; }
-      .icon-btn.on{ background:var(--acc); color:#fff; }
-
       /* Tabs */
       .tabs{ display:flex; gap:8px; padding:10px 16px 4px; max-width:1060px; margin:0 auto; width:100%; overflow-x:auto; scrollbar-width:none; }
       .tabs::-webkit-scrollbar{ display:none; }
@@ -1206,7 +1199,7 @@
          de saltar de golpe (el cuerpo ya lo hacía desde la v2.7). Solo
          se animan fondo y borde, y solo en elementos sin otra
          transición propia. */
-      .search, select.sort, .seg, .icon-btn, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty{
+      .search, select.sort, .seg, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty{
         transition:background-color .35s ease, border-color .35s ease;
       }
 
@@ -1274,7 +1267,7 @@
         .np-bg-layer, .stage-bg-layer,
         .np-cover, .np-cover.swap, .stage-cover, .stage-cover.swap,
         .np-title, .np-title.swap,
-        .search, select.sort, .seg, .icon-btn, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty,
+        .search, select.sort, .seg, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty,
         .stage-controls button, .stage-close, .stage-prog .bar i{ transition:none; }
         .np-cover.swap, .stage-cover.swap{ opacity:1; transform:none; }
         .np-title.swap{ opacity:1; transform:none; }
@@ -1331,8 +1324,6 @@
          en la misma escala de tamaños, los que faltaban. */
       .btn{ transition:transform .18s ease, box-shadow .25s ease, background .25s ease, filter .18s ease; }
       .btn:active{ filter:brightness(1.08); }
-      .icon-btn{ transition:transform .16s ease, background-color .35s ease, border-color .35s ease; }
-      .icon-btn:active{ transform:scale(.92); }
       .seg button{ transition:transform .16s ease, background .2s ease, color .2s ease; }
       .seg button:active{ transform:scale(.93); }
       .aseg button{ transition:transform .16s ease, background .2s ease, color .2s ease; }
@@ -1377,11 +1368,11 @@
          el toque se confirma solo con la onda desactivada de la v2.1
          y los cambios de fondo instantáneos, como en cada ronda. */
       @media (prefers-reduced-motion: reduce){
-        .btn, .icon-btn, .seg button, .aseg button, .row .rate, .row .more,
+        .btn, .seg button, .aseg button, .row .rate, .row .more,
         .mini, .mini button, .np-top button, .np-controls button,
         .np-rate button, .np-actions button, .stage-party-btn,
         .q-row, .q-row .x, .sheet-item, .back-row button, .link-btn{ transition:none; }
-        .btn:active, .icon-btn:active, .seg button:active, .aseg button:active,
+        .btn:active, .seg button:active, .aseg button:active,
         .row .rate:active, .row .more:active, .mini:active, .mini button:active,
         .np-top button:active, .np-controls button:active, .np-controls .big:active,
         .np-rate button:active, .np-actions button:active, .stage-party-btn:active,
@@ -1561,6 +1552,51 @@
       }
       .stage-next{ box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 14px 34px rgba(0,0,0,.32); }
     </style>
+    <style>
+      /* ============ v4.0 · LA GRAN 4.0: identidad de cierre ============
+         Ronda final del plan hasta la 4.0 — solo visual, interfaz y
+         rendimiento, sin funciones nuevas ni cambios de datos.
+         1) Identidad de cierre: la bienvenida queda en su forma final
+         como marca de la app, en el mismo lenguaje del icono y de la
+         interfaz — la nota sobre el degradado del tema, su halo de
+         acento y la luz cenital que la v3.9 dio a las portadas. El
+         fondo suma un resplandor de acento fijo y muy suave tras el
+         logo, y la pastilla recibe el filo de luz superior y una
+         sombra asentada (halo del tema + cuerpo), para que el logo
+         se lea como el icono de la app puesto en escena. Nada cambia
+         en su comportamiento: entra y respira como desde la v3.0,
+         nunca recibe toques y se desvanece y se retira sola en los
+         mismos tiempos; lo nuevo es estático, así que
+         prefers-reduced-motion no necesita excepciones (con
+         movimiento reducido el resplandor y la luz quedan, fijos, y
+         el fundido corto de siempre manda).
+         2) Auditoría completa de cierre sobre lo construido en los
+         planes 2.0–3.9 (temas, claro/oscuro, vinilo, Escenario,
+         color vivo, tacto y rendimiento): el conjunto queda
+         consistente y solo se retira lo muerto — las reglas de
+         .icon-btn, una clase de botón circular que ninguna vista
+         llegó a usar y que sobrevivía en la base, en el fundido de
+         modos de la v3.4 y en el presionado de la v3.7; se quitan su
+         regla base, sus variantes y su nombre de las listas de
+         selectores, sin tocar ningún elemento real. */
+
+      /* 1 · La bienvenida, en su forma final: resplandor fijo del
+         tema tras el logo y la pastilla con la luz cenital de la
+         v3.9 y su halo de acento asentado. */
+      #splash{
+        background:
+          radial-gradient(430px 430px at 50% 38%, color-mix(in srgb, var(--acc) 13%, transparent), transparent 70%),
+          var(--bg);
+      }
+      .splash-logo{
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.38),
+          inset 0 -16px 26px -16px rgba(0,0,0,.30),
+          0 24px 54px color-mix(in srgb, var(--acc) 42%, transparent),
+          0 10px 22px rgba(0,0,0,.16);
+      }
+      .splash-name{ text-wrap:balance; }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1590,7 +1626,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.9</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.0</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2579,7 +2615,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.9';
+    const APP_VERSION = '4.0';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
