@@ -189,17 +189,23 @@
       /* Barritas animadas v1.8: se ven en la canción actual; bailan solo si suena */
       .cover .eq{ position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; gap:3px; padding-bottom:13px; background:rgba(10,5,5,.38); }
       .row.playing .cover .eq, .card.playing .cover .eq{ display:flex; }
-      .eq i{ width:4px; background:#fff; border-radius:2px; height:6px; box-shadow:0 0 8px color-mix(in srgb, var(--play-accent, var(--acc)) 80%, transparent); animation:eqb .9s ease-in-out infinite; animation-play-state:paused; }
+      .eq i{ width:4px; background:#fff; border-radius:2px; height:16px; transform-origin:50% 100%; transform:scaleY(.375); box-shadow:0 0 8px color-mix(in srgb, var(--play-accent, var(--acc)) 80%, transparent); animation:eqb .9s ease-in-out infinite; animation-play-state:paused; }
       body.is-playing .row.playing .eq i, body.is-playing .card.playing .eq i{ animation-play-state:running; }
-      .eq i:nth-child(1){ animation-delay:0s; } .eq i:nth-child(2){ animation-delay:.22s; height:10px; } .eq i:nth-child(3){ animation-delay:.44s; } .eq i:nth-child(4){ animation-delay:.15s; height:8px; }
-      @keyframes eqb{ 0%,100%{ height:5px; } 50%{ height:16px; } }
+      .eq i:nth-child(1){ animation-delay:0s; } .eq i:nth-child(2){ animation-delay:.22s; transform:scaleY(.625); } .eq i:nth-child(3){ animation-delay:.44s; } .eq i:nth-child(4){ animation-delay:.15s; transform:scaleY(.5); }
+      /* v3.6 · Sin fricción: las barritas ya no bailan animando height
+         (recalculaba el layout en cada fotograma); su altura queda fija
+         en el máximo de antes (16px) y el baile es transform: scaleY
+         desde la base, que la GPU compone sin tocar el layout. La
+         escala en reposo de cada barrita reproduce su altura de
+         siempre (6/10/8 px) y el baile cubre el mismo rango (5–16 px). */
+      @keyframes eqb{ 0%,100%{ transform:scaleY(.3125); } 50%{ transform:scaleY(1); } }
       @media (prefers-reduced-motion: reduce){ .eq i{ animation:none; } }
       /* Barritas en «Sonando ahora» y Escenario */
       .np-eq{ position:absolute; left:50%; bottom:16px; transform:translateX(-50%); display:none; align-items:flex-end; gap:4px; height:22px; padding:7px 10px; border-radius:999px; background:rgba(0,0,0,.42); backdrop-filter:blur(6px); }
       .np-cover.has-track .np-eq, .stage-cover.has-track .np-eq{ display:flex; }
-      .np-eq i{ width:4.5px; background:#fff; border-radius:2px; height:6px; box-shadow:0 0 10px var(--np-c1); animation:eqb .85s ease-in-out infinite; animation-play-state:paused; }
+      .np-eq i{ width:4.5px; background:#fff; border-radius:2px; height:16px; transform-origin:50% 100%; transform:scaleY(.375); box-shadow:0 0 10px var(--np-c1); animation:eqb .85s ease-in-out infinite; animation-play-state:paused; }
       .np.playing .np-eq i, .stage.playing .np-eq i{ animation-play-state:running; }
-      .np-eq i:nth-child(2){ animation-delay:.2s; height:11px; } .np-eq i:nth-child(3){ animation-delay:.4s; } .np-eq i:nth-child(4){ animation-delay:.12s; height:9px; }
+      .np-eq i:nth-child(2){ animation-delay:.2s; transform:scaleY(.6875); } .np-eq i:nth-child(3){ animation-delay:.4s; } .np-eq i:nth-child(4){ animation-delay:.12s; transform:scaleY(.5625); }
       @media (prefers-reduced-motion: reduce){ .np-eq i{ animation:none; } }
       /* v3.1 · Ligero: las animaciones continuas se pausan solas cuando la
          app pasa a segundo plano (body.app-bg, vía document.hidden) o cuando
@@ -270,7 +276,7 @@
       .mini .t{ font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .mini .a{ color:var(--muted); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .mini .prog{ position:absolute; left:14px; right:14px; bottom:4px; height:5px; border-radius:3px; background:var(--line); overflow:hidden; }
-      .mini .prog i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--acc), var(--acc2)); border-radius:3px; /* su brillo con el color del tema está en la v2.0 */ }
+      .mini .prog i{ display:block; height:100%; width:100%; transform:scaleX(0); transform-origin:0 50%; background:linear-gradient(90deg, var(--acc), var(--acc2)); border-radius:3px; /* su brillo con el color del tema está en la v2.0 */ }
       .mini button{ width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
       .mini .play-b{ background:var(--ink); color:var(--bg); }
       @media (min-width:900px){ .mini{ left:50%; right:auto; transform:translateX(-50%); width:min(680px, calc(100% - 32px)); } }
@@ -324,9 +330,16 @@
       .np-cover.swap{ opacity:0; transform:scale(.965); }
       @media (prefers-reduced-motion: reduce){ .np-cover{ transition:none; } .np-cover.swap{ opacity:1; transform:none; } }
       /* Portada viva v1.8: respira con pulso de escala, brillo y halo de su color */
-      .np.playing .np-cover{ animation:breathe 3.6s ease-in-out infinite, glowPulse 3.6s ease-in-out infinite; }
-      @keyframes breathe{ 0%,100%{ transform:scale(1); filter:brightness(1); } 50%{ transform:scale(1.032); filter:brightness(1.08); } }
-      @keyframes glowPulse{ 0%,100%{ box-shadow:0 34px 70px rgba(0,0,0,.55), 0 18px 52px -8px var(--np-c1); } 50%{ box-shadow:0 38px 78px rgba(0,0,0,.58), 0 22px 68px -4px var(--np-c1); } }
+      /* v3.6 · Sin fricción: el halo ya no pulsa animando box-shadow (la
+         sombra en bucle repintaba la portada en cada fotograma); queda
+         como sombra estática con el valor medio de aquel pulso, sobre
+         la sombra de contacto de siempre, y la transición de box-shadow
+         de la propia portada (.9s) la funde al entrar y salir de
+         «sonando». El respiro conserva su pulso de escala solo por
+         transform: el brillo que antes animaba filter sale del bucle
+         para que la animación entera viva en la GPU. */
+      .np.playing .np-cover{ animation:breathe 3.6s ease-in-out infinite; box-shadow:0 10px 24px rgba(0,0,0,.4), 0 36px 74px rgba(0,0,0,.56), 0 20px 60px -6px var(--np-c1); }
+      @keyframes breathe{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.032); } }
       @media (prefers-reduced-motion: reduce){ .np.playing .np-cover{ animation:none; filter:none; } }
       .np-title{ text-align:center; text-shadow:0 2px 18px rgba(0,0,0,.45); /* aire y fundido: v3.0 y v3.4 */ }
       .np-title.swap{ opacity:0; }
@@ -418,7 +431,10 @@
       .stage-cover.swap{ opacity:0; }
       @media (prefers-reduced-motion: reduce){ .stage-cover{ transition:none; } .stage-cover.swap{ opacity:1; } }
       .stage-cover img{ width:100%; height:100%; object-fit:cover; }
-      .stage.playing .stage-cover{ animation:breathe 3.6s ease-in-out infinite, glowPulse 3.6s ease-in-out infinite; }
+      /* v3.6 · Sin fricción: mismo tratamiento que la portada de
+         «Sonando ahora» — respiro solo por transform y halo estático
+         con el valor medio del antiguo pulso de sombra. */
+      .stage.playing .stage-cover{ animation:breathe 3.6s ease-in-out infinite; box-shadow:0 12px 28px rgba(0,0,0,.42), 0 36px 74px rgba(0,0,0,.56), 0 20px 60px -6px var(--np-c1); }
       @media (prefers-reduced-motion: reduce){ .stage.playing .stage-cover{ animation:none; filter:none; } }
       /* Escenario en grande v1.8: tipografía gigante */
       .stage h2{ margin:28px 0 6px; font-size:clamp(36px, 7.2vw, 68px); font-weight:800; letter-spacing:-.03em; line-height:1.04; max-width:920px; text-shadow:0 3px 28px rgba(0,0,0,.5); overflow-wrap:break-word; }
@@ -442,7 +458,7 @@
       .stage-close{ position:absolute; top:calc(14px + env(safe-area-inset-top)); right:16px; z-index:3; width:48px; height:48px; border-radius:50%; background:rgba(0,0,0,.35); color:#fff; display:flex; align-items:center; justify-content:center; }
       .stage-prog{ width:min(72vw, 430px); margin-top:26px; }
       .stage-prog .bar{ height:8px; border-radius:5px; background:rgba(255,255,255,.25); overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.35); }
-      .stage-prog .bar i{ display:block; height:100%; width:0%; background:#fff; border-radius:5px; box-shadow:0 0 14px color-mix(in srgb, var(--np-c1) 70%, transparent); }
+      .stage-prog .bar i{ display:block; height:100%; width:100%; transform:scaleX(0); transform-origin:0 50%; background:#fff; border-radius:5px; box-shadow:0 0 14px color-mix(in srgb, var(--np-c1) 70%, transparent); }
       .stage-prog .times{ margin-top:7px; }
 
       /* ============ v2.5 · La guinda: visualizador y Modo Fiesta ============
@@ -473,14 +489,25 @@
         transition:background .25s ease, box-shadow .25s ease, border-color .25s ease;
       }
       .stage-party-btn .ic{ width:19px; height:19px; }
+      /* v3.6 · Sin fricción: el degradado del botón «Fiesta» ya no se
+         mueve animando background-position (repintaba en cada
+         fotograma); vive en una capa interna del 220% × 220% — el
+         mismo tamaño de fondo de antes, con su misma franja vertical
+         centrada — que se desplaza solo con transform, por detrás de
+         la etiqueta (z-index:-1 dentro del contexto del botón) y
+         recortada a su forma de pastilla. */
       .stage-party-btn.on{
-        background:linear-gradient(120deg, #ff3860, #ff9f1c, #2ec4b6, #4361ee);
-        background-size:220% 220%; border-color:rgba(255,255,255,.55);
+        overflow:hidden; border-color:rgba(255,255,255,.55);
         box-shadow:0 8px 26px rgba(255,56,96,.45);
-        animation:partyBtn 3.2s ease-in-out infinite;
       }
-      @keyframes partyBtn{ 0%,100%{ background-position:0% 50%; } 50%{ background-position:100% 50%; } }
-      @media (prefers-reduced-motion: reduce){ .stage-party-btn.on{ animation:none; } }
+      .stage-party-btn.on::before{
+        content:""; position:absolute; left:0; top:-60%; width:220%; height:220%; z-index:-1;
+        background:linear-gradient(120deg, #ff3860, #ff9f1c, #2ec4b6, #4361ee);
+        animation:partyBtn 3.2s ease-in-out infinite;
+        will-change:transform;
+      }
+      @keyframes partyBtn{ 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(-54.55%); } }
+      @media (prefers-reduced-motion: reduce){ .stage-party-btn.on::before{ animation:none; } }
       /* Luces de fiesta: focos de colores que pulsan y recorren la pantalla,
          solo mientras el modo está encendido dentro del Escenario. */
       .stage-party{ position:absolute; inset:0; z-index:1; overflow:hidden; pointer-events:none; opacity:0; transition:opacity .6s ease; }
@@ -988,13 +1015,21 @@
       .skel-line{ height:13px; border-radius:7px; }
       .skel-line.short{ height:11px; }
       .skel-chip{ width:34px; height:13px; border-radius:7px; flex:none; }
-      .skel-block{
+      /* v3.6 · Sin fricción: el brillo ya no recorre el bloque animando
+         background-position (repintaba cada bloque en cada fotograma);
+         el mismo degradado vive en una capa interna del 220% de ancho
+         que se desplaza solo con transform, sobre el color base del
+         bloque, que queda intacto debajo. */
+      .skel-block{ position:relative; overflow:hidden; background:var(--surface2); }
+      .skel-block::after{
+        content:""; position:absolute; top:0; bottom:0; left:0; width:220%;
         background:linear-gradient(100deg, var(--surface2) 38%, color-mix(in srgb, var(--surface2) 35%, var(--surface)) 50%, var(--surface2) 62%);
-        background-size:220% 100%;
+        transform:translateX(-65.5%);
         animation:skelShine 1.5s ease-in-out infinite;
+        will-change:transform;
       }
-      @keyframes skelShine{ from{ background-position:120% 0; } to{ background-position:-120% 0; } }
-      @media (prefers-reduced-motion: reduce){ .skel-block{ animation:none; } }
+      @keyframes skelShine{ from{ transform:translateX(-65.5%); } to{ transform:translateX(65.5%); } }
+      @media (prefers-reduced-motion: reduce){ .skel-block::after{ animation:none; transform:translateX(-65.5%); } }
 
       /* Avisos (toasts) rediseñados: tarjeta flotante de cristal con los
          colores de la app y un puntito de acento; mismo texto y duración. */
@@ -1211,7 +1246,7 @@
       .stage-close:active{ transform:scale(.93); }
       .stage-party-btn{ backdrop-filter:blur(10px) saturate(1.3); -webkit-backdrop-filter:blur(10px) saturate(1.3); }
       .stage-next{ backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3); }
-      .stage-prog .bar i{ transition:width .25s linear; }
+      .stage-prog .bar i{ transition:transform .25s linear; }
       .stage-queue.show{ animation:stageQueueIn .45s cubic-bezier(.22,.9,.32,1) both; }
       @keyframes stageQueueIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
       @media (hover:hover){
@@ -1293,7 +1328,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.5</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.6</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2278,7 +2313,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.5';
+    const APP_VERSION = '3.6';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2401,7 +2436,11 @@
         ensureCoverUrl(id).then(()=>{ if(state.currentId === id) syncPlayerUI(); }).catch(()=>{});
       }
       syncPlayerUI();
-      render();
+      /* v3.6 · Sin fricción: repintar la vista de la biblioteca para
+         marcar la fila que suena ya no compite con el arranque de la
+         canción dentro del mismo toque: entra en el paso diferido
+         siguiente, y solo si esta sigue siendo la canción actual. */
+      deferUiStep(() => { if(state.currentId === id) render(); });
       if(autoplay){ try{ await audio.play(); }catch(e){} }
       saveSettings();
     }
@@ -2798,6 +2837,27 @@
       } else apply();
       lastHaloId = t.id;
     }
+    /* ============ v3.6 · Sin fricción ============
+       SOLO rendimiento: el cambio de canción reparte su trabajo en
+       pasos breves para que la interfaz nunca se congele al tocar
+       siguiente/anterior o al avanzar sola la cola. Lo que el dedo
+       espera ver (portada, título, botones, fondo inmersivo) se aplica
+       al momento dentro de syncPlayerUI; lo pesado (reconstruir la
+       cola y el carrusel, la lista de fondos del Escenario, los
+       metadatos de Media Session y el repintado de la biblioteca) se
+       difiere con deferUiStep: requestAnimationFrame cuando la app
+       está visible y, como red, un temporizador corto, para que el
+       paso también corra con la app en segundo plano — el avance
+       automático no espera a que vuelvas a mirar la pantalla. Cada
+       paso lleva un token: si entra otra canción antes de que corra,
+       el paso viejo se descarta y solo corre el más reciente. */
+    let uiPhaseToken = 0;
+    function deferUiStep(fn){
+      let done = false;
+      const run = () => { if(done) return; done = true; fn(); };
+      if('requestAnimationFrame' in window) requestAnimationFrame(run);
+      setTimeout(run, 60);
+    }
     function syncPlayerUI(){
       const t = currentTrack();
       const playing = !audio.paused && !!t;
@@ -2825,8 +2885,8 @@
       updateHalo(t, c1, c2);
       const bgCss = immersiveBg(t, c1, c2);
       npFlip = applyImmersive($('#npBgA'), $('#npBgB'), bgCss, npFlip);
-      // Escenario v2.9: su fondo rota entre la actual y las de la cola
-      refreshStageBg(t, c1, c2);
+      // (La lista de fondos rotantes del Escenario v2.9 se reconstruye
+      // en el paso diferido de abajo, v3.6.)
       const trackChanged = lastImmersiveId !== null && lastImmersiveId !== t.id;
       lastImmersiveId = t.id;
       const npCoverEl = $('#npCover'), stageCoverEl = $('#stageCover'), titleBox = $('#npTitleBox');
@@ -2859,18 +2919,30 @@
       $('#stageTitle').textContent = t.title;
       $('#stageArtist').textContent = t.artist;
       $('#stagePlay').innerHTML = icon(playing ? 'pause' : 'play');
-      updateStageNext();
-      // Media Session
-      if('mediaSession' in navigator){
-        try{
-          navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, album: t.album || '' });
-          navigator.mediaSession.setActionHandler('play', ()=> audio.play());
-          navigator.mediaSession.setActionHandler('pause', ()=> audio.pause());
-          navigator.mediaSession.setActionHandler('previoustrack', ()=> prev());
-          navigator.mediaSession.setActionHandler('nexttrack', ()=> next(false));
-        }catch(e){}
-      }
-      renderQueue();
+      /* v3.6 · Sin fricción: el trabajo pesado del cambio de canción se
+         difiere al paso siguiente — la respuesta al toque (portada,
+         título, botones y fondo inmersivo, ya aplicados arriba) se
+         pinta al instante y esto llega justo detrás, en un paso breve:
+         la lista de fondos del Escenario, los metadatos de Media
+         Session y la reconstrucción de la cola con su carrusel y su
+         «A continuación» (renderQueue ya los trae consigo). */
+      const phaseToken = ++uiPhaseToken;
+      deferUiStep(() => {
+        if(phaseToken !== uiPhaseToken || state.currentId !== t.id) return;
+        // Escenario v2.9: su fondo rota entre la actual y las de la cola
+        refreshStageBg(t, c1, c2);
+        // Media Session
+        if('mediaSession' in navigator){
+          try{
+            navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, album: t.album || '' });
+            navigator.mediaSession.setActionHandler('play', ()=> audio.play());
+            navigator.mediaSession.setActionHandler('pause', ()=> audio.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', ()=> prev());
+            navigator.mediaSession.setActionHandler('nexttrack', ()=> next(false));
+          }catch(e){}
+        }
+        renderQueue();
+      });
     }
     function renderQueue(){
       updateStageNext();
@@ -2895,10 +2967,15 @@
     function syncProgress(){
       const d = audio.duration || 0, c = audio.currentTime || 0;
       const pct = d ? (c / d) * 100 : 0;
-      $('#miniProg').style.width = pct + '%';
+      /* v3.6 · Sin fricción: las barras de progreso avanzan con
+         transform: scaleX (GPU) en vez de width, que obligaba a
+         recalcular el layout en cada timeupdate; el dibujo final es
+         el mismo, porque el degradado se pinta a todo ancho y luego
+         se escala, igual que se veía al recortarlo por ancho. */
+      $('#miniProg').style.transform = 'scaleX(' + (pct / 100) + ')';
       if(!seeking){ $('#seekRange').value = d ? Math.round(c / d * 1000) : 0; $('#seekRange').style.setProperty('--fill', pct + '%'); setSeekWave(pct); }
       $('#tCur').textContent = fmt(c); $('#tDur').textContent = fmt(d);
-      $('#stageProg').style.width = pct + '%';
+      $('#stageProg').style.transform = 'scaleX(' + (pct / 100) + ')';
       $('#stageCur').textContent = fmt(c); $('#stageDur').textContent = fmt(d);
     }
 
