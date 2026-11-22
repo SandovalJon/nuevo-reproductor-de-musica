@@ -345,6 +345,10 @@
       .mini .prog i{ display:block; height:100%; width:100%; transform:scaleX(0); transform-origin:0 50%; background:linear-gradient(90deg, var(--acc), var(--acc2)); border-radius:3px; /* su brillo con el color del tema está en la v2.0 */ }
       .mini button{ width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
       .mini .play-b{ background:var(--ink); color:var(--bg); }
+      /* v4.29 · Con el botón de Duplicadas el mini lleva cuatro botones:
+         en pantallas estrechas se estrechan un poco para que el título
+         de la canción conserve su espacio. */
+      @media (max-width:520px){ .mini{ gap:6px; padding:8px 8px; } .mini button{ width:40px; height:40px; } .mini .cover{ width:48px; height:48px; } }
       @media (min-width:900px){ .mini{ left:50%; right:auto; transform:translateX(-50%); width:min(680px, calc(100% - 32px)); } }
 </style>
     <style>
@@ -2030,7 +2034,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.28</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.29</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2123,6 +2127,7 @@
     <div class="mini" id="mini" role="button" tabindex="0" aria-label="Abrir Sonando ahora">
       <div class="cover" id="miniCover"></div>
       <div class="meta"><div class="t" id="miniTitle">—</div><div class="a" id="miniArtist">—</div></div>
+      <button id="miniDup" aria-label="Ir a Duplicadas" title="Duplicadas"><span data-ic="copy"></span></button>
       <button id="miniPrev" aria-label="Anterior"><span data-ic="prev"></span></button>
       <button id="miniPlay" class="play-b" aria-label="Reproducir o pausar"><span data-ic="play"></span></button>
       <button id="miniNext" aria-label="Siguiente"><span data-ic="next"></span></button>
@@ -2167,7 +2172,6 @@
         </div>
         <div class="np-actions">
           <button id="btnQueueToggle"><span data-ic="queue"></span>A continuación</button>
-          <button id="btnNpDuplicates"><span data-ic="copy"></span>Duplicadas</button>
           <button id="btnStage2"><span data-ic="expand"></span>Escenario</button>
         </div>
         <div class="queue-box" id="queueBox">
@@ -3750,7 +3754,7 @@
        igual que ya hacía con una única candidata. Las guardias de
        antigüedad de la v4.12/v4.13 y los demás rescates no cambian.
        Sin tocar datos, biblioteca ni esquema. */
-    const APP_VERSION = '4.28';
+    const APP_VERSION = '4.29';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4486,12 +4490,14 @@
       if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openNowPlaying(); }
     });
     $('#npClose').addEventListener('click', ()=> $('#np').classList.remove('open'));
-    /* v4.28 · Acceso directo a Duplicadas desde «Sonando ahora» (pedido
-       por Sando): cierra la pantalla completa y salta a la pestaña
-       «Duplicadas» sin tocar el audio ni la cola — la canción sigue
-       sonando en el mini-reproductor, igual que al bajar con la flecha. */
-    $('#btnNpDuplicates').addEventListener('click', ()=>{
-      $('#np').classList.remove('open');
+    /* v4.29 · Acceso directo a Duplicadas desde el mini-reproductor
+       (pedido por Sando; en la v4.28 vivía en «Sonando ahora» y él
+       pidió moverlo aquí y quitar el otro): el mini está siempre
+       visible en la vista principal mientras algo suena, así que un
+       toque salta a la pestaña «Duplicadas» sin tocar el audio ni la
+       cola. stopPropagation para que el clic no abra «Sonando ahora». */
+    $('#miniDup').addEventListener('click', e => {
+      e.stopPropagation();
       state.view = 'duplicates'; state.detail = null; render();
     });
     $('#btnQueueToggle').addEventListener('click', ()=>{
