@@ -1963,7 +1963,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.13</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.14</span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
@@ -3099,7 +3099,23 @@
        cargar, el mapa local se reconcilia con las fichas antes de
        fusionar, para que la verdad más fresca de este dispositivo
        entre a la fusión ya puesta. Sin tocar biblioteca ni esquema. */
-    const APP_VERSION = '4.13';
+    /* v4.14 · Sando confirmó que en la v4.13 el error seguía, y la
+       hoja de Sincronización dio la medida exacta: 463 calificaciones
+       en este dispositivo y 463 en la nube (la subida SÍ funciona),
+       pero solo 199 aplicadas — 264 entradas del mapa no casaban con
+       NINGUNA canción. La causa estaba en la migración de claves de
+       la v4.9: pegaba artista|título tal cual, sin normalizar, y solo
+       quitaba la duración heredada si la clave tenía exactamente 3
+       partes y la tercera era un entero; las claves con mayúsculas o
+       acentos, con la duración en decimal (la de un MP3 lo es) o con
+       «|» en el título quedaban huérfanas para siempre, y ahí vivían
+       las calificaciones de los MP3 largos. Ahora la migración
+       canoniza cada clave reconstruyéndola con la misma
+       normalización de la huella, la aplicación rescata por título
+       único las que ni así casen (reescribiéndolas bajo la huella
+       verdadera) y la hoja muestra cuántas quedan sin coincidencia.
+       Sin tocar biblioteca ni esquema. */
+    const APP_VERSION = '4.14';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4345,7 +4361,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -4379,6 +4395,7 @@
     let ratingsMap = {};        // huella (artista|título) -> {r:'like'|'dislike'|'', t:ms, d?:segundos}
     let syncCloudCount = 0;     // v4.9: calificaciones (like/dislike) vistas en la nube en la última lectura/fusión
     let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
+    let syncOrphanCount = 0;     // v4.14: entradas con calificación que no casaron con ninguna canción en la última aplicación
     let syncUser = null;        // usuario de Firebase o null
     let syncReady = false;      // SDK cargado e inicializado
     let syncFailed = false;     // el SDK no pudo cargar
@@ -4408,6 +4425,26 @@
     // artista|título, conservando la duración como «d» en la entrada.
     // Si dos claves antiguas caen en la misma clave nueva, gana la de
     // marca de tiempo mayor (la misma regla de fusión de siempre).
+    // v4.14 · Canonización REAL de claves (la causa de las huérfanas,
+    // medida en el dispositivo de Sando con la v4.13: 463 entradas en
+    // el mapa y en la nube, pero solo 199 aplicadas). La migración de
+    // la v4.9 pegaba artista|título TAL CUAL, sin normalizar, y solo
+    // quitaba la duración si la clave tenía exactamente 3 partes y la
+    // tercera era un entero. Toda clave heredada con mayúsculas,
+    // acentos o espacios distintos de la normalización actual, con la
+    // duración en decimal (la duración de un MP3 es un número con
+    // decimales) o con un «|» dentro del título quedaba huérfana
+    // para siempre: vivía en el mapa y en la nube, pero jamás casaba
+    // con la huella normalizada de su canción y su calificación nunca
+    // se aplicaba — los MP3 largos calificados en la era de la clave
+    // con duración son justo los afectados. Ahora CADA clave se
+    // descompone (artista = primera parte; duración = última parte
+    // si es numérica, entera o decimal, y pasa a «d»; título = el
+    // resto, reunido con «|») y se reconstruye pasando artista y
+    // título por fpNorm, la MISMA normalización de trackFingerprint:
+    // la clave migrada queda idéntica a la huella que se busca al
+    // aplicar. fpNorm es idempotente, así que las claves ya
+    // canónicas salen intactas.
     function migrateRatingsMap(map){
       if(!map || typeof map !== 'object') return {};
       const out = {};
@@ -4415,12 +4452,15 @@
         const e = map[k]; if(!e) continue;
         const entry = { r: e.r || '', t: e.t || 0 };
         if(e.d != null && !isNaN(Number(e.d))) entry.d = Math.round(Number(e.d));
-        let nk = k;
         const parts = String(k).split('|');
-        if(parts.length === 3 && /^-?\d+$/.test(parts[2].trim())){
-          nk = parts[0] + '|' + parts[1];
-          if(entry.d == null) entry.d = parseInt(parts[2].trim(), 10);
+        if(parts.length >= 3){
+          const last = parts[parts.length - 1].trim();
+          if(/^-?\d+(\.\d+)?$/.test(last)){
+            if(entry.d == null) entry.d = Math.round(parseFloat(last));
+            parts.pop();
+          }
         }
+        const nk = fpNorm(parts.shift() || '') + '|' + fpNorm(parts.join('|'));
         if(!out[nk]){ out[nk] = entry; }
         else if((entry.t || 0) >= (out[nk].t || 0)){
           if(entry.d == null && out[nk].d != null) entry.d = out[nk].d;
@@ -4545,14 +4585,19 @@
       let repaired = false;
       ratingsMap = migrateRatingsMap(ratingsMap);
       const byFp = {};
+      const byTitle = {};
       state.tracks.forEach(t => {
         const fp = trackFingerprint(t);
         (byFp[fp] = byFp[fp] || []).push(t);
+        const tp = fpNorm(t.title);
+        (byTitle[tp] = byTitle[tp] || []).push(t);
       });
-      for(const fp in ratingsMap){
-        const e = ratingsMap[fp]; if(!e) continue;
+      // v4.14: la aplicación de UNA entrada sobre sus canciones vive
+      // en esta función interna, para reutilizarla tal cual en el
+      // rescate por título con las mismas guardias de antigüedad de
+      // la v4.12 y la v4.13, sin duplicarlas ni ablandarlas.
+      const applyTo = async (fp, e, list) => {
         const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
-        const list = byFp[fp]; if(!list || !list.length) continue;
         let targets = list;
         // v4.13: el desempate por «d» solo se usa si la duración de la
         // entrada es un dato real (> 0). Con «d» en 0 —el dato malo
@@ -4623,8 +4668,50 @@
             repaired = true;
           }
         }
+      };
+      const claimed = new Set(); // ids de canciones ya gobernadas por su huella exacta
+      const unmatched = [];
+      for(const fp in ratingsMap){
+        const e = ratingsMap[fp]; if(!e) continue;
+        const list = byFp[fp];
+        if(list && list.length){ list.forEach(t => claimed.add(t.id)); await applyTo(fp, e, list); }
+        else if(e.r === 'like' || e.r === 'dislike') unmatched.push(fp);
+      }
+      /* v4.14 · Rescate por título de las entradas aún huérfanas:
+         si la huella completa no casa pero el TÍTULO normalizado de
+         la entrada coincide con UNA SOLA canción de la biblioteca, y
+         esa canción no está gobernada por ninguna otra entrada, la
+         calificación es de esa canción aunque el artista difiera
+         (el caso típico de los MP3 largos tipo podcast o mixtape:
+         artista ausente, «Artista desconocido» o distinto entre la
+         fuente donde se calificó y este dispositivo). Se aplica con
+         las mismas guardias de siempre y la entrada se reescribe
+         bajo la huella verdadera de la canción, para que de aquí en
+         adelante case de forma exacta y la huérfana desaparezca. */
+      let orphans = 0;
+      for(const fp of unmatched){
+        const e = ratingsMap[fp]; if(!e){ continue; }
+        const titlePart = fp.slice(fp.indexOf('|') + 1);
+        const cand = byTitle[titlePart];
+        let rescued = false;
+        if(cand && cand.length === 1 && !claimed.has(cand[0].id) && !ratingsMap[trackFingerprint(cand[0])]){
+          const t = cand[0];
+          await applyTo(fp, e, [t]);
+          const cur = ratingsMap[fp] || e;
+          ratingsMap[trackFingerprint(t)] = {
+            r: (t.rating || cur.r || ''),
+            t: Math.max(cur.t || 0, (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0),
+            d: Math.round(t.duration || 0) || (cur.d || 0)
+          };
+          delete ratingsMap[fp];
+          claimed.add(t.id);
+          repaired = true;
+          rescued = true;
+        }
+        if(!rescued) orphans++;
       }
       syncAppliedCount = applied;
+      syncOrphanCount = orphans;
       if(repaired){
         await syncSaveLocal();
         if(syncUser && syncReady) syncScheduleUpload();
@@ -4925,6 +5012,7 @@
           '<p class="sync-line">En este dispositivo: ' + nLocal + ' calificaciones</p>' +
           '<p class="sync-line">En la nube: ' + syncCloudCount + ' calificaciones</p>' +
           '<p class="sync-line">Aplicadas en este dispositivo: ' + syncAppliedCount + '</p>' +
+          (syncOrphanCount > 0 ? '<p class="sync-line">Sin coincidencia en este dispositivo: ' + syncOrphanCount + '</p>' : '') +
           '</div>';
         if(syncCloudCount > 0 && syncAppliedCount === 0){
           body += '<p class="sync-warn">⚠ La nube tiene calificaciones que no coinciden con ninguna canción de este dispositivo</p>';
