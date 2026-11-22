@@ -287,6 +287,10 @@
       .dup-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
       .dup-actions .btn{ min-height:42px; padding:8px 14px; font-size:13.5px; }
       .dup-keep{ background:color-mix(in srgb, var(--ok) 14%, var(--surface2)); color:var(--ok); }
+      .dup-dislike{ background:var(--surface2); color:var(--muted); }
+      .dup-dislike.on{ background:color-mix(in srgb, var(--danger) 16%, var(--surface2)); color:var(--danger); }
+      .dup-purge{ padding:12px 4px 0; }
+      .dup-purge .btn{ min-height:44px; }
       @media (max-width:520px){
         .dup-head{ flex-wrap:wrap; }
         .dup-head .play-group{ width:100%; }
@@ -2013,7 +2017,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.19</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.21</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2493,6 +2497,18 @@
 
     const getTrack = id => state.tracks.get(id);
     const isDisliked = t => t && t.rating === 'dislike';
+    /* v4.21 · Marca «No me gusta» SOLO de una copia, propia de la vista
+       Duplicadas: vive en la ficha de esa copia (dupDislike), no en su
+       calificación ni en el mapa de sincronización. Las copias de un
+       grupo pueden compartir la huella de la sincro (artista|título), y
+       la aplicación de la v4.15 reparte la calificación de una huella
+       entre todas sus copias: si la marca de una versión viajara por
+       esa vía, al reabrir caería también sobre la copia que Sando se
+       quiere quedar. Por eso la marca es por copia y solo por copia:
+       isPurgeMarked es quien la suma al «No me gusta» de siempre a la
+       hora de borrar en conjunto. */
+    const isDupMarked = t => !!(t && t.dupDislike);
+    const isPurgeMarked = t => !!(t && (t.rating === 'dislike' || t.dupDislike));
     function playable(ids){ return ids.filter(id => { const t = getTrack(id); return t && !isDisliked(t); }); }
 
     async function saveSettings(){
@@ -3158,14 +3174,17 @@
       // (±1 s) y el mismo tamaño; si ninguna coincide, esta versión
       // se distingue de las demás por duración o por tamaño.
       const identical = group.tracks.some(o => o.id !== t.id && (o.size || 0) === (t.size || 0) && Math.abs((o.duration || 0) - (t.duration || 0)) <= 1);
-      const tags = identical
+      let tags = identical
         ? '<span class="dup-tag same">Copia idéntica a otra</span>'
         : '<span class="dup-tag diff">Difiere de las demás</span>';
+      // v4.21: la marca por copia se anuncia en la propia versión.
+      if(isDupMarked(t) && t.rating !== 'dislike') tags += '<span class="dup-tag diff">Marcada: se borrará con las que no te gustan</span>';
+      const marked = t.rating === 'dislike' || isDupMarked(t);
       const meta = esc(t.fileName || t.title);
       const detail = fmt(t.duration) + ' · ' + fmtSize(t.size) +
         (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') +
         (t.addedAt ? ' · agregada el ' + esc(fmtAdded(t.addedAt)) : '');
-      return '<div class="row dup-ver ' + (playing ? 'playing' : '') + ' ' + (isDisliked(t) ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-dup-row="' + t.id + '">' +
+      return '<div class="row dup-ver ' + (playing ? 'playing' : '') + ' ' + (marked ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-dup-row="' + t.id + '">' +
         '<div class="dup-ver-main">' + coverHTML(t) +
           '<div class="meta"><div class="t" title="' + meta + '">' + meta + '</div><div class="a">' + detail + '</div><div class="dup-tags">' + tags + '</div></div>' +
           '<button class="dup-play" data-dup-play="' + t.id + '" aria-label="Escuchar esta versión de ' + esc(t.title) + '">' + icon('play') + '</button>' +
@@ -3173,6 +3192,7 @@
         '</div>' +
         '<div class="dup-actions">' +
           '<button class="btn dup-keep" data-dup-keep="' + t.id + '">' + icon('check','sm') + 'Quedarme con esta</button>' +
+          '<button class="btn dup-dislike' + (marked ? ' on' : '') + '" data-dup-dislike="' + t.id + '" aria-pressed="' + (marked ? 'true' : 'false') + '">' + icon('heartSlash','sm') + (marked ? 'Quitar el No me gusta' : 'No me gusta') + '</button>' +
           '<button class="btn btn-danger-soft" data-dup-del="' + t.id + '">' + icon('trash','sm') + 'Borrar esta versión</button>' +
         '</div></div>';
     }
@@ -3187,7 +3207,11 @@
       }
       const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
       const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
-      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo.</p></div>';
+      const dislikedCount = all.filter(isPurgeMarked).length;
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones.</p></div>';
+      if(dislikedCount){
+        h += '<div class="dup-purge"><button class="btn btn-danger-soft" data-dup-purge-disliked>' + icon('trash','sm') + 'Borrar las que no me gustan (' + dislikedCount + ')</button></div>';
+      }
       groups.forEach(g => {
         const rep = g.tracks[0];
         h += '<section class="dup-group"><div class="dup-head">' + coverHTML(rep) +
@@ -3204,9 +3228,34 @@
       const tracks = Array.from(state.tracks.values()).filter(o => dupKey(o) === k);
       return tracks.length ? tracks : null;
     }
+    /* v4.21 · El «No me gusta» de una versión en Duplicadas. Si la
+       copia ya trae el «No me gusta» de siempre (su calificación), el
+       botón lo quita por esa misma vía (setRating). Si no, el botón
+       mueve SOLO la marca por copia (dupDislike): se guarda en la
+       ficha con saveTrackMeta, no toca la calificación, no entra al
+       mapa de sincronización y no se extiende a las demás copias del
+       grupo aunque compartan huella — la copia que Sando se queda
+       queda a salvo. La copia marcada se sigue pudiendo escuchar
+       aquí para comparar, y sale de este dispositivo con «Borrar
+       las que no me gustan» (isPurgeMarked), igual que cualquier
+       otra canción con «No me gusta». */
+    async function toggleDupDislike(id){
+      const t = getTrack(id); if(!t) return;
+      if(t.rating === 'dislike'){ setRating(id, 'dislike'); return; }
+      t.dupDislike = t.dupDislike ? null : true;
+      const saved = await saveTrackMeta(t);
+      if(!saved) toast('La marca no se pudo guardar en este dispositivo.', 4200);
+      else if(t.dupDislike) toast('«' + t.title + '» se borrará junto con las que no te gustan');
+      else toast('«' + t.title + '» ya no está marcada para borrar');
+      render();
+    }
     function keepOnlyVersion(keepId){
       const keep = getTrack(keepId); if(!keep) return;
       const group = dupGroupOf(keepId); if(!group) return;
+      // v4.21: quedarse con una copia le quita su marca por copia, si
+      // la tenía: es la que se queda, no debe caer en la próxima
+      // barrida de «Borrar las que no me gustan».
+      if(keep.dupDislike){ keep.dupDislike = null; saveTrackMeta(keep); }
       const others = group.filter(t => t.id !== keepId);
       if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); return; }
       const freed = others.reduce((s, t) => s + (t.size || 0), 0);
@@ -3405,7 +3454,36 @@
        sincronización (trackFingerprint) NO se toca, y biblioteca
        y esquema quedan intactos: solo cambia qué se considera
        «la misma canción» dentro de esta vista. */
-    const APP_VERSION = '4.19';
+    /* v4.20 · Pedido por Sando: en Duplicadas quiere tener el
+       «No me gusta» por cada versión duplicada, para que esas
+       copias se borren junto con las demás que no le gustan.
+       Cada versión lleva su propio botón «No me gusta» (con
+       estado activo y «Quitar el No me gusta» al pulsarlo de
+       nuevo), y la vista muestra arriba el mismo botón de
+       Canciones, «Borrar las que no me gustan (N)», en cuanto
+       hay alguna marcada en la biblioteca: al pulsarlo se
+       borran en conjunto, con la confirmación y la limpieza
+       (purgeTrack) de siempre, las versiones marcadas aquí y
+       cualquier otra canción con «No me gusta».
+       v4.21 · Corrección de fondo sobre la v4.20: la primera
+       versión marcaba con setRating y la marca entraba al mapa
+       de sincronización por la huella (artista|título). Pero
+       las copias de un grupo pueden compartir esa huella, y la
+       aplicación de la v4.15 reparte la calificación de una
+       huella entre TODAS sus copias: al reabrir, el «No me
+       gusta» de una versión habría caído también sobre la
+       copia que Sando se quiere quedar. La marca ahora es por
+       copia (dupDislike, un campo opcional más en la ficha,
+       como ratingAt en su día): vive solo en esa ficha, no
+       entra al mapa ni sube a la nube, y «Borrar las que no me
+       gustan» la recoge vía isPurgeMarked junto al «No me
+       gusta» de siempre. Si la copia ya tenía el «No me gusta»
+       de su calificación, el botón lo sigue moviendo por esa
+       vía; calificar la copia con el corazón sustituye a la
+       marca, y «Quedarme con esta» la retira de la copia que
+       se queda. Sin tocar la agrupación (dupKey), la huella
+       de la sincro, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.21';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3756,6 +3834,10 @@
     async function setRating(id, rating){
       const t = getTrack(id); if(!t) return;
       t.rating = (t.rating === rating) ? null : rating;
+      // v4.21: calificar la copia con el «Me gusta»/«No me gusta» de
+      // siempre sustituye a su marca por copia de Duplicadas: a partir
+      // de aquí manda la calificación (y su sincronización).
+      if(t.dupDislike) t.dupDislike = null;
       // v4.12: la ficha guarda cuándo cambió su calificación; la sincro
       // solo podrá borrarla ante una descalificación explícita con una
       // marca posterior a esta (ver syncApplyToTracks).
@@ -4449,9 +4531,11 @@
     }
     /* v4.11 · «Borrar las que no me gustan»: borra de una vez todas las
        canciones con «No me gusta», cada una con la misma limpieza del
-       borrado individual (purgeTrack). Sin ninguna marcada, solo avisa. */
+       borrado individual (purgeTrack). Sin ninguna marcada, solo avisa.
+       v4.21: el conjunto (isPurgeMarked) incluye también las copias
+       marcadas una a una en Duplicadas con su marca por copia. */
     function deleteDislikedTracks(){
-      const ids = Array.from(state.tracks.values()).filter(t => t.rating === 'dislike').map(t => t.id);
+      const ids = Array.from(state.tracks.values()).filter(isPurgeMarked).map(t => t.id);
       if(!ids.length){ toast('No tienes canciones con No me gusta'); return; }
       const n = ids.length;
       const text = (n === 1
@@ -4490,6 +4574,14 @@
       }
       const dupKeep = e.target.closest('[data-dup-keep]');
       if(dupKeep){ e.stopPropagation(); keepOnlyVersion(dupKeep.dataset.dupKeep); return; }
+      /* v4.21 · «No me gusta» por versión: marca (o desmarca) solo
+         esa copia con su marca por copia (toggleDupDislike), que no
+         viaja por la huella compartida de la sincronización; el
+         borrado en conjunto la alcanza igual que a las demás. */
+      const dupDislike = e.target.closest('[data-dup-dislike]');
+      if(dupDislike){ e.stopPropagation(); toggleDupDislike(dupDislike.dataset.dupDislike); return; }
+      const dupPurge = e.target.closest('[data-dup-purge-disliked]');
+      if(dupPurge){ e.stopPropagation(); deleteDislikedTracks(); return; }
       const dupDel = e.target.closest('[data-dup-del]');
       if(dupDel){ e.stopPropagation(); deleteTrack(dupDel.dataset.dupDel); return; }
       const rate = e.target.closest('[data-rate]');
