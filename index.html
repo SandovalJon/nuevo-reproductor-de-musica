@@ -124,6 +124,15 @@
       .seg button{ border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--muted); /* tamaño táctil en la v3.3 */ }
       .seg button.on{ background:var(--surface2); color:var(--ink); }
       .shuffle-all{ margin-left:auto; }
+      /* v4.3 · «Aleatorio sin calificar»: el distintivo «?» sobre el icono
+         de aleatorio marca que la mezcla es solo de canciones sin calificar. */
+      .btn-ic-badge{ position:relative; display:inline-flex; flex:none; }
+      .btn-badge{
+        position:absolute; right:-8px; bottom:-6px; width:14px; height:14px; border-radius:50%;
+        background:var(--acc); color:var(--acc-ink); font-size:9.5px; font-weight:800; font-style:normal;
+        display:flex; align-items:center; justify-content:center; line-height:1;
+        box-shadow:0 0 0 2px var(--surface2);
+      }
 
       /* Song rows */
       .rows{ display:flex; flex-direction:column; }
@@ -1682,7 +1691,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Sonando<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.2</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.3</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1760,6 +1769,7 @@
               <button data-vm="grid" aria-label="Vista de cuadrícula"><span data-ic="grid"></span></button>
             </div>
             <button class="btn btn-ghost shuffle-all" id="btnShuffleAll"><span data-ic="shuffle"></span>Todo en aleatorio</button>
+            <button class="btn btn-ghost shuffle-unrated" id="btnShuffleUnrated"><span class="btn-ic-badge"><span data-ic="shuffle"></span><i class="btn-badge" aria-hidden="true">?</i></span>Aleatorio sin calificar</button>
             <button class="btn btn-danger-soft" id="btnClearLibrary"><span data-ic="trash"></span>Vaciar biblioteca</button>
           </div>
           <div id="content"></div>
@@ -2679,7 +2689,11 @@
        Escenario ganan viñeta cinematográfica y grano de película
        (solo CSS sobre .np-bg y .stage-bg). Solo presentación:
        ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.2';
+    /* v4.3 · Función nueva pedida por Sando: «Aleatorio sin calificar»,
+       un botón junto a «Todo en aleatorio» que arranca una cola mezclada
+       solo con las canciones sin calificar. Es un arranque filtrado, no
+       un modo nuevo: la biblioteca y su estructura no cambian. */
+    const APP_VERSION = '4.3';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3804,6 +3818,20 @@
       if(!playable(ids).length){ toast('Agrega música primero y luego mezclamos todo.'); return; }
       playContext(ids, null, { shuffle:true });
       toast('Todo en aleatorio');
+    });
+    /* v4.3 · «Aleatorio sin calificar»: arranque aleatorio filtrado — la
+       cola se forma SOLO con las canciones sin «Me gusta» ni «No me gusta»
+       (rating vacío). No es un modo persistente ni un ajuste nuevo: es una
+       cola normal creada al momento, así que «A continuación», siguiente,
+       anterior y repetir funcionan como siempre, y calificar una canción
+       mientras suena no altera la cola ya creada. El aleatorio queda
+       activado y persistente, igual que «Todo en aleatorio» desde la v1.5. */
+    $('#btnShuffleUnrated').addEventListener('click', ()=>{
+      if(!state.tracks.size){ toast('Agrega música primero y luego la mezclamos.'); return; }
+      const ids = Array.from(state.tracks.values()).filter(t => !t.rating).map(t => t.id);
+      if(!ids.length){ toast('Ya calificaste todas tus canciones 🎉'); return; }
+      playContext(ids, null, { shuffle:true });
+      toast('Aleatorio sin calificar');
     });
     function clearLibrary(){
       if(!state.tracks.size){ toast('La biblioteca ya está vacía'); return; }
