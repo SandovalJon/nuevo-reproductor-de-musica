@@ -732,6 +732,11 @@
       .sync-warn{ margin:10px 6px 2px; padding:12px 14px; background:color-mix(in srgb, var(--danger) 12%, var(--surface2)); border:1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius:14px; color:var(--danger); font-size:13.5px; line-height:1.55; font-weight:600; }
       .sync-counts{ margin:2px 6px 10px; display:flex; flex-direction:column; gap:4px; }
       .sync-counts .sync-line{ margin:0; }
+      /* v4.26 · Lista de calificaciones sin coincidencia en la hoja */
+      .sync-orphans{ margin:0 6px 10px; padding:10px 14px; background:var(--surface2); border-radius:14px; }
+      .sync-orphans .sync-line{ margin:0 0 4px; }
+      .sync-orphans .sync-line:last-child{ margin-bottom:0; }
+      .sync-orphan-r{ color:var(--muted); font-size:12.5px; white-space:nowrap; }
       .modal{
         position:fixed; inset:0; z-index:72; display:none; align-items:center; justify-content:center; padding:20px;
       }
@@ -2025,7 +2030,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.25</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.26</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3717,7 +3722,33 @@
        marca ya puesta se borra en bloque: cada una se sigue pudiendo
        quitar copia a copia. Sin tocar la huella de la sincro de
        calificaciones, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.25';
+    /* v4.26 · Pedido por Sando tras notar una contradicción: «Aleatorio
+       sin calificar» le decía que ya había calificado todas sus
+       canciones, pero al recargar reaparecía un par «sin sincronizar».
+       El diagnóstico confirmó tres cosas y se arreglan las tres.
+       (1) Ese botón NUNCA tocaba la sincronización: solo miraba las
+       fichas locales. Ahora, antes de filtrar, vacía cualquier subida
+       pendiente (syncFlushUpload) sin esperar a que termine, así la
+       reproducción no se frena ni un instante. (2) La subida con
+       espera de 1,2 s tras calificar podía no salir nunca si la app
+       se cerraba o pasaba a segundo plano justo después: al ocultar
+       o cerrar la app ahora se INTENTA enviar la subida pendiente,
+       no solo guardar el mapa en local. Y la hoja de Sincronización
+       gana un «Sincronizar ahora» de verdad (syncSyncNow): relee la
+       nube, fusiona por marca de tiempo, aplica y sube el resultado,
+       en vez de limitarse a pintar contadores. (3) Las entradas que
+       viven en el mapa y en la nube pero no casan con ninguna canción
+       de este dispositivo (las «Sin coincidencia») hacían que los
+       totales dijeran «todas calificadas» mientras esas canciones
+       seguían sin calificar aquí: la hoja ahora las LISTA por artista
+       y título, no solo las cuenta, y el rescate por título se afina:
+       si varias canciones comparten el título pero una SOLA huella
+       (copias de la misma canción), la entrada huérfana se aplica a
+       todas esas copias y se reescribe bajo la huella verdadera,
+       igual que ya hacía con una única candidata. Las guardias de
+       antigüedad de la v4.12/v4.13 y los demás rescates no cambian.
+       Sin tocar datos, biblioteca ni esquema. */
+    const APP_VERSION = '4.26';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4941,6 +4972,11 @@
        mientras suena no altera la cola ya creada. El aleatorio queda
        activado y persistente, igual que «Todo en aleatorio» desde la v1.5. */
     $('#btnShuffleUnrated').addEventListener('click', ()=>{
+      // v4.26: antes de filtrar se vacía cualquier subida de
+      // calificaciones aún pendiente (p. ej. la de hace un instante,
+      // todavía en su espera de 1,2 s), sin esperarla: la mezcla y la
+      // reproducción arrancan al momento, como siempre.
+      syncFlushUpload();
       if(!state.tracks.size){ toast('Agrega música primero y luego la mezclamos.'); return; }
       const ids = Array.from(state.tracks.values()).filter(t => !t.rating).map(t => t.id);
       if(!ids.length){ toast('Ya calificaste todas tus canciones 🎉'); return; }
@@ -5023,7 +5059,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5060,6 +5096,8 @@
     let syncCloudCount = 0;     // v4.9: calificaciones (like/dislike) vistas en la nube en la última lectura/fusión
     let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
     let syncOrphanCount = 0;     // v4.14: entradas con calificación que no casaron con ninguna canción en la última aplicación
+    let syncOrphanList = [];     // v4.26: esas mismas entradas, nombradas ({artist, title, r}) para listarlas en la hoja
+    let syncNowBusy = false;     // v4.26: «Sincronizar ahora» en curso (evita dobles toques)
     let syncUser = null;        // usuario de Firebase o null
     let syncReady = false;      // SDK cargado e inicializado
     let syncFailed = false;     // el SDK no pudo cargar
@@ -5570,22 +5608,41 @@
         const titlePart = fp.slice(fp.indexOf('|') + 1);
         const cand = byTitle[titlePart];
         let rescued = false;
-        if(cand && cand.length === 1 && !claimedRated.has(cand[0].id)){
-          const t = cand[0];
-          const block = ratingsMap[trackFingerprint(t)];
-          if(!(block && (block.r === 'like' || block.r === 'dislike'))){
-            await applyTo(fp, e, [t]);
-            const cur = ratingsMap[fp] || e;
-            ratingsMap[trackFingerprint(t)] = {
-              r: (t.rating || cur.r || ''),
-              t: Math.max(cur.t || 0, (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0),
-              d: Math.round(t.duration || 0) || (cur.d || 0)
-            };
-            delete ratingsMap[fp];
-            claimed.add(t.id);
-            claimedRated.add(t.id);
-            repaired = true;
-            rescued = true;
+        /* v4.26 · El rescate por título ya no exige UNA SOLA canción
+           con ese título: si hay varias pero TODAS comparten una sola
+           huella (son copias de la misma canción, el caso que dejaba
+           el «par sin sincronizar» de Sando: la entrada huérfana nunca
+           casaba porque el título lo llevaban dos o más fichas), la
+           entrada se aplica a todas esas copias y se reescribe bajo
+           la huella verdadera, igual que con una única candidata. Si
+           las candidatas tienen huellas DISTINTAS (canciones distintas
+           con el mismo título), el rescate sigue sin tocar nada: no
+           hay forma honesta de saber de cuál es la calificación. */
+        if(cand && cand.length && !cand.some(t => claimedRated.has(t.id))){
+          const candFps = new Set(cand.map(t => trackFingerprint(t)));
+          if(candFps.size === 1){
+            const t = cand[0];
+            const block = ratingsMap[trackFingerprint(t)];
+            if(!(block && (block.r === 'like' || block.r === 'dislike'))){
+              await applyTo(fp, e, cand);
+              const cur = ratingsMap[fp] || e;
+              // v4.26: con varias copias, la entrada reescrita toma la
+              // calificación de la copia con la decisión local más
+              // reciente (la misma antigüedad que applyTo ya respetó:
+              // si una copia reparó la entrada con su dato más nuevo,
+              // esa copia es la de mayor ratingAt y manda su valor).
+              let freshest = cand[0];
+              for(const x of cand){ if((x.ratingAt || 0) > (freshest.ratingAt || 0)) freshest = x; }
+              ratingsMap[trackFingerprint(t)] = {
+                r: (freshest.rating || cur.r || ''),
+                t: Math.max(cur.t || 0, ...cand.map(x => (typeof x.ratingAt === 'number' && x.ratingAt > 0) ? x.ratingAt : 0)),
+                d: Math.round(t.duration || 0) || (cur.d || 0)
+              };
+              delete ratingsMap[fp];
+              cand.forEach(x => { claimed.add(x.id); claimedRated.add(x.id); });
+              repaired = true;
+              rescued = true;
+            }
           }
         }
         if(!rescued) stillUnmatched.push(fp);
@@ -5607,6 +5664,7 @@
          huella verdadera, para que de aquí en adelante case de
          forma exacta. */
       let orphans = 0;
+      const orphanFps = []; // v4.26: las huérfanas se nombran, no solo se cuentan
       for(const fp of stillUnmatched){
         const e = ratingsMap[fp]; if(!e){ orphans++; continue; }
         const d = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
@@ -5635,10 +5693,22 @@
             rescued = true;
           }
         }
-        if(!rescued) orphans++;
+        if(!rescued){ orphans++; orphanFps.push(fp); }
       }
       syncAppliedCount = applied;
       syncOrphanCount = orphans;
+      // v4.26: la hoja lista las sin coincidencia por artista y título
+      // (salen de la propia huella artista|título de cada entrada),
+      // para que Sando pueda ver CUÁLES son y no solo cuántas.
+      syncOrphanList = orphanFps.map(fp => {
+        const cut = fp.indexOf('|');
+        const e = ratingsMap[fp] || {};
+        return {
+          artist: cut >= 0 ? fp.slice(0, cut) : '',
+          title: cut >= 0 ? fp.slice(cut + 1) : fp,
+          r: (e.r === 'like' || e.r === 'dislike') ? e.r : ''
+        };
+      });
       if(repaired){
         await syncSaveLocal();
         if(syncUser && syncReady) syncScheduleUpload();
@@ -5740,6 +5810,21 @@
         syncLastError = 'No se pudo subir la sincronización ahora; se reintentará con el próximo cambio.';
         syncRefreshSheet();
       }
+    }
+    /* v4.26 · Vaciar la subida pendiente AHORA: cancela la espera de
+       1,2 s de syncScheduleUpload y sube de inmediato si el mapa local
+       difiere del último subido o bajado. Es de «disparar y seguir»:
+       quien la llama no espera a que termine (la subida viaja en
+       segundo plano y syncUpload ya deja cualquier fallo visible en
+       la hoja, como desde la v4.12). La usan «Aleatorio sin
+       calificar» antes de filtrar —sin frenar la reproducción— y los
+       avisos de ocultar/cerrar la app, para que las últimas
+       calificaciones no dependan de que la app siga viva 1,2 s más. */
+    function syncFlushUpload(){
+      if(syncUploadTimer){ clearTimeout(syncUploadTimer); syncUploadTimer = null; }
+      if(!syncUser || !syncReady || syncApplying) return;
+      if(syncCombinedHash() === syncLastHash) return;
+      syncUpload();
     }
     function loadScript(src){
       return new Promise((res, rej)=>{
@@ -5849,6 +5934,24 @@
         syncShowError(e, 'No se pudo sincronizar ahora; tus calificaciones siguen en este dispositivo');
       }
       syncRefreshSheet();
+    }
+    /* v4.26 · «Sincronizar ahora» de verdad: hasta aquí la hoja solo
+       pintaba contadores y la sincro se movía al abrir la app, en
+       vivo o 1,2 s tras calificar. Este botón fuerza el ciclo
+       completo cuando Sando lo pide: relee la nube, fusiona por
+       marca de tiempo, aplica a las canciones y sube el mapa
+       fusionado — el mismo syncInitialMerge del acceso, reutilizado
+       tal cual. La bandera evita dobles toques mientras trabaja. */
+    async function syncSyncNow(){
+      if(syncNowBusy || !syncUser) return;
+      syncNowBusy = true;
+      syncRefreshSheet();
+      try{
+        await syncInitialMerge();
+      } finally {
+        syncNowBusy = false;
+        syncRefreshSheet();
+      }
     }
     // Cambios que llegan de otro dispositivo: se fusionan igual y NO se
     // re-sube lo que acaba de bajar (el hash bajado queda registrado).
@@ -5961,9 +6064,19 @@
           '<p class="sync-line">Marcas de duplicados en este dispositivo: ' + countDupMarks(dupMarksMap) + '</p>' +
           '<p class="sync-line">Marcas de duplicados en la nube: ' + syncCloudDupCount + '</p>' +
           '</div>';
+        // v4.26: las sin coincidencia se nombran una a una (artista y
+        // título de su huella, y qué calificación guardan), para que
+        // se sepa cuáles son y no solo que existen.
+        if(syncOrphanList.length){
+          body += '<div class="sync-orphans">' +
+            syncOrphanList.map(o => '<p class="sync-line"><span>' + esc(o.artist ? o.artist + ' — ' + o.title : o.title) + '</span>' +
+              (o.r ? '<span class="sync-orphan-r">' + (o.r === 'like' ? 'Me gusta' : 'No me gusta') + '</span>' : '') + '</p>').join('') +
+            '</div>';
+        }
         if(syncCloudCount > 0 && syncAppliedCount === 0){
           body += '<p class="sync-warn">⚠ La nube tiene calificaciones que no coinciden con ninguna canción de este dispositivo</p>';
         }
+        body += '<button class="sheet-item" id="syncNow"' + (syncNowBusy ? ' disabled' : '') + '>' + icon('refresh') + (syncNowBusy ? 'Sincronizando…' : 'Sincronizar ahora') + '</button>';
         body += '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
       } else {
         body += '<p class="sync-line"><span class="sync-state"></span><span>Sin sesión</span></p>' +
@@ -5977,6 +6090,8 @@
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
+      const bn = document.getElementById('syncNow');
+      if(bn) bn.addEventListener('click', syncSyncNow);
       const bo = document.getElementById('syncOut');
       if(bo) bo.addEventListener('click', syncSignOut);
     }
@@ -6041,12 +6156,16 @@
         content.innerHTML = '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Algo salió mal al abrir tu biblioteca</h2><p>Tu música sigue guardada en este dispositivo. Cierra y vuelve a abrir la página para intentarlo de nuevo.</p></div>';
       }
     })();
-    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); syncSaveDupLocal(); }catch(e){} });
+    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); syncSaveDupLocal(); syncFlushUpload(); }catch(e){} });
     // v4.13: al pasar la app a segundo plano se deja el mapa de
     // calificaciones guardado en disco. En el móvil es el momento en
     // que el sistema puede matar la app durante una escucha larga, y
     // es justo ahí donde la subida en espera podía no salir nunca.
-    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); syncSaveDupLocal(); }catch(e){} } });
+    // v4.26: además de guardar en local, se INTENTA enviar la subida
+    // pendiente en ese mismo momento (syncFlushUpload): al ocultarse
+    // la página suele quedar un margen para que la petición salga, y
+    // es la última oportunidad antes de que el sistema la mate.
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); syncSaveDupLocal(); syncFlushUpload(); }catch(e){} } });
     </script>
 
     <script>
