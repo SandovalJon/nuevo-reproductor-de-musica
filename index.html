@@ -83,6 +83,10 @@
       .top h1{ font-weight:800; letter-spacing:-.02em; margin:0; flex:1; line-height:1.1; /* tamaño display en la v2.0 */ }
       .top h1 span{ display:block; font-size:13px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:2px; }
       .version-tag{ font-size:12.5px; font-weight:700; color:var(--muted); background:var(--surface2); border:1px solid var(--line); padding:6px 10px; border-radius:999px; white-space:nowrap; }
+      /* v4.16 · Total de la biblioteca: pastilla junto a la versión con
+         el número de canciones; la pinta updateLibCount() en cada render. */
+      .lib-count{ display:inline-flex; align-items:center; gap:6px; color:var(--ink); }
+      .lib-count .ic, .lib-count svg{ width:14px; height:14px; color:var(--acc); flex:none; }
       .btn{
         display:inline-flex; align-items:center; gap:8px; border-radius:999px;
         padding:9px 16px; font-weight:600; min-height:44px; justify-content:center;
@@ -1963,7 +1967,8 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.15</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.16</span>
+          <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
@@ -2818,8 +2823,21 @@
        y la entrada (navDirection ya habrá registrado el destino). */
     let viewLeaving = false;
     let pendingInDir = '';
+    /* v4.16 · Total de la biblioteca en la cabecera: se repinta en
+       cada render(), y como todo cambio de la biblioteca (agregar,
+       borrar una, borrar las que no gustan, vaciar, aplicar la
+       sincro) termina en render(), el número nunca queda viejo.
+       Es el total real (state.tracks), no el de la vista ni el de
+       la búsqueda: buscar o cambiar de pestaña no lo mueve. */
+    function updateLibCount(){
+      const el = document.getElementById('libCountTxt');
+      if(!el) return;
+      const n = state.tracks.size;
+      el.textContent = n + (n === 1 ? ' canción' : ' canciones');
+    }
     function render(){
       paintToken++; // v3.2: cancela las tandas pendientes de la vista anterior
+      updateLibCount();
       // Movimiento entre pantallas: deslizamiento direccional según el viaje
       let dir = '';
       if(content){
@@ -3135,7 +3153,14 @@
        «d» comparten una sola huella sin calificación propia, y la
        entrada se reescribe bajo la huella verdadera. Sin tocar
        biblioteca ni esquema. */
-    const APP_VERSION = '4.15';
+    /* v4.16 · Pedido por Sando: ver el número total de canciones de
+       la biblioteca. Una pastilla en la cabecera, junto a la versión,
+       muestra siempre el total real («463 canciones») y se actualiza
+       sola en cada render() vía updateLibCount(): al agregar, borrar
+       o vaciar cambia al momento, y ni la búsqueda ni el cambio de
+       pestaña lo alteran, porque cuenta state.tracks entero. Solo
+       presentación: ningún dato ni el esquema cambian. */
+    const APP_VERSION = '4.16';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
