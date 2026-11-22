@@ -1076,6 +1076,70 @@
       html.perf-lite .detail-hero .back-row button{ backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
       html.perf-lite .cover img:not(.in){ filter:blur(8px) saturate(1.2); }
     </style>
+    <style>
+      /* ============ v3.3 · A tu mano ============
+         Ronda de interfaz: zonas táctiles más cómodas, una escala de
+         espaciados consistente en todas las vistas y la sección
+         «Apariencia» agrupada con encabezados claros. Solo CSS y el
+         orden del HTML de la cabecera: no se agrega ni se quita ningún
+         ajuste, y ningún comportamiento ni dato cambia. */
+
+      /* 1 · Zonas táctiles en torno a 44px: los botones pequeños de las
+         filas (me gusta / no me gusta y menú de la canción), el quitar
+         de la cola, el selector lista/cuadrícula, las píldoras de
+         Apariencia, el «Ver todo» del inicio y el volver de las fichas
+         ganan área de toque sin cambiar apenas su tamaño visible. Los
+         que ya medían 44px o más (botones de cabecera, pestañas de la
+         navegación flotante, mini-reproductor y controles de «Sonando
+         ahora» y del Escenario) quedan exactamente como estaban. */
+      .row .rate, .row .more{ width:44px; height:44px; }
+      .q-row .x{ width:44px; height:44px; }
+      .seg button{ width:44px; height:40px; }
+      .aseg button{ min-height:40px; padding:7px 13px; }
+      .link-btn{ min-height:44px; display:inline-flex; align-items:center; }
+      .detail-hero .back-row button{ min-height:44px; display:inline-flex; align-items:center; }
+      @media (max-width:520px){ .aseg button{ padding:7px 10px; } }
+      /* Muestras de color (Color y Fondo de Apariencia): el círculo que
+         se ve no cambia de tamaño; un ::after invisible extiende su
+         área de toque hasta los 44px. */
+      .sw, .bgsw{ position:relative; }
+      .sw::after, .bgsw::after{ content:""; position:absolute; border-radius:50%; }
+      .sw::after{ inset:-6px; }
+      .bgsw::after{ inset:-7px; }
+
+      /* 2 · Espaciados y jerarquía: la misma escala de respiro entre el
+         saludo, las secciones del inicio, la barra de herramientas, las
+         fichas y la cola de «Sonando ahora». Solo mueve márgenes y
+         rellenos, nunca colores, así que la escala es idéntica en modo
+         claro y en modo oscuro. */
+      .greet{ padding:18px 2px 4px; }
+      .home-sec{ margin-top:26px; }
+      .toolbar{ padding:12px 0 8px; }
+      .detail-hero{ margin:14px 0 18px; }
+      .detail-head{ padding:12px 0 18px; }
+      .detail-actions{ padding-bottom:14px; }
+      .queue-box{ margin-top:20px; }
+      @media (max-width:520px){ .greet{ padding-top:10px; } }
+
+      /* 3 · «Apariencia» agrupada: un solo bloque con su encabezado y
+         los cinco grupos de siempre — Color, Modo, Portadas, Lista y
+         Fondo — con las etiquetas alineadas a la misma anchura para
+         que los controles formen una columna limpia. En pantallas
+         estrechas los grupos se envuelven como antes y la etiqueta
+         vuelve a su ancho natural. */
+      .appearance{ max-width:1060px; margin:12px auto 0; }
+      .appearance-title{
+        margin:0 2px; font-family:var(--font-display); font-size:16px; font-weight:800;
+        letter-spacing:-.01em; color:var(--ink);
+      }
+      .appearance .theme-row{ margin-top:2px; padding-top:2px; }
+      .appearance .appearance-row{ margin-top:0; padding-top:2px; }
+      .appearance .theme-lbl, .appearance .ap-lbl{ min-width:64px; }
+      @media (max-width:520px){
+        .appearance{ margin-top:10px; }
+        .appearance .theme-lbl, .appearance .ap-lbl{ min-width:0; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1105,13 +1169,15 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.2</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.3</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
         </div>
+        <section class="appearance" aria-label="Apariencia">
+        <h2 class="appearance-title">Apariencia</h2>
         <div class="theme-row">
-          <span class="theme-lbl" id="themeLbl">Tema</span>
+          <span class="theme-lbl" id="themeLbl">Color</span>
           <div class="swatches" role="group" aria-labelledby="themeLbl">
             <button class="sw on" data-accent-btn="naranja" style="--sw1:#f0512f;--sw2:#ff9e4f" aria-label="Tema naranja" title="Naranja"></button>
             <button class="sw" data-accent-btn="violeta" style="--sw1:#7c3aed;--sw2:#b478f5" aria-label="Tema violeta" title="Violeta"></button>
@@ -1156,6 +1222,7 @@
             <span class="theme-name" id="libBgName">Original</span>
           </div>
         </div>
+        </section>
       </header>
 
       <nav class="tabs" id="tabs" aria-label="Vistas de la biblioteca">
@@ -2088,7 +2155,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.2';
+    const APP_VERSION = '3.3';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
