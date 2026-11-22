@@ -1195,7 +1195,13 @@
       /* Selección de texto y foco visible con el color de acento, igual
          de cuidados en claro y en oscuro. */
       ::selection{ background:color-mix(in srgb, var(--acc) 30%, transparent); }
-      button:focus-visible, [role="button"]:focus-visible, select:focus-visible{ outline:2px solid var(--acc); outline-offset:2px; }
+      /* v3.7 · Tacto: la regla se completa y unifica — el anillo de
+         acento alcanza a todo elemento enfocable (botones, enlaces,
+         campos, selectores, controles con rol o tabindex), para que
+         navegar con teclado distinga siempre dónde está el foco. */
+      button:focus-visible, [role="button"]:focus-visible, a:focus-visible,
+      input:focus-visible, select:focus-visible, summary:focus-visible,
+      [tabindex]:focus-visible{ outline:2px solid var(--acc); outline-offset:2px; }
       /* Al cambiar de modo, las superficies principales se funden en vez
          de saltar de golpe (el cuerpo ya lo hacía desde la v2.7). Solo
          se animan fondo y borde, y solo en elementos sin otra
@@ -1299,6 +1305,90 @@
            sola pieza cerrada en claro y en oscuro. */
       .detail-hero h2, .np-title h2{ text-wrap:balance; }
     </style>
+    <style>
+      /* ============ v3.7 · Tacto ============
+         Ronda de interfaz, sin tocar funciones ni datos:
+         1) respuesta al presionar en TODA la app — cada botón, fila,
+         tarjeta y control confirma el toque al instante con una leve
+         escala y/o un realce de fondo, en la línea de la onda de la
+         v2.1, y al soltar vuelve suave a su estado (las transiciones
+         de transform que faltaban se añaden aquí, conservando las de
+         fondo/borde que cada control ya traía);
+         2) el foco de teclado queda unificado en el bloque de la v3.4
+         (anillo de acento para todo elemento enfocable) y aquí se
+         rematan sus dos huecos: el buscador, cuyo campo lleva
+         outline:none, anilla su pastilla completa con :focus-within,
+         y el campo de los diálogos suma el mismo anillo a su borde;
+         3) el mini-reproductor (role="button") entra por fin en el
+         orden de tabulación con tabindex en el HTML, en su sitio
+         visual tras el contenido, y las etiquetas accesibles de los
+         controles de solo icono quedan completas (ver el HTML y las
+         plantillas). Todo respeta prefers-reduced-motion. */
+
+      /* 1 · Presionado consistente: los controles que ya lo tenían
+         (.btn, .tab, .row, .card, .group-row, .rail-card, .sw, .bgsw,
+         los del Escenario) conservan su escala; aquí reciben la suya,
+         en la misma escala de tamaños, los que faltaban. */
+      .btn{ transition:transform .18s ease, box-shadow .25s ease, background .25s ease, filter .18s ease; }
+      .btn:active{ filter:brightness(1.08); }
+      .icon-btn{ transition:transform .16s ease, background-color .35s ease, border-color .35s ease; }
+      .icon-btn:active{ transform:scale(.92); }
+      .seg button{ transition:transform .16s ease, background .2s ease, color .2s ease; }
+      .seg button:active{ transform:scale(.93); }
+      .aseg button{ transition:transform .16s ease, background .2s ease, color .2s ease; }
+      .aseg button:active{ transform:scale(.95); }
+      .row .rate, .row .more{ transition:transform .15s ease, background .2s ease; }
+      .row .rate:active, .row .more:active{ transform:scale(.85); background:var(--surface2); }
+      .mini button{ transition:transform .15s ease, background .2s ease; }
+      .mini button:active{ transform:scale(.88); }
+      /* El mini en sí no se escala: en pantallas anchas su transform
+         lo centra (translateX) y pisarlo lo descentraría; confirma el
+         toque con un realce de brillo, sin tocar su posición. */
+      .mini{ transition:filter .18s ease, background-color .35s ease, border-color .35s ease; }
+      .mini:active{ filter:brightness(1.09); }
+      .np-top button{ transition:transform .16s ease, background .25s ease; }
+      .np-top button:active{ transform:scale(.9); }
+      .np-controls button{ transition:transform .16s ease, background .25s ease, box-shadow .25s ease; }
+      .np-controls button:active{ transform:scale(.92); }
+      .np-controls .big:active{ transform:scale(.95); }
+      .np-rate button, .np-actions button{ transition:transform .16s ease, background .25s ease; }
+      .np-rate button:active, .np-actions button:active{ transform:scale(.95); }
+      .stage-party-btn{ transition:transform .16s ease, background .25s ease, box-shadow .25s ease, border-color .25s ease; }
+      .stage-party-btn:active{ transform:scale(.95); }
+      .q-row{ transition:background .18s ease; }
+      .q-row:active{ background:rgba(255,255,255,.14); }
+      .q-row .x{ transition:transform .15s ease, opacity .2s ease, background .2s ease; }
+      .q-row .x:active{ transform:scale(.85); opacity:1; }
+      .sheet-item{ transition:background .15s ease, transform .15s ease; }
+      .sheet-item:active{ background:var(--surface2); transform:scale(.99); }
+      .back-row button{ transition:transform .16s ease, background .25s ease; }
+      .back-row button:active{ transform:scale(.96); }
+      .link-btn{ transition:transform .16s ease; }
+      .link-btn:active{ transform:scale(.95); }
+
+      /* 2 · Foco: la pastilla del buscador se anilla entera cuando su
+         campo recibe el foco, y el campo de los diálogos suma el
+         anillo unificado a su borde de acento de siempre. */
+      .search:focus-within{ outline:2px solid var(--acc); outline-offset:2px; }
+      .search input:focus-visible{ outline:none; }
+      .modal input[type="text"]:focus-visible{ outline:2px solid var(--acc); outline-offset:2px; }
+
+      /* Con movimiento reducido, el presionado no escala ni realza:
+         el toque se confirma solo con la onda desactivada de la v2.1
+         y los cambios de fondo instantáneos, como en cada ronda. */
+      @media (prefers-reduced-motion: reduce){
+        .btn, .icon-btn, .seg button, .aseg button, .row .rate, .row .more,
+        .mini, .mini button, .np-top button, .np-controls button,
+        .np-rate button, .np-actions button, .stage-party-btn,
+        .q-row, .q-row .x, .sheet-item, .back-row button, .link-btn{ transition:none; }
+        .btn:active, .icon-btn:active, .seg button:active, .aseg button:active,
+        .row .rate:active, .row .more:active, .mini:active, .mini button:active,
+        .np-top button:active, .np-controls button:active, .np-controls .big:active,
+        .np-rate button:active, .np-actions button:active, .stage-party-btn:active,
+        .q-row .x:active, .sheet-item:active, .back-row button:active,
+        .link-btn:active{ transform:none; filter:none; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1328,7 +1418,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.6</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.7</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1394,7 +1484,7 @@
       <main class="main" id="main">
         <div class="wrap">
           <div class="toolbar" id="toolbar">
-            <label class="search"><span data-ic="search"></span><input id="searchInput" type="search" placeholder="Buscar título, artista o álbum…" autocomplete="off" /></label>
+            <label class="search"><span data-ic="search"></span><input id="searchInput" type="search" placeholder="Buscar título, artista o álbum…" autocomplete="off" aria-label="Buscar en la biblioteca" /></label>
             <select class="sort" id="sortSel" aria-label="Ordenar por">
               <option value="recent">Recientes</option>
               <option value="az">A – Z</option>
@@ -1414,7 +1504,7 @@
     </div>
 
     <!-- Mini player -->
-    <div class="mini" id="mini" role="button" aria-label="Abrir Sonando ahora">
+    <div class="mini" id="mini" role="button" tabindex="0" aria-label="Abrir Sonando ahora">
       <div class="cover" id="miniCover"></div>
       <div class="meta"><div class="t" id="miniTitle">—</div><div class="a" id="miniArtist">—</div></div>
       <button id="miniPrev" aria-label="Anterior"><span data-ic="prev"></span></button>
@@ -1428,7 +1518,7 @@
       <div class="np-bg" id="npBg"><div class="np-bg-layer" id="npBgA"></div><div class="np-bg-layer" id="npBgB"></div><div class="np-aurora" aria-hidden="true"></div><div class="np-shade"></div></div>
       <div class="np-in">
         <div class="np-top">
-          <button id="npClose" aria-label="Cerrar"><span data-ic="chevD"></span></button>
+          <button id="npClose" aria-label="Cerrar Sonando ahora"><span data-ic="chevD"></span></button>
           <div class="lbl">Sonando ahora</div>
           <button id="npStage" aria-label="Modo Escenario"><span data-ic="expand"></span></button>
         </div>
@@ -1510,7 +1600,7 @@
       <h2>Suelta tu música aquí</h2><p>Los archivos se guardan solo en este dispositivo.</p>
     </div></div>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <input type="file" id="fileInput" class="hidden-input" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac" multiple />
     <input type="file" id="folderInput" class="hidden-input" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac" webkitdirectory multiple />
@@ -2013,12 +2103,16 @@
       const playing = t.id === state.currentId;
       const likeCls = t.rating === 'like' ? 'like' : (t.rating === 'dislike' ? 'dislike' : '');
       const heartIcon = t.rating === 'like' ? 'heart' : (t.rating === 'dislike' ? 'heartSlash' : 'heartO');
+      /* v3.7 · Tacto: la etiqueta accesible del corazón dice la acción
+         según el estado actual, y la de «Más opciones» nombra la
+         canción; el texto visible no cambia. */
+      const rateLabel = t.rating === 'like' ? 'Quitar el Me gusta' : (t.rating === 'dislike' ? 'Quitar el No me gusta' : 'Marcar Me gusta o No me gusta');
       return '<div class="row ' + (playing ? 'playing' : '') + ' ' + (isDisliked(t) ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-song="' + t.id + '">' +
         coverHTML(t) +
         '<div class="meta"><div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') + '</div>' + badgesHTML(t) + '</div>' +
         '<span class="dur">' + fmt(t.duration) + '</span>' +
-        '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="Me gusta / No me gusta">' + icon(heartIcon) + '</button>' +
-        '<button class="more" data-more="' + t.id + '" aria-label="Más opciones">' + icon('more') + '</button></div>';
+        '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="' + rateLabel + '">' + icon(heartIcon) + '</button>' +
+        '<button class="more" data-more="' + t.id + '" aria-label="Más opciones de ' + esc(t.title) + '">' + icon('more') + '</button></div>';
     }
     function songCardHTML(t){
       const playing = t.id === state.currentId;
@@ -2313,7 +2407,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.6';
+    const APP_VERSION = '3.7';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3018,6 +3112,13 @@
     $('#npLike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'like'); });
     $('#npDislike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'dislike'); });
     $('#mini').addEventListener('click', openNowPlaying);
+    /* v3.7 · Tacto: el mini es un botón para el teclado también —
+       Enter o Espacio sobre él abren «Sonando ahora», igual que el
+       clic; las teclas que llegan desde sus botones hijos no cuentan. */
+    $('#mini').addEventListener('keydown', e => {
+      if(e.target !== e.currentTarget) return;
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openNowPlaying(); }
+    });
     $('#npClose').addEventListener('click', ()=> $('#np').classList.remove('open'));
     $('#btnQueueToggle').addEventListener('click', ()=>{
       const b = $('#queueBox'); b.classList.toggle('show'); renderQueue();
@@ -3212,7 +3313,7 @@
     $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
     function textModal(title, label, initial, okLabel, onOk){
       openModal('<h3>' + esc(title) + '</h3><p>' + esc(label) + '</p>' +
-        '<input type="text" id="modalInput" value="' + esc(initial || '') + '" maxlength="80" />' +
+        '<input type="text" id="modalInput" value="' + esc(initial || '') + '" maxlength="80" aria-label="' + esc(title) + '" />' +
         '<div class="row-btns"><button class="btn btn-ghost" id="modalCancel">Cancelar</button>' +
         '<button class="btn btn-acc" id="modalOk">' + esc(okLabel) + '</button></div>');
       const inp = $('#modalInput'); inp.focus(); inp.select();
