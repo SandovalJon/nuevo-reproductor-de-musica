@@ -1662,6 +1662,97 @@
       .stage-bg::after{ z-index:3; }
       :root[data-mode="claro"] .np-bg::after, :root[data-mode="claro"] .stage-bg::after{ opacity:.035; }
     </style>
+    <style>
+      /* ============ v4.4 · Inicio con presencia ============
+         Ronda del plan hasta la 4.5 — solo visual e interfaz, sin
+         funciones nuevas, sin rendimiento y sin cambios de datos.
+         El inicio de la biblioteca (la vista Canciones) gana una
+         BANDA DE MARCA con presencia: la pastilla del logo — la
+         misma de la bienvenida y del icono de la app: la nota sobre
+         el degradado del tema, con su halo de acento y el filo de
+         luz cenital de la v3.9/v4.0 — junto al nombre «Sonando» en
+         la tipografía display (Baloo 2) a buen tamaño, y el saludo
+         según la hora integrado debajo, en la misma zona y con su
+         jerarquía. Como la marca ya vive en el inicio, la cabecera
+         se aligera: su h1 conserva el nombre para lectores de
+         pantalla y muestra solo la línea «Todo vive en tu
+         dispositivo…», para que la marca no se repita dos veces
+         seguidas.
+         Las secciones del inicio («Favoritas» y «Tus artistas»)
+         ganan presencia: la primera tarjeta de cada carrusel se
+         presenta destacada, más grande (tipo héroe), y el resto
+         conserva su tamaño; los encabezados de sección suben un
+         punto y llevan una marca breve del tema junto al título.
+         Los tamaños héroe acompañan al ajuste «Portadas» de
+         Apariencia (compacto y grande tienen su propio héroe) y en
+         pantallas estrechas el héroe se contiene para no comerse
+         el carril.
+         La banda vive en el mismo HTML del saludo de siempre (la
+         clase .greet se conserva), así que la entrada en cascada
+         de la v2.8, el estado vacío ilustrado de la biblioteca —
+         que pinta el mismo saludo — y ambos modos (claro y oscuro)
+         la reciben sin tocar una sola función: todo lo nuevo es
+         CSS y la estructura del saludo, y nada se mueve, así que
+         prefers-reduced-motion no necesita excepciones. */
+
+      /* La cabecera, más ligera: el nombre queda para lectores de
+         pantalla y solo se ve la línea de siempre. */
+      .top h1 .vh{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+      .top h1 .top-sub{ margin-top:0; font-size:14px; }
+
+      /* La banda de marca del inicio. */
+      .brand-band{
+        display:flex; align-items:center; gap:16px;
+        padding:18px 16px 16px; border-radius:26px;
+        background:linear-gradient(120deg, color-mix(in srgb, var(--acc) 11%, transparent), color-mix(in srgb, var(--acc2) 6%, transparent) 55%, transparent 82%);
+        border:1px solid color-mix(in srgb, var(--acc) 16%, var(--line));
+      }
+      .brand-mark{
+        width:62px; height:62px; border-radius:19px; flex:none;
+        background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.38),
+          inset 0 -14px 22px -14px rgba(0,0,0,.30),
+          0 14px 30px color-mix(in srgb, var(--acc) 34%, transparent),
+          0 6px 14px rgba(0,0,0,.14);
+      }
+      .brand-mark .ic{ width:32px; height:32px; }
+      .brand-txt{ min-width:0; }
+      .brand-name{ font-family:var(--font-display); font-size:40px; font-weight:800; letter-spacing:-.01em; line-height:1.02; }
+      .brand-band h2{ font-size:19px; margin-top:3px; }
+      .brand-band p{ margin-top:2px; font-size:14px; }
+      @media (max-width:520px){
+        .brand-band{ gap:13px; padding:14px 13px 13px; border-radius:22px; }
+        .brand-mark{ width:52px; height:52px; border-radius:16px; }
+        .brand-mark .ic{ width:27px; height:27px; }
+        .brand-name{ font-size:32px; }
+        .brand-band h2{ font-size:16.5px; }
+        .brand-band p{ font-size:13px; }
+      }
+
+      /* Encabezados de sección del inicio: un punto más de
+         jerarquía y una marca breve del tema junto al título. */
+      .home-sec h3{ font-size:24px; display:flex; align-items:center; gap:9px; }
+      .home-sec h3::before{ content:""; width:5px; height:21px; border-radius:3px; flex:none; background:linear-gradient(180deg, var(--acc), var(--acc2)); }
+
+      /* La primera tarjeta de cada carrusel, destacada (héroe):
+         más grande que sus vecinas, que conservan su tamaño; la
+         del artista mantiene su portada redonda. */
+      .rail-card.hero{ flex-basis:198px; }
+      .rail-card.hero .cover{ width:198px; height:198px; border-radius:26px; font-size:70px; }
+      .rail-card.artist.hero .cover{ border-radius:50%; }
+      .rail-card.hero .t{ font-size:16.5px; margin-top:10px; }
+      .rail-card.hero .a{ font-size:13.5px; }
+      :root[data-coversize="compacto"] .rail-card.hero{ flex-basis:158px; }
+      :root[data-coversize="compacto"] .rail-card.hero .cover{ width:158px; height:158px; font-size:56px; }
+      :root[data-coversize="grande"] .rail-card.hero{ flex-basis:230px; }
+      :root[data-coversize="grande"] .rail-card.hero .cover{ width:230px; height:230px; font-size:82px; }
+      @media (max-width:520px){
+        .rail-card.hero{ flex-basis:176px; }
+        .rail-card.hero .cover{ width:176px; height:176px; font-size:62px; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1690,8 +1781,8 @@
     <div class="app">
       <header class="top">
         <div class="top-in">
-          <h1>Sonando<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.3</span>
+          <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.4</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2525,8 +2616,22 @@
       const g = h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
       return g + ', Sando';
     }
+    /* v4.4 · Inicio con presencia: el saludo se convierte en la banda
+       de marca del inicio — la pastilla del logo (la nota de siempre,
+       con el mismo icon() de la app) junto al nombre «Sonando» y, en la
+       misma zona y en orden, el saludo según la hora y su línea de
+       siempre. Conserva la clase .greet para que la cascada de la v2.8
+       y los espaciados de la v3.3 la sigan tratando igual, y la pinta
+       también el estado vacío de la biblioteca, que usa este mismo
+       saludo. Solo presentación: ningún dato ni comportamiento cambia. */
     function greetHTML(){
-      return '<div class="greet"><h2>' + esc(greetingText()) + '</h2><p>Tu música está lista. ¿Qué quieres escuchar?</p></div>';
+      return '<div class="greet brand-band">' +
+        '<div class="brand-mark" aria-hidden="true">' + icon('note') + '</div>' +
+        '<div class="brand-txt">' +
+          '<div class="brand-name">Sonando</div>' +
+          '<h2>' + esc(greetingText()) + '</h2>' +
+          '<p>Tu música está lista. ¿Qué quieres escuchar?</p>' +
+        '</div></div>';
     }
     function homeHTML(){
       if(state.search) return '';
@@ -2534,13 +2639,13 @@
       const favs = favPlaylist();
       if(favs.trackIds.length){
         h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
-          favs.trackIds.slice(0, 12).map(id => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
+          favs.trackIds.slice(0, 12).map((id, i) => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
       }
       const map = groupBy(t => t.artist);
       const names = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
       if(names.length){
         h += '<div class="home-sec"><div class="home-sec-head"><h3>Tus artistas</h3></div><div class="rail">' +
-          names.slice(0, 12).map(n => { const ts = map.get(n); const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
+          names.slice(0, 12).map((n, i) => { const ts = map.get(n); const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist' + (i === 0 ? ' hero' : '') + '" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
       }
       return h;
     }
@@ -2693,7 +2798,7 @@
        un botón junto a «Todo en aleatorio» que arranca una cola mezclada
        solo con las canciones sin calificar. Es un arranque filtrado, no
        un modo nuevo: la biblioteca y su estructura no cambian. */
-    const APP_VERSION = '4.3';
+    const APP_VERSION = '4.4';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
