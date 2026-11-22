@@ -1963,7 +1963,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.14</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.15</span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
@@ -3115,7 +3115,27 @@
        único las que ni así casen (reescribiéndolas bajo la huella
        verdadera) y la hoja muestra cuántas quedan sin coincidencia.
        Sin tocar biblioteca ni esquema. */
-    const APP_VERSION = '4.14';
+    /* v4.15 · Sando confirmó que en la v4.14 el problema seguía SOLO
+       con los audios largos. La auditoría de la ruta completa dejó
+       tres agujeros vivos, y los tres apuntan a esos audios: (1) el
+       desempate por «d» entre copias de la misma huella: si el audio
+       existe en dos fichas, la calificación solo caía en las copias
+       a ±3 s de la «d» de la entrada, y la duración guardada de un
+       MP3 largo es 0 o una estimación VBR inestable, así que la
+       copia visible quedaba fuera en cada reapertura; ahora la
+       entrada manda sobre TODAS las copias de su huella y la «d»
+       ya no excluye a ninguna. (2) El rescate por título lo vetaba
+       cualquier entrada vacía bajo la huella verdadera; ahora solo
+       veta una entrada CON calificación. (3) Si título y artista
+       difieren entre la fuente donde se calificó y este dispositivo
+       (lo típico en MP3 largos tipo podcast o mixtape), ningún texto
+       casaba jamás; nueva última red: rescate por duración, pues la
+       duración de un audio de más de 45 minutos es casi una huella
+       en la biblioteca — solo si todas las canciones a ±3 s de la
+       «d» comparten una sola huella sin calificación propia, y la
+       entrada se reescribe bajo la huella verdadera. Sin tocar
+       biblioteca ni esquema. */
+    const APP_VERSION = '4.15';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4361,7 +4381,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -4599,16 +4619,19 @@
       const applyTo = async (fp, e, list) => {
         const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
         let targets = list;
-        // v4.13: el desempate por «d» solo se usa si la duración de la
-        // entrada es un dato real (> 0). Con «d» en 0 —el dato malo
-        // típico de los audios largos al importarse— el filtro dejaba
-        // fuera justo a la copia buena (la de duración ya corregida)
-        // y la calificación caía en la copia equivocada o en ninguna.
-        if(list.length > 1 && e.d != null && !isNaN(Number(e.d)) && Number(e.d) > 0){
-          const d = Number(e.d);
-          const near = list.filter(t => Math.abs(Math.round(t.duration || 0) - d) <= 3);
-          if(near.length) targets = near;
-        }
+        /* v4.15 · Ya NO hay desempate por «d» entre copias de la misma
+           huella. La v4.13 lo dejó así: con varias fichas de igual
+           artista|título, la calificación solo caía en las copias cuya
+           duración estuviera a ±3 s de la «d» de la entrada. Para los
+           audios largos eso era una trampa permanente: su duración
+           guardada suele ser 0 (la medición al importar falló) o una
+           estimación VBR que cambia entre sesiones, así que la copia
+           que Sando veía y usaba quedaba fuera del margen en CADA
+           reapertura y su calificación «no se quedaba», mientras otra
+           copia invisible la recibía. Dos fichas con la misma huella
+           son la misma grabación a efectos de calificar: la entrada
+           manda sobre TODAS sus copias y la «d» ya no excluye a
+           ninguna. */
         for(const t of targets){
           if(want){
             if(t.rating !== want){
@@ -4670,11 +4693,16 @@
         }
       };
       const claimed = new Set(); // ids de canciones ya gobernadas por su huella exacta
+      const claimedRated = new Set(); // v4.15: ids gobernados por una entrada CON calificación
       const unmatched = [];
       for(const fp in ratingsMap){
         const e = ratingsMap[fp]; if(!e) continue;
         const list = byFp[fp];
-        if(list && list.length){ list.forEach(t => claimed.add(t.id)); await applyTo(fp, e, list); }
+        if(list && list.length){
+          list.forEach(t => claimed.add(t.id));
+          if(e.r === 'like' || e.r === 'dislike') list.forEach(t => claimedRated.add(t.id));
+          await applyTo(fp, e, list);
+        }
         else if(e.r === 'like' || e.r === 'dislike') unmatched.push(fp);
       }
       /* v4.14 · Rescate por título de las entradas aún huérfanas:
@@ -4687,26 +4715,84 @@
          fuente donde se calificó y este dispositivo). Se aplica con
          las mismas guardias de siempre y la entrada se reescribe
          bajo la huella verdadera de la canción, para que de aquí en
-         adelante case de forma exacta y la huérfana desaparezca. */
-      let orphans = 0;
+         adelante case de forma exacta y la huérfana desaparezca.
+         v4.15 · El veto se afina: solo bloquea el rescate una entrada
+         CON calificación (bajo la huella verdadera o ya gobernando la
+         canción). Una entrada VACÍA (una descalificación vieja o una
+         semilla sin valor) ya no puede vetar para siempre una
+         calificación real que busca su canción: si la verdadera
+         tuviera algo que decir, applyTo lo dirá con sus guardias de
+         antigüedad al reescribir sobre ella. */
+      const stillUnmatched = [];
       for(const fp of unmatched){
         const e = ratingsMap[fp]; if(!e){ continue; }
         const titlePart = fp.slice(fp.indexOf('|') + 1);
         const cand = byTitle[titlePart];
         let rescued = false;
-        if(cand && cand.length === 1 && !claimed.has(cand[0].id) && !ratingsMap[trackFingerprint(cand[0])]){
+        if(cand && cand.length === 1 && !claimedRated.has(cand[0].id)){
           const t = cand[0];
-          await applyTo(fp, e, [t]);
-          const cur = ratingsMap[fp] || e;
-          ratingsMap[trackFingerprint(t)] = {
-            r: (t.rating || cur.r || ''),
-            t: Math.max(cur.t || 0, (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0),
-            d: Math.round(t.duration || 0) || (cur.d || 0)
-          };
-          delete ratingsMap[fp];
-          claimed.add(t.id);
-          repaired = true;
-          rescued = true;
+          const block = ratingsMap[trackFingerprint(t)];
+          if(!(block && (block.r === 'like' || block.r === 'dislike'))){
+            await applyTo(fp, e, [t]);
+            const cur = ratingsMap[fp] || e;
+            ratingsMap[trackFingerprint(t)] = {
+              r: (t.rating || cur.r || ''),
+              t: Math.max(cur.t || 0, (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0),
+              d: Math.round(t.duration || 0) || (cur.d || 0)
+            };
+            delete ratingsMap[fp];
+            claimed.add(t.id);
+            claimedRated.add(t.id);
+            repaired = true;
+            rescued = true;
+          }
+        }
+        if(!rescued) stillUnmatched.push(fp);
+      }
+      /* v4.15 · Rescate por duración, la última red: si ni la huella
+         ni el título casan (en los MP3 largos de tipo podcast,
+         mixtape o audiolibro el título y el artista salen del nombre
+         de archivo o de etiquetas pobres, y difieren entre la fuente
+         donde se calificó y este dispositivo), la «d» de la entrada
+         aún puede señalar su canción: en una biblioteca de música
+         casi ninguna otra pista dura lo mismo que un audio de más
+         de 45 minutos, así que su duración es casi una huella. Solo
+         se rescata si TODAS las canciones dentro de ±3 s de «d»
+         comparten UNA sola huella (una canción, tenga las copias
+         que tenga), esa huella no tiene ya una calificación propia
+         y ninguna de esas copias está gobernada por otra entrada
+         con calificación. Se aplica con las mismas guardias de
+         antigüedad de siempre y la entrada se reescribe bajo la
+         huella verdadera, para que de aquí en adelante case de
+         forma exacta. */
+      let orphans = 0;
+      for(const fp of stillUnmatched){
+        const e = ratingsMap[fp]; if(!e){ orphans++; continue; }
+        const d = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
+        let rescued = false;
+        if(d > 0){
+          const cand = Array.from(state.tracks.values()).filter(t => {
+            if(claimedRated.has(t.id)) return false;
+            const td = Math.round(t.duration || 0);
+            if(!(td > 0) || Math.abs(td - d) > 3) return false;
+            const own = ratingsMap[trackFingerprint(t)];
+            return !(own && (own.r === 'like' || own.r === 'dislike'));
+          });
+          const fps = new Set(cand.map(t => trackFingerprint(t)));
+          if(cand.length && fps.size === 1){
+            for(const t of cand) await applyTo(fp, e, [t]);
+            const cur = ratingsMap[fp] || e;
+            const t0 = cand[0];
+            ratingsMap[trackFingerprint(t0)] = {
+              r: (t0.rating || cur.r || ''),
+              t: Math.max(cur.t || 0, ...cand.map(t => (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0)),
+              d: Math.round(t0.duration || 0) || (cur.d || 0)
+            };
+            delete ratingsMap[fp];
+            cand.forEach(t => { claimed.add(t.id); claimedRated.add(t.id); });
+            repaired = true;
+            rescued = true;
+          }
         }
         if(!rescued) orphans++;
       }
@@ -5026,7 +5112,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción (la duración solo ayuda a desempatar si hay dos canciones iguales). Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
