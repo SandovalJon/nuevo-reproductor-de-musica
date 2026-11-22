@@ -210,6 +210,12 @@
       .np.playing .np-eq i, .stage.playing .np-eq i{ animation-play-state:running; }
       .np-eq i:nth-child(2){ animation-delay:.2s; height:11px; } .np-eq i:nth-child(3){ animation-delay:.4s; } .np-eq i:nth-child(4){ animation-delay:.12s; height:9px; }
       @media (prefers-reduced-motion: reduce){ .np-eq i{ animation:none; } }
+      /* v3.1 · Ligero: las animaciones continuas se pausan solas cuando la
+         app pasa a segundo plano (body.app-bg, vía document.hidden) o cuando
+         su contenedor sale de la pantalla (.anim-off en «Sonando ahora» y
+         el Escenario cerrados); al volver a verse continúan igual. */
+      body.app-bg *, body.app-bg *::before, body.app-bg *::after,
+      .anim-off, .anim-off *, .anim-off *::before, .anim-off *::after{ animation-play-state:paused !important; }
 
       /* Grid cards */
       .grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:20px 16px; padding-top:8px; }
@@ -1056,7 +1062,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.0</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.1</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1582,20 +1588,65 @@
       state.coverUrls.set(id, url);
       return url;
     }
+    /* ============ v3.1 · Ligero: portadas reutilizadas y carga diferida ============
+       Solo rendimiento; el aspecto (degradado, letra, blur-up y vuelo de
+       portada) no cambia:
+       · decodedCovers recuerda qué portadas ya se decodificaron en esta
+         sesión: al volver a mostrarse entran nítidas al instante, sin
+         repetir el desenfoque de entrada ni parpadear.
+       · Las portadas ya no se cargan todas al abrir la app: cada tarjeta
+         lleva data-cid y su imagen se pide solo cuando está cerca de
+         verse (IntersectionObserver con margen), así el arranque lee de
+         IndexedDB únicamente lo que la primera pantalla necesita. */
+    const decodedCovers = new Set();
     function coverHTML(t, extraCls){
       const url = state.coverUrls.get(t.id);
       const letter = esc((t.title || '?').trim().charAt(0).toUpperCase() || '♪');
-      const inner = url ? '<img src="' + url + '" alt="" />' : '<span>' + letter + '</span>';
-      return '<div class="cover ' + (extraCls||'') + '" style="background:' + gradientFor(t) + ';--cover-glow:' + accentFor(t) + '">' + inner +
+      const inner = url ? '<img src="' + url + '" alt=""' + (decodedCovers.has(url) ? ' class="in"' : '') + ' />' : '<span>' + letter + '</span>';
+      const lazy = (!url && t.hasCover) ? ' data-cid="' + t.id + '"' : '';
+      return '<div class="cover ' + (extraCls||'') + '"' + lazy + ' style="background:' + gradientFor(t) + ';--cover-glow:' + accentFor(t) + '">' + inner +
              '<span class="eq"><i></i><i></i><i></i><i></i></span></div>';
     }
     /* Portadas que entran suaves v1.9: al terminar de cargar, cada imagen
-       de portada pasa de borrosa a nítida con un fundido (clase .in). */
+       de portada pasa de borrosa a nítida con un fundido (clase .in).
+       v3.1: de paso, la URL queda en decodedCovers para reutilizarla. */
     document.addEventListener('load', e => {
       const img = e.target;
-      if(img && img.tagName === 'IMG' && img.closest && img.closest('.cover')) img.classList.add('in');
+      if(!img || img.tagName !== 'IMG') return;
+      const src = img.getAttribute && img.getAttribute('src');
+      if(src && src.indexOf('blob:') === 0) decodedCovers.add(src);
+      if(img.closest && img.closest('.cover')) img.classList.add('in');
     }, true);
+    const coverObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if(!en.isIntersecting) return;
+        const el = en.target;
+        coverObserver.unobserve(el);
+        const id = el.getAttribute('data-cid');
+        if(!id) return;
+        ensureCoverUrl(id).then(url => {
+          if(!url || !el.isConnected) return;
+          el.removeAttribute('data-cid');
+          const img = document.createElement('img');
+          img.alt = '';
+          if(decodedCovers.has(url)) img.classList.add('in');
+          img.src = url;
+          const first = el.firstElementChild;
+          if(first && first.tagName === 'SPAN' && !first.classList.contains('eq')) el.replaceChild(img, first);
+          else el.insertBefore(img, el.firstChild);
+        }).catch(()=>{});
+      });
+    }, { rootMargin: '320px 0px' }) : null;
+    function observeCovers(){
+      if(!coverObserver) return;
+      coverObserver.disconnect();
+      document.querySelectorAll('.cover[data-cid]').forEach(el => coverObserver.observe(el));
+    }
     async function hydrateCovers(scopeEl){
+      // v3.1: con IntersectionObserver, hidratar = observar las portadas
+      // de lo ya pintado; cada una se carga al acercarse a la pantalla.
+      if(coverObserver){ observeCovers(); return; }
+      // Sin IntersectionObserver se conserva la carga completa de antes.
       const withCover = Array.from(state.tracks.values()).filter(t => t.hasCover && !state.coverUrls.has(t.id));
       if(!withCover.length) return;
       await Promise.all(withCover.map(t => ensureCoverUrl(t.id)));
@@ -1775,6 +1826,7 @@
       else if(state.view === 'albums') renderAlbums();
       else if(state.view === 'playlists') renderPlaylists();
       if(dir || firstRender) applyCascade();
+      observeCovers();
     }
     /* ================= Inicio renovado (v2.0) ================= */
     function greetingText(){
@@ -1933,7 +1985,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.0';
+    const APP_VERSION = '3.1';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2050,6 +2102,12 @@
       audio.volume = state.volume;
       const doSeek = () => { if(seekTo) { try{ audio.currentTime = seekTo; }catch(e){} } };
       if(seekTo) audio.addEventListener('loadedmetadata', doSeek, { once:true });
+      // v3.1 · Ligero: la portada de la canción que suena se pide al
+      // momento (una sola) en lugar de cargar todas al abrir la app;
+      // al llegar, la interfaz pasa del degradado a la foto real.
+      if(t.hasCover && !state.coverUrls.has(id)){
+        ensureCoverUrl(id).then(()=>{ if(state.currentId === id) syncPlayerUI(); }).catch(()=>{});
+      }
       syncPlayerUI();
       render();
       if(autoplay){ try{ await audio.play(); }catch(e){} }
@@ -2309,6 +2367,13 @@
     }
     function setBigCover(el, t){
       const url = state.coverUrls.get(t.id);
+      /* v3.1 · Ligero: si la portada de este elemento no cambió, no se
+         reconstruye su interior: la imagen ya decodificada se queda tal
+         cual, sin parpadeos ni redecodeos al pausar, reanudar o
+         refrescar la interfaz con la misma canción. */
+      const sig = t.id + '|' + (url || '');
+      if(el._coverSig === sig) return;
+      el._coverSig = sig;
       el.style.background = gradientFor(t);
       const isBig = el.id === 'npCover' || el.id === 'stageCover';
       if(isBig) el.classList.add('has-track'); else el.classList.remove('has-track');
@@ -2416,6 +2481,7 @@
     function stageBgTick(){
       const st = $('#stage');
       if(!st || !st.classList.contains('open')){ stopStageBgRotation(); return; }
+      if(document.hidden) return; // v3.1 · Ligero: en segundo plano el fondo no rota
       if(motionReduced() || stageBgRot.list.length < 2) return;
       stageBgRot.idx = (stageBgRot.idx + 1) % stageBgRot.list.length;
       stageFlip = applyImmersive($('#stageBgA'), $('#stageBgB'), stageBgRot.list[stageBgRot.idx].bg, stageFlip);
@@ -2522,13 +2588,14 @@
       const box = $('#queueList');
       if(!box) return;
       const upcoming = state.queue.slice(state.qIndex + 1).filter(id => { const t = getTrack(id); return t && !isDisliked(t); });
-      if(!upcoming.length){ box.innerHTML = '<div class="q-empty">Nada en la fila. Usa el menú ⋯ de una canción para ponerla «después» o agregarla a la cola.</div>'; return; }
+      if(!upcoming.length){ box.innerHTML = '<div class="q-empty">Nada en la fila. Usa el menú ⋯ de una canción para ponerla «después» o agregarla a la cola.</div>'; observeCovers(); return; }
       box.innerHTML = upcoming.map(id => {
         const t = getTrack(id);
         return '<div class="q-row" data-qjump="' + id + '">' + coverHTML(t) +
           '<div class="meta"><div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>' +
           '<button class="x" data-qremove="' + id + '" aria-label="Quitar de la cola">' + icon('x','sm') + '</button></div>';
       }).join('');
+      observeCovers();
     }
     /* Onda de progreso v1.9: el trazo relleno avanza con la canción */
     function setSeekWave(pct){
@@ -2687,6 +2754,32 @@
     audio.addEventListener('play', vinylKick);
     audio.addEventListener('pause', vinylKick);
     audio.addEventListener('ended', vinylKick);
+
+    /* ============ v3.1 · Ligero: pausa automática de animaciones ============
+       Solo rendimiento; nada cambia a la vista:
+       · Cuando la app pasa a segundo plano (document.hidden) se detiene
+         el bucle del vinilo y la clase body.app-bg congela las animaciones
+         CSS continuas (aurora, respiro y halo de la portada, espectro y
+         luces del Escenario); al volver, todo se reanuda solo.
+       · Un IntersectionObserver pone .anim-off en «Sonando ahora» y el
+         Escenario mientras están cerrados (fuera de pantalla), para que
+         sus animaciones no gasten mientras no se ven. */
+    document.addEventListener('visibilitychange', ()=>{
+      const hidden = document.hidden;
+      document.body.classList.toggle('app-bg', hidden);
+      if(hidden){
+        if(vinyl.raf){ cancelAnimationFrame(vinyl.raf); vinyl.raf = 0; }
+        vinyl.last = 0;
+      } else {
+        vinylKick();
+      }
+    });
+    if('IntersectionObserver' in window){
+      const animObserver = new IntersectionObserver(entries => {
+        entries.forEach(en => en.target.classList.toggle('anim-off', !en.isIntersecting));
+      }, { threshold: 0.01 });
+      ['np', 'stage'].forEach(id => { const el = document.getElementById(id); if(el) animObserver.observe(el); });
+    }
 
     /* ============ Profundidad v2.2: parallax suave del Escenario ============
        Las capas del fondo (portada difuminada, aurora, viñeta) se desplazan
