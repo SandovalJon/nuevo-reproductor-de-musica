@@ -2225,6 +2225,20 @@
       const t = $('#toast'); t.textContent = msg; t.classList.add('show');
       clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.classList.remove('show'), ms || 2600);
     }
+    /* v4.12 · Los fallos de guardado ya no se tragan en silencio: quedan
+       en la consola y se avisan con un toast (como máximo uno cada
+       12 s, para no tapar la pantalla si el fallo se repite). Antes un
+       error al escribir en IndexedDB pasaba inadvertido y el cambio
+       —p. ej. una calificación— se perdía al cerrar la app. */
+    let lastSaveErrorAt = 0;
+    function reportSaveError(context, err){
+      try{ console.error('[Sonando] ' + context, err || ''); }catch(e){}
+      const now = Date.now();
+      if(now - lastSaveErrorAt > 12000){
+        lastSaveErrorAt = now;
+        toast('No se pudo guardar en este dispositivo. Revisa el espacio disponible; el cambio puede perderse al cerrar la app.', 4600);
+      }
+    }
 
     /* ================= IndexedDB ================= */
     const DB_NAME = 'nuevo-reproductor-musica', DB_VER = 1;
@@ -2325,13 +2339,35 @@
       return { artist:'Artista desconocido', title: base || 'Sin título' };
     }
     function probeDuration(blob){
+      /* v4.12 · Medición más paciente para audios largos: antes el límite
+         era de 6 s y en un archivo largo la medición solía fallar y la
+         duración quedaba en 0 (ese 0 viajaba luego en la entrada de
+         sincronización de la canción). Ahora se esperan hasta 20 s, se
+         acepta la duración en cuanto llega (loadedmetadata o
+         durationchange) y, si el navegador la reporta como Infinity
+         (pasa con algunos formatos), se busca el final para obligarlo a
+         calcularla. Si aun así no se puede, queda en 0 y la reproducción
+         la corrige sola (ver «syncCorrectDuration» en la v4.12). */
       return new Promise(res=>{
         const url = URL.createObjectURL(blob);
         const a = new Audio();
-        const done = d => { URL.revokeObjectURL(url); res(d||0); };
-        const to = setTimeout(()=>done(0), 6000);
-        a.addEventListener('loadedmetadata', ()=>{ clearTimeout(to); done(a.duration); }, { once:true });
-        a.addEventListener('error', ()=>{ clearTimeout(to); done(0); }, { once:true });
+        a.preload = 'metadata';
+        let settled = false;
+        const done = d => {
+          if(settled) return; settled = true;
+          clearTimeout(to);
+          URL.revokeObjectURL(url);
+          res((typeof d === 'number' && isFinite(d) && d > 0) ? d : 0);
+        };
+        const to = setTimeout(()=>done(0), 20000);
+        const check = () => {
+          const d = a.duration;
+          if(typeof d === 'number' && isFinite(d) && d > 0) done(d);
+          else if(d === Infinity){ try{ a.currentTime = Number.MAX_SAFE_INTEGER; }catch(e){} }
+        };
+        a.addEventListener('loadedmetadata', check);
+        a.addEventListener('durationchange', check);
+        a.addEventListener('error', ()=>done(0), { once:true });
         a.src = url;
       });
     }
@@ -2475,7 +2511,12 @@
       if(bn) bn.textContent = LIB_BGS[state.libBg].name;
       if(save) saveSettings();
     }
-    async function saveTrackMeta(t){ try{ await dbPut('tracks', t); }catch(e){} }
+    async function saveTrackMeta(t){
+      // v4.12: un fallo al guardar la ficha (calificación, duración…)
+      // ya no pasa en silencio: se reporta y la función dice si guardó.
+      try{ await dbPut('tracks', t); return true; }
+      catch(e){ reportSaveError('No se pudo guardar la canción «' + (t && t.title ? t.title : '') + '»', e); return false; }
+    }
     async function savePlaylist(pl){
       try{
         const i = state.playlists.findIndex(p => p.id === pl.id);
@@ -3030,7 +3071,19 @@
        limpieza del borrado individual. El mapa de calificaciones de
        la sincronización no se toca, igual que en el borrado
        individual: al re-agregar una canción recupera su «No me gusta». */
-    const APP_VERSION = '4.11';
+    /* v4.12 · Arreglo pedido por Sando: la calificación de los audios
+       largos (más de ~45 min) se perdía al reabrir con la sincro. Tres
+       frentes, sin tocar la biblioteca ni el esquema de datos (solo se
+       suma la marca opcional «ratingAt» a la ficha de cada canción):
+       1) la sincro ya no borra una calificación guardada salvo
+       descalificación explícita más reciente que esa calificación, y
+       si la entrada vacía es vieja o sin marca, la repara con la
+       calificación local en vez de imponer el borrado; 2) la duración
+       se corrige sola al reproducir, con el valor real que reporta el
+       reproductor, y se reenvía bien a la sincro (al importar se mide
+       con más paciencia); 3) los fallos de guardado ya no se tragan
+       en silencio: se reportan en consola y con aviso visible. */
+    const APP_VERSION = '4.12';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3381,7 +3434,12 @@
     async function setRating(id, rating){
       const t = getTrack(id); if(!t) return;
       t.rating = (t.rating === rating) ? null : rating;
-      await saveTrackMeta(t);
+      // v4.12: la ficha guarda cuándo cambió su calificación; la sincro
+      // solo podrá borrarla ante una descalificación explícita con una
+      // marca posterior a esta (ver syncApplyToTracks).
+      t.ratingAt = Date.now();
+      const saved = await saveTrackMeta(t);
+      if(!saved) toast('Tu calificación no se pudo guardar en este dispositivo.', 4200);
       syncNoteRating(t); // v4.7: el cambio entra al mapa de sincronización
       if(t.rating === 'dislike'){
         toast('«' + t.title + '» quedó fuera de la rotación');
@@ -4271,7 +4329,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -4370,10 +4428,15 @@
       return String(hashStr(s));
     }
     async function syncSaveLocal(){
-      try{ await dbPut('kv', ratingsMap, 'ratingsMap'); }catch(e){}
+      // v4.12: si el mapa no se guarda, se reporta (antes el fallo era
+      // invisible y al reabrir volvía un mapa viejo o vacío que luego
+      // pisaba las calificaciones buenas de las canciones).
+      try{ await dbPut('kv', ratingsMap, 'ratingsMap'); return true; }
+      catch(e){ reportSaveError('No se pudo guardar el mapa de calificaciones', e); return false; }
     }
     async function syncSaveMeta(){
-      try{ await dbPut('kv', { signedIn: !!syncUser, email: syncUser ? (syncUser.email || '') : '', lastSync: syncLastAt }, 'syncMeta'); }catch(e){}
+      try{ await dbPut('kv', { signedIn: !!syncUser, email: syncUser ? (syncUser.email || '') : '', lastSync: syncLastAt }, 'syncMeta'); return true; }
+      catch(e){ reportSaveError('No se pudo guardar el estado de la sincronización', e); return false; }
     }
     async function syncLoadLocal(){
       let migrated = false;
@@ -4411,7 +4474,17 @@
       const out = {};
       for(const k in A) out[k] = A[k];
       for(const k in B){
-        if(!out[k] || (B[k].t || 0) >= (out[k].t || 0)) out[k] = B[k];
+        if(!out[k]){ out[k] = B[k]; continue; }
+        const bt = B[k].t || 0, ot = out[k].t || 0;
+        if(bt > ot){ out[k] = B[k]; continue; }
+        if(bt === ot){
+          // v4.12: en empate de marcas, una calificación real gana a una
+          // entrada vacía; antes el «>=» dejaba que un vacío con la misma
+          // marca (p. ej. una semilla heredada) pisara la calificación.
+          const bRated = B[k].r === 'like' || B[k].r === 'dislike';
+          const oRated = out[k].r === 'like' || out[k].r === 'dislike';
+          if(bRated || !oRated) out[k] = B[k];
+        }
       }
       return out;
     }
@@ -4423,6 +4496,7 @@
     async function syncApplyToTracks(){
       let changed = false;
       let applied = 0;
+      let repaired = false;
       ratingsMap = migrateRatingsMap(ratingsMap);
       const byFp = {};
       state.tracks.forEach(t => {
@@ -4440,11 +4514,50 @@
           if(near.length) targets = near;
         }
         for(const t of targets){
-          if(want) applied++;
-          if(t.rating !== want){ t.rating = want; await saveTrackMeta(t); changed = true; }
+          if(want){
+            applied++;
+            if(t.rating !== want){
+              t.rating = want;
+              if(e.t) t.ratingAt = e.t;
+              await saveTrackMeta(t); changed = true;
+            } else if(!t.ratingAt && e.t){
+              // La calificación ya coincidía pero la ficha no tenía su
+              // marca de tiempo: se anota en silencio para que una
+              // futura descalificación explícita pueda compararse.
+              t.ratingAt = e.t;
+              await saveTrackMeta(t);
+            }
+            continue;
+          }
+          /* v4.12 · Borrado protegido: una entrada vacía del mapa ya NO
+             quita la calificación de la canción a ciegas (ese era el
+             borrado que se veía al reabrir, sobre todo en audios largos
+             cuya «d» había quedado en 0 al importarlos). Solo la quita
+             si es una descalificación explícita demostrablemente más
+             reciente que la calificación guardada: entrada con marca
+             (t > 0), ficha con marca (ratingAt > 0) y entrada posterior.
+             En cualquier otro caso —entrada vieja, sin marca o de
+             antigüedad indemostrable— se protege la calificación local
+             y la entrada del mapa se repara con ella, para que el dato
+             bueno sea el que quede guardado y suba a la nube. */
+          if(!t.rating) continue;
+          const entryT = e.t || 0;
+          const ratingT = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0;
+          if(entryT > 0 && ratingT > 0 && entryT > ratingT){
+            t.rating = null;
+            t.ratingAt = entryT;
+            await saveTrackMeta(t); changed = true;
+          } else {
+            ratingsMap[fp] = { r: t.rating, t: Date.now(), d: Math.round(t.duration || 0) };
+            repaired = true;
+          }
         }
       }
       syncAppliedCount = applied;
+      if(repaired){
+        await syncSaveLocal();
+        if(syncUser && syncReady) syncScheduleUpload();
+      }
       if(changed){ render(); if(typeof syncPlayerUI === 'function') syncPlayerUI(); }
       return changed;
     }
@@ -4452,10 +4565,51 @@
     // entra al mapa local siempre, haya sesión o no, y sube si hay sesión.
     function syncNoteRating(t){
       if(!t) return;
-      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: Date.now(), d: Math.round(t.duration || 0) };
+      // v4.12: la entrada usa la misma marca que quedó en la ficha
+      // (ratingAt), para que las comparaciones de antigüedad de la
+      // aplicación protegida comparen el mismo instante.
+      const ts = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : Date.now();
+      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: ts, d: Math.round(t.duration || 0) };
       syncSaveLocal();
       if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
     }
+    /* v4.12 · La duración se corrige sola al reproducir: si la duración
+       guardada de la canción que suena está en 0 o difiere en más de un
+       segundo de la real que reporta el reproductor (el caso típico de
+       los audios largos, cuya medición al importar fallaba), la ficha
+       se actualiza con el valor real, se guarda, y la «d» de su entrada
+       de sincronización se corrige y se reenvía a la nube. Así el dato
+       malo deja de viajar y de desempatar mal en la sincro. */
+    let durationFixBusy = false;
+    async function syncCorrectDuration(){
+      if(durationFixBusy) return;
+      const t = (typeof currentTrack === 'function') ? currentTrack() : null;
+      if(!t) return;
+      const real = audio.duration;
+      if(typeof real !== 'number' || !isFinite(real) || real <= 0) return;
+      const realR = Math.round(real);
+      if(Math.abs((t.duration || 0) - realR) <= 1) return;
+      durationFixBusy = true;
+      try{
+        t.duration = realR;
+        await saveTrackMeta(t);
+        const fp = trackFingerprint(t);
+        const e = ratingsMap[fp];
+        if(e){
+          if(e.d !== realR){ e.d = realR; await syncSaveLocal(); if(syncUser && syncReady && !syncApplying) syncScheduleUpload(); }
+        } else if(t.rating){
+          ratingsMap[fp] = { r: t.rating, t: (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0, d: realR };
+          await syncSaveLocal();
+          if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+        }
+        if(typeof render === 'function') render();
+      }catch(err){
+        try{ console.error('[Sonando] No se pudo corregir la duración de «' + t.title + '»', err); }catch(_){}
+      }
+      durationFixBusy = false;
+    }
+    audio.addEventListener('loadedmetadata', syncCorrectDuration);
+    audio.addEventListener('durationchange', syncCorrectDuration);
     function syncScheduleUpload(){
       clearTimeout(syncUploadTimer);
       syncUploadTimer = setTimeout(syncUpload, 1200);
@@ -4475,7 +4629,16 @@
         syncLastAt = Date.now();
         syncSaveMeta();
         syncRefreshSheet();
-      }catch(e){ /* sin conexión: se reintenta con el próximo cambio */ }
+      }catch(e){
+        /* v4.12: antes este fallo se tragaba en silencio y la subida
+           perdida se descubría al reabrir (la nube conservaba un mapa
+           viejo que luego pisaba lo local). Ahora queda en la consola
+           y visible en la hoja de sincronización; la subida se
+           reintenta con el próximo cambio o la próxima fusión. */
+        try{ console.error('[Sonando] No se pudo subir la sincronización', e); }catch(_){}
+        syncLastError = 'No se pudo subir la sincronización ahora; se reintentará con el próximo cambio.';
+        syncRefreshSheet();
+      }
     }
     function loadScript(src){
       return new Promise((res, rej)=>{
