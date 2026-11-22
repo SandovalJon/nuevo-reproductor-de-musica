@@ -1046,6 +1046,49 @@
       body{ transition:background-color .45s ease, color .45s ease; }
       @media (prefers-reduced-motion: reduce){ body{ transition:none; } }
     </style>
+    <style>
+      /* ============ v3.2 · Fluido: listas que no se traban ============
+         content-visibility: el navegador se salta el diseño y el pintado
+         de las filas y tarjetas que están fuera de pantalla, así que
+         abrir una biblioteca grande responde al instante y el scroll no
+         repinta lo que no se ve. contain-intrinsic-size reserva el alto
+         aproximado de cada bloque (con «auto» el navegador recuerda el
+         alto real tras el primer pintado). El aspecto final no cambia. */
+      .row{ content-visibility:auto; contain-intrinsic-size:auto 84px; }
+      .group-row{ content-visibility:auto; contain-intrinsic-size:auto 90px; }
+      .card{ content-visibility:auto; contain-intrinsic-size:auto 260px; }
+
+      /* ============ v3.2 · Fluido: difuminado según el dispositivo ============
+         En dispositivos modestos (html.perf-lite, detectado abajo) los
+         fondos con blur bajan de radio — y los cristales, de intensidad —
+         manteniendo el mismo aspecto general a mucho menos costo. En
+         dispositivos capaces todo queda exactamente como estaba. */
+      html.perf-lite .np-bg-layer{ filter:blur(30px) saturate(1.42) brightness(.8); }
+      html.perf-lite .stage-bg-layer{ filter:blur(38px) saturate(1.42) brightness(.74); }
+      html.perf-lite .detail-hero-bg{ filter:blur(20px) saturate(1.42) brightness(.84); }
+      html.perf-lite .np-aurora{ filter:blur(14px); }
+      html.perf-lite .stage-aurora{ filter:blur(15px); }
+      html.perf-lite .stage-party i{ filter:blur(24px); }
+      html.perf-lite .mini, html.perf-lite .tabs{ backdrop-filter:blur(12px) saturate(1.4); -webkit-backdrop-filter:blur(12px) saturate(1.4); }
+      html.perf-lite .toast{ backdrop-filter:blur(10px) saturate(1.4); -webkit-backdrop-filter:blur(10px) saturate(1.4); }
+      html.perf-lite .np-top button, html.perf-lite .np-controls button,
+      html.perf-lite .np-rate button, html.perf-lite .np-actions button{ backdrop-filter:blur(7px) saturate(1.25); -webkit-backdrop-filter:blur(7px) saturate(1.25); }
+      html.perf-lite .detail-hero .back-row button{ backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+      html.perf-lite .cover img:not(.in){ filter:blur(8px) saturate(1.2); }
+    </style>
+    <script>
+      /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
+         núcleos o poca memoria). Solo activa la clase .perf-lite que
+         abarata los difuminados en los CSS de arriba; no es un ajuste
+         del usuario y en dispositivos capaces no cambia nada. */
+      (function(){
+        try{
+          var cores = navigator.hardwareConcurrency || 8;
+          var mem = navigator.deviceMemory || 8;
+          if(cores <= 4 || mem <= 4) document.documentElement.classList.add('perf-lite');
+        }catch(e){}
+      })();
+    </script>
   </head>
   <body>
     <div id="splash" aria-hidden="true">
@@ -1062,7 +1105,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.1</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.2</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1642,6 +1685,20 @@
       coverObserver.disconnect();
       document.querySelectorAll('.cover[data-cid]').forEach(el => coverObserver.observe(el));
     }
+    /* v3.2 · Fluido: al desplazarse, las portadas pendientes se vuelven
+       a observar una vez por fotograma — por si su fila estaba «dormida»
+       por el content-visibility al observarla la primera vez — para que
+       ninguna portada que entra en pantalla se quede sin cargar. */
+    const mainScrollEl = document.querySelector('.main');
+    let coverScrollTick = false;
+    if(mainScrollEl) mainScrollEl.addEventListener('scroll', () => {
+      if(coverScrollTick) return;
+      coverScrollTick = true;
+      requestAnimationFrame(() => {
+        coverScrollTick = false;
+        if(document.querySelector('.cover[data-cid]')) observeCovers();
+      });
+    }, { passive:true });
     async function hydrateCovers(scopeEl){
       // v3.1: con IntersectionObserver, hidratar = observar las portadas
       // de lo ya pintado; cada una se carga al acercarse a la pantalla.
@@ -1744,9 +1801,49 @@
         coverHTML(t) +
         '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div>' + badgesHTML(t) + '</div>';
     }
-    function songListHTML(tracks, contextIds){
-      if(state.viewMode === 'grid') return '<div class="grid">' + tracks.map(songCardHTML).join('') + '</div>';
-      return '<div class="rows">' + tracks.map(songRowHTML).join('') + '</div>';
+    /* ============ v3.2 · Fluido: pintado por tandas ============
+       Las vistas largas ya no se pintan de una sola vez: la primera
+       tanda entra al instante y el resto se agrega en bloques cuando el
+       navegador está libre (requestIdleCallback), sin bloquear el
+       scroll ni competir con él. El resultado final es exactamente el
+       mismo HTML de siempre; los clics van por delegación en #content,
+       así que las filas que llegan tarde funcionan igual. Si llega otro
+       pintado, la tanda vieja se cancela (paintToken) y nunca se mezclan
+       dos vistas. Las tandas tardías tampoco repiten la cascada de
+       entrada (v2.8): aparecen ya en su sitio, en silencio. */
+    const PAINT_CHUNK = 42;
+    let paintToken = 0;
+    function schedulePaintStep(fn){
+      if('requestIdleCallback' in window) requestIdleCallback(fn, { timeout: 120 });
+      else if('requestAnimationFrame' in window) requestAnimationFrame(fn);
+      else setTimeout(fn, 16);
+    }
+    /* Pinta openHTML + items + closeHTML dentro de #content. Si items
+       es corta va todo de una; si es larga, solo la primera tanda entra
+       en el pintado inicial y el resto se inserta por bloques dentro de
+       containerSel (o de #content), antes de anchorSel si se indica. */
+    function paintList(openHTML, items, closeHTML, containerSel, anchorSel){
+      const token = ++paintToken;
+      if(items.length <= PAINT_CHUNK){
+        content.innerHTML = openHTML + items.join('') + closeHTML;
+        return;
+      }
+      content.innerHTML = openHTML + items.slice(0, PAINT_CHUNK).join('') + closeHTML;
+      const box = containerSel ? content.querySelector(containerSel) : content;
+      if(!box) return;
+      const anchor = anchorSel ? content.querySelector(anchorSel) : null;
+      let i = PAINT_CHUNK;
+      const step = () => {
+        if(token !== paintToken || !box.isConnected) return;
+        const tpl = document.createElement('template');
+        tpl.innerHTML = items.slice(i, i + PAINT_CHUNK).join('');
+        i += PAINT_CHUNK;
+        tpl.content.querySelectorAll('.row, .card, .group-row').forEach(el => { el.style.animation = 'none'; });
+        box.insertBefore(tpl.content, anchor);
+        observeCovers();
+        if(i < items.length) schedulePaintStep(step);
+      };
+      schedulePaintStep(step);
     }
     /* Brillos de carga v2.4: filas fantasma mientras la biblioteca abre */
     function skeletonHTML(){
@@ -1804,6 +1901,7 @@
       content.classList.add('cascade');
     }
     function render(){
+      paintToken++; // v3.2: cancela las tandas pendientes de la vista anterior
       // Movimiento entre pantallas: deslizamiento direccional según el viaje
       let dir = '';
       if(content){
@@ -1858,7 +1956,9 @@
       if(!all.length){ content.innerHTML = greetHTML() + emptyHTML('library'); bindContent(); return; }
       const list = sortedTracks(all.filter(matchesSearch));
       if(!list.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      content.innerHTML = homeHTML() + songListHTML(list);
+      const head = homeHTML();
+      if(state.viewMode === 'grid') paintList(head + '<div class="grid">', list.map(songCardHTML), '</div>', '.grid', null);
+      else paintList(head + '<div class="rows">', list.map(songRowHTML), '</div>', '.rows', null);
       bindContent(list.map(t => t.id));
     }
     function groupBy(keyFn){
@@ -1877,13 +1977,13 @@
       let names = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
       if(state.search) names = names.filter(n => n.toLowerCase().includes(state.search.toLowerCase()));
       if(!names.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      content.innerHTML = names.map(n => {
+      paintList('', names.map(n => {
         const ts = map.get(n);
         const rep = sortedTracks(ts)[0];
         return '<div class="group-row" data-artist="' + esc(n) + '">' + coverHTML(rep) +
           '<div class="meta"><div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>' +
           '<span class="chev">' + icon('chevR') + '</span></div>';
-      }).join('');
+      }), '', null, null);
       bindContent();
     }
     function renderAlbums(){
@@ -1893,11 +1993,11 @@
       let keys = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
       if(state.search) keys = keys.filter(k => k.toLowerCase().includes(state.search.toLowerCase()));
       if(!keys.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      content.innerHTML = '<div class="grid">' + keys.map(k => {
+      paintList('<div class="grid">', keys.map(k => {
         const ts = map.get(k); const rep = sortedTracks(ts)[0];
         return '<div class="card" data-album="' + esc(k) + '">' + coverHTML(rep) +
           '<div class="t">' + esc(rep.album) + '</div><div class="a">' + esc(rep.artist) + ' · ' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>';
-      }).join('') + '</div>';
+      }), '</div>', '.grid', null);
       bindContent();
     }
     function favPlaylist(){
@@ -1906,23 +2006,23 @@
     }
     function renderPlaylists(){
       const favs = favPlaylist();
-      let html = '';
+      const items = [];
       if(favs.trackIds.length){
         const rep = getTrack(favs.trackIds[0]);
-        html += '<div class="group-row" data-playlist="__favs">' + coverHTML(rep) +
+        items.push('<div class="group-row" data-playlist="__favs">' + coverHTML(rep) +
           '<div class="meta"><div class="t">Favoritas</div><div class="a">Tus «Me gusta» · ' + favs.trackIds.length + (favs.trackIds.length === 1 ? ' canción' : ' canciones') + '</div></div>' +
-          '<span class="chev">' + icon('chevR') + '</span></div>';
+          '<span class="chev">' + icon('chevR') + '</span></div>');
       }
-      html += state.playlists.map(pl => {
+      state.playlists.forEach(pl => {
         const rep = pl.trackIds.map(getTrack).find(Boolean);
         const cover = rep ? coverHTML(rep) : '<div class="cover" style="background:linear-gradient(135deg,var(--acc),var(--acc2))"><span>' + icon('note') + '</span></div>';
-        return '<div class="group-row" data-playlist="' + pl.id + '">' + cover +
+        items.push('<div class="group-row" data-playlist="' + pl.id + '">' + cover +
           '<div class="meta"><div class="t">' + esc(pl.name) + '</div><div class="a">' + pl.trackIds.length + (pl.trackIds.length === 1 ? ' canción' : ' canciones') + '</div></div>' +
-          '<span class="chev">' + icon('chevR') + '</span></div>';
-      }).join('');
-      html += '<div style="padding:16px 4px"><button class="btn btn-acc" data-act="newPlaylist">' + icon('plus','sm') + 'Nueva playlist</button></div>';
-      if(!state.playlists.length && !favs.trackIds.length){ content.innerHTML = emptyHTML('playlists'); }
-      else content.innerHTML = html;
+          '<span class="chev">' + icon('chevR') + '</span></div>');
+      });
+      const addBtn = '<div class="pl-add" style="padding:16px 4px"><button class="btn btn-acc" data-act="newPlaylist">' + icon('plus','sm') + 'Nueva playlist</button></div>';
+      if(!items.length){ content.innerHTML = emptyHTML('playlists'); }
+      else paintList('', items, addBtn, null, '.pl-add');
       bindContent();
     }
     function renderDetail(){
@@ -1966,10 +2066,13 @@
         head = '<div class="back-row"><button data-act="back">' + icon('chevL') + 'Volver</button></div>' +
           '<div class="detail-head">' + cover + '<div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div></div>';
       }
-      content.innerHTML =
-        head +
-        '<div class="detail-actions">' + actions + '</div>' +
-        (tracks.length ? songListHTML(tracks) : emptyHTML(d.type === 'playlist' ? 'playlistEmpty' : 'search'));
+      const headHTML = head + '<div class="detail-actions">' + actions + '</div>';
+      if(tracks.length){
+        if(state.viewMode === 'grid') paintList(headHTML + '<div class="grid">', tracks.map(songCardHTML), '</div>', '.grid', null);
+        else paintList(headHTML + '<div class="rows">', tracks.map(songRowHTML), '</div>', '.rows', null);
+      } else {
+        content.innerHTML = headHTML + emptyHTML(d.type === 'playlist' ? 'playlistEmpty' : 'search');
+      }
       bindContent(tracks.map(t => t.id));
     }
 </script>
@@ -1985,7 +2088,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.1';
+    const APP_VERSION = '3.2';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
