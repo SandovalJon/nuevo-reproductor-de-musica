@@ -430,6 +430,15 @@
       }
       .np-rate button.like-on{ background:#fff; color:#e23c1e; }
       .np-rate button.dislike-on{ background:rgba(0,0,0,.45); color:#ff8a7a; box-shadow:inset 0 0 0 1.5px #ff8a7a; }
+      /* v4.31 · Progreso de calificación en «Sonando ahora»: cuántas
+         canciones de la biblioteca ya tienen calificación y cuántas
+         faltan, con su barra; lo pinta updateRateProgress() en cada
+         refresco de la interfaz del reproductor. */
+      .np-progress{ margin:12px auto 0; max-width:340px; text-align:center; }
+      .np-progress .txt{ font-size:13px; font-weight:600; opacity:.88; font-variant-numeric:tabular-nums; }
+      .np-progress .bar{ height:6px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; margin-top:7px; }
+      .np-progress .bar i{ display:block; height:100%; width:0%; border-radius:3px; background:#fff; transition:width .35s ease; }
+      @media (prefers-reduced-motion: reduce){ .np-progress .bar i{ transition:none; } }
       .seek{ margin-top:22px; position:relative; }
       .seek input[type=range], .vol input[type=range]{ width:100%; accent-color:#fff; height:32px; cursor:pointer; }
       .seek input[type=range]{
@@ -695,6 +704,7 @@
         .np-col-main .np-title h2{ font-size:42px; }
         .np-col-main .np-title p{ font-size:19px; }
         .np-col-main .np-rate{ justify-content:flex-start; }
+        .np-col-main .np-progress{ margin-left:0; text-align:left; }
         .np-col-main .np-controls{ justify-content:flex-start; }
         .np-col-main .np-actions{ justify-content:flex-start; }
         .np-col-main .queue-box{ margin-bottom:4px; }
@@ -2033,7 +2043,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.30</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.31</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2151,6 +2161,10 @@
         <div class="np-rate">
           <button id="npLike"><span data-ic="heart"></span>Me gusta</button>
           <button id="npDislike"><span data-ic="heartSlash"></span>No me gusta</button>
+        </div>
+        <div class="np-progress" id="npProgress">
+          <div class="txt" id="npProgressTxt"></div>
+          <div class="bar"><i id="npProgressFill"></i></div>
         </div>
         <div class="seek">
           <svg class="seek-wave" viewBox="0 0 300 18" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="wave-base" d="M0 9 Q7.5 3 15 9 T30 9 T45 9 T60 9 T75 9 T90 9 T105 9 T120 9 T135 9 T150 9 T165 9 T180 9 T195 9 T210 9 T225 9 T240 9 T255 9 T270 9 T285 9 T300 9"/><path class="wave-fill" id="seekWaveFill" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" d="M0 9 Q7.5 3 15 9 T30 9 T45 9 T60 9 T75 9 T90 9 T105 9 T120 9 T135 9 T150 9 T165 9 T180 9 T195 9 T210 9 T225 9 T240 9 T255 9 T270 9 T285 9 T300 9"/></svg>
@@ -3766,7 +3780,19 @@
        el de la barra se oculta cuando ya estás en Duplicadas. El
        salto sigue sin tocar el audio ni la cola. Sin tocar datos,
        biblioteca ni esquema. */
-    const APP_VERSION = '4.30';
+    /* v4.31 · Pedido por Sando: al pulsar «Aleatorio sin calificar»,
+       ver en algún lado cuántas lleva calificadas y cuántas le
+       faltan. Dos sitios, con el mismo conteo (ratingProgress():
+       fichas con calificación frente al total de la biblioteca):
+       (1) el aviso del propio botón ya dice al momento «Te faltan N
+       por calificar (llevas X de Y)»; (2) «Sonando ahora» gana una
+       línea de progreso bajo los botones de calificar —«Calificadas
+       X de Y · Te faltan Z por calificar» con su barra— que se
+       repinta en cada syncPlayerUI(), así que avanza en vivo con
+       cada calificación puesta durante la mezcla, sin abrir nada
+       más. Solo presentación y conteo: ni la cola, ni los datos,
+       ni el esquema cambian. */
+    const APP_VERSION = '4.31';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4326,6 +4352,29 @@
       if('requestAnimationFrame' in window) requestAnimationFrame(run);
       setTimeout(run, 60);
     }
+    /* v4.31 · Progreso de calificación de la biblioteca: cuántas
+       canciones ya tienen «Me gusta» o «No me gusta» y cuántas faltan
+       por calificar. Lo usa el aviso al pulsar «Aleatorio sin
+       calificar» y la línea de progreso de «Sonando ahora», que se
+       repinta en cada syncPlayerUI() —también justo tras calificar,
+       porque setRating() termina llamándolo—, así que el conteo se
+       ve avanzar en vivo mientras se califica desde la mezcla. */
+    function ratingProgress(){
+      let rated = 0;
+      state.tracks.forEach(t => { if(t.rating) rated++; });
+      const total = state.tracks.size;
+      return { total, rated, left: total - rated };
+    }
+    function updateRateProgress(){
+      const txt = $('#npProgressTxt'), fill = $('#npProgressFill');
+      if(!txt || !fill) return;
+      const p = ratingProgress();
+      if(!p.total){ txt.textContent = ''; fill.style.width = '0%'; return; }
+      txt.textContent = p.left
+        ? 'Calificadas ' + p.rated + ' de ' + p.total + ' · Te faltan ' + p.left + ' por calificar'
+        : 'Ya calificaste todas tus canciones 🎉';
+      fill.style.width = (p.total ? Math.round(p.rated / p.total * 100) : 0) + '%';
+    }
     function syncPlayerUI(){
       const t = currentTrack();
       const playing = !audio.paused && !!t;
@@ -4384,6 +4433,7 @@
       }
       $('#npLike').classList.toggle('like-on', t.rating === 'like');
       $('#npDislike').classList.toggle('dislike-on', t.rating === 'dislike');
+      updateRateProgress();
       $('#btnPlay').innerHTML = icon(playing ? 'pause' : 'play');
       $('#btnShuffle').classList.toggle('on', state.shuffle);
       const rep = $('#btnRepeat');
@@ -5012,7 +5062,10 @@
       const ids = Array.from(state.tracks.values()).filter(t => !t.rating).map(t => t.id);
       if(!ids.length){ toast('Ya calificaste todas tus canciones 🎉'); return; }
       playContext(ids, null, { shuffle:true });
-      toast('Aleatorio sin calificar');
+      // v4.31: el aviso dice al momento cuántas quedan por calificar
+      // y cuántas van; el conteo vivo sigue en «Sonando ahora».
+      const p = ratingProgress();
+      toast('Aleatorio sin calificar · Te faltan ' + p.left + ' por calificar (llevas ' + p.rated + ' de ' + p.total + ')', 3600);
     });
     function clearLibrary(){
       if(!state.tracks.size){ toast('La biblioteca ya está vacía'); return; }
