@@ -2025,7 +2025,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.23</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.24</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3257,7 +3257,7 @@
       const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
       const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
       const dislikedCount = all.filter(isPurgeMarked).length;
-      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: la marca se sincroniza con tus demás dispositivos y cae solo sobre esa misma versión (se reconoce por su archivo), nunca sobre la copia que te quieres quedar; las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones. Y si de un grupo quieres quedarte con todas sus versiones, pulsa «Quedarme con las 2» en su cabecera: no se borra nada y el grupo deja de aparecer aquí.</p></div>';
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se marcan con «No me gusta» y se borrarán al pulsar «Borrar las que no me gustan». También puedes marcar cada versión con «No me gusta»: la marca se sincroniza con tus demás dispositivos y cae solo sobre esa misma versión (se reconoce por su archivo), nunca sobre la copia que te quieres quedar; las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones. Y si de un grupo quieres quedarte con todas sus versiones, pulsa «Quedarme con las 2» en su cabecera: no se borra nada y el grupo deja de aparecer aquí.</p></div>';
       if(dislikedCount){
         h += '<div class="dup-purge"><button class="btn btn-danger-soft" data-dup-purge-disliked>' + icon('trash','sm') + 'Borrar las que no me gustan (' + dislikedCount + ')</button></div>';
       }
@@ -3338,7 +3338,20 @@
       if(n) toast('Los grupos conservados vuelven a mostrarse en Duplicadas');
       render();
     }
-    function keepOnlyVersion(keepId){
+    /* v4.24 · «Quedarme con esta» ya no borra las demás copias al
+       momento: a pedido de Sando, las pone con «dislike» — la marca
+       por copia de la v4.21 (dupDislike), la misma del botón «No me
+       gusta» de cada versión. Las copias marcadas se quedan visibles
+       aquí, atenuadas y con su etiqueta, y se borran después con la
+       barrida de «Borrar las que no me gustan» (aquí o en
+       Canciones), así que la decisión se puede deshacer antes de
+       borrar nada quitando la marca. La marca se sincroniza por
+       copia (v4.23): viaja a los demás dispositivos y cae solo
+       sobre esas mismas versiones, nunca sobre la elegida. Las
+       copias que ya traían el «No me gusta» de su calificación ya
+       están para borrar y no se tocan. Sin confirmación: marcar no
+       destruye nada. */
+    async function keepOnlyVersion(keepId){
       const keep = getTrack(keepId); if(!keep) return;
       const group = dupGroupOf(keepId); if(!group) return;
       // v4.21: quedarse con una copia le quita su marca por copia, si
@@ -3348,16 +3361,20 @@
       // para que la copia quede desmarcada en todos los dispositivos.
       if(keep.dupDislike){ keep.dupDislike = null; keep.dupDislikeAt = Date.now(); saveTrackMeta(keep); syncNoteDupMark(keep); }
       const others = group.filter(t => t.id !== keepId);
-      if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); return; }
-      const freed = others.reduce((s, t) => s + (t.size || 0), 0);
-      const names = others.map(t => '«' + (t.fileName || t.title) + '»').join(', ');
-      confirmModal('¿Quedarte solo con esta versión?',
-        'Se borrarán ' + others.length + (others.length === 1 ? ' versión' : ' versiones') + ' de «' + keep.title + '» (' + names + ') de Sonando en este dispositivo y liberarás ' + fmtSize(freed) + '. La que queda es «' + (keep.fileName || keep.title) + '» (' + fmt(keep.duration) + ' · ' + fmtSize(keep.size) + '). Los archivos originales, fuera de la app, no se tocan.',
-        'Sí, quedarme con esta', async () => {
-          for(const t of others){ await purgeTrack(t.id); }
-          toast('Te quedaste con una versión de «' + keep.title + '»');
-          render();
-        });
+      if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); render(); return; }
+      let failed = false, newly = 0;
+      for(const t of others){
+        if(t.rating === 'dislike') continue; // ya está para borrar por su calificación
+        if(!t.dupDislike) newly++;
+        t.dupDislike = true;
+        t.dupDislikeAt = Date.now();
+        const ok = await saveTrackMeta(t); if(!ok) failed = true;
+        await syncNoteDupMark(t); // v4.23: la marca entra al mapa de marcas y sube si hay sesión
+      }
+      if(failed) toast('Alguna marca no se pudo guardar en este dispositivo.', 4200);
+      else if(newly) toast('Las demás versiones de «' + keep.title + '» quedaron con «No me gusta»: se borrarán con «Borrar las que no me gustan»');
+      else toast('Las demás versiones de «' + keep.title + '» ya tenían «No me gusta»');
+      render();
     }
     function renderDetail(){
       const d = state.detail;
@@ -3611,7 +3628,25 @@
        dupKeep («Quedarme con las 2») sigue siendo solo local: no era
        lo pedido. Sin tocar la agrupación (dupKey), la huella de la
        sincro de calificaciones, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.23';
+    /* v4.24 · Pedido por Sando: «que en duplicados cuando presione
+       quedarme con esta, se pongan con dislike las demas». Hasta la
+       v4.23, «Quedarme con esta» pedía confirmación y borraba las
+       demás copias del grupo al momento (purgeTrack). Ahora solo
+       las marca: cada copia restante recibe el «No me gusta» por
+       copia de la v4.21 (dupDislike con su dupDislikeAt), guardado
+       con saveTrackMeta y anotado en el mapa de marcas con
+       syncNoteDupMark, así que la marca viaja a los demás
+       dispositivos y cae solo sobre esas copias — la elegida queda
+       desmarcada, como ya hacía la función. Nada se borra hasta
+       que Sando pulse «Borrar las que no me gustan» (en Duplicadas
+       o en Canciones), y hasta entonces puede deshacerlo quitando
+       la marca a cualquier versión. Las copias que ya tenían el
+       «No me gusta» de su calificación no se tocan: ya están para
+       borrar. Como marcar no destruye nada, la confirmación de
+       borrado desaparece de este botón. Sin tocar la agrupación
+       (dupKey), la huella de la sincro de calificaciones, la
+       biblioteca ni el esquema. */
+    const APP_VERSION = '4.24';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
