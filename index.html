@@ -2030,7 +2030,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.26</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.27</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3748,7 +3748,7 @@
        igual que ya hacía con una única candidata. Las guardias de
        antigüedad de la v4.12/v4.13 y los demás rescates no cambian.
        Sin tocar datos, biblioteca ni esquema. */
-    const APP_VERSION = '4.26';
+    const APP_VERSION = '4.27';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -6064,18 +6064,12 @@
           '<p class="sync-line">Marcas de duplicados en este dispositivo: ' + countDupMarks(dupMarksMap) + '</p>' +
           '<p class="sync-line">Marcas de duplicados en la nube: ' + syncCloudDupCount + '</p>' +
           '</div>';
-        // v4.26: las sin coincidencia se nombran una a una (artista y
-        // título de su huella, y qué calificación guardan), para que
-        // se sepa cuáles son y no solo que existen.
-        if(syncOrphanList.length){
-          body += '<div class="sync-orphans">' +
-            syncOrphanList.map(o => '<p class="sync-line"><span>' + esc(o.artist ? o.artist + ' — ' + o.title : o.title) + '</span>' +
-              (o.r ? '<span class="sync-orphan-r">' + (o.r === 'like' ? 'Me gusta' : 'No me gusta') + '</span>' : '') + '</p>').join('') +
-            '</div>';
-        }
-        if(syncCloudCount > 0 && syncAppliedCount === 0){
-          body += '<p class="sync-warn">⚠ La nube tiene calificaciones que no coinciden con ninguna canción de este dispositivo</p>';
-        }
+        // v4.27: a petición de Sando, lo que aparecía entre «Marcas de
+        // duplicados en la nube» y «Sincronizar ahora» (la lista de
+        // calificaciones sin coincidencia y el aviso de la nube) ya no
+        // se muestra en la hoja. La lógica no cambia: las huérfanas se
+        // siguen contando y rescatando igual, solo deja de pintarse
+        // ese bloque.
         body += '<button class="sheet-item" id="syncNow"' + (syncNowBusy ? ' disabled' : '') + '>' + icon('refresh') + (syncNowBusy ? 'Sincronizando…' : 'Sincronizar ahora') + '</button>';
         body += '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
       } else {
