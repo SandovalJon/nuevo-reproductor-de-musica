@@ -1599,6 +1599,60 @@
       }
       .splash-name{ text-wrap:balance; }
     </style>
+    <style>
+      /* ============ v4.2 · Cine ============
+         Ronda del plan hasta la 4.5 — solo visual e interfaz, sin
+         funciones nuevas, sin rendimiento y sin cambios de datos.
+         Los fondos inmersivos de «Sonando ahora» y del Modo
+         Escenario (la portada difuminada, su rotación de fondos, la
+         aurora y los degradados generados de las canciones sin
+         portada real, que viven en las mismas capas) ganan acabado
+         de cine con dos capas nuevas, ambas dentro del contenedor
+         del fondo — nunca sobre el contenido:
+         1) VIÑETA CINEMATOGRÁFICA (::before): un oscurecimiento
+         radial muy suave hacia los bordes que centra la mirada en
+         la portada. Va por encima del oscurecimiento de legibilidad
+         de siempre (.np-shade y el ::after del escenario), que se
+         conserva intacto: ningún texto ni control pierde contraste,
+         porque el contenido vive fuera y por encima del fondo.
+         2) GRANO DE PELÍCULA (::after): una textura finísima de
+         ruido (SVG de turbulencia en gris, mezcla overlay) a una
+         opacidad mínima que da cuerpo al fondo y disimula las
+         bandas de los degradados. Es ESTÁTICA — sin animación
+         alguna — así que prefers-reduced-motion no necesita
+         excepción: con movimiento reducido se ve igual de quieta.
+         Solo vive en estos dos fondos inmersivos: la biblioteca y
+         las superficies de cristal no la reciben.
+         En modo claro ambas capas se suavizan (la viñeta oscurece
+         menos y el grano baja su opacidad); en pantallas anchas el
+         fondo inmersivo ya cubre las dos columnas enteras, así que
+         la viñeta y el grano lo cubren con él. */
+
+      /* 1 · La viñeta: radial, transparente en el centro hasta bien
+         pasada la portada y con el borde apenas presente. */
+      .np-bg::before, .stage-bg::before{
+        content:""; position:absolute; inset:0; pointer-events:none;
+        background:radial-gradient(ellipse 94% 82% at 50% 44%, transparent 54%, rgba(0,0,0,.13) 80%, rgba(0,0,0,.32) 100%);
+      }
+      .np-bg::before{ z-index:3; }    /* sobre capas, aurora y .np-shade (z 0–2) */
+      .stage-bg::before{ z-index:2; } /* sobre capas y aurora del escenario (z 0–1) */
+      :root[data-mode="claro"] .np-bg::before, :root[data-mode="claro"] .stage-bg::before{
+        background:radial-gradient(ellipse 94% 82% at 50% 44%, transparent 58%, rgba(0,0,0,.07) 82%, rgba(0,0,0,.18) 100%);
+      }
+
+      /* 2 · El grano: ruido gris en mosaico de 180px, mezcla overlay
+         para que aclare y oscurezca como el grano fotográfico, a
+         opacidad mínima y sin moverse jamás. */
+      .np-bg::after, .stage-bg::after{
+        content:""; position:absolute; inset:0; pointer-events:none;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size:180px 180px;
+        mix-blend-mode:overlay; opacity:.06;
+      }
+      .np-bg::after{ z-index:4; }    /* el grano corona el fondo, bajo el contenido */
+      .stage-bg::after{ z-index:3; }
+      :root[data-mode="claro"] .np-bg::after, :root[data-mode="claro"] .stage-bg::after{ opacity:.035; }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1628,7 +1682,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Sonando<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.1</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.2</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2621,7 +2675,11 @@
        en el título del documento, en las metas de nombre y como título
        principal de la cabecera. Solo presentación: ninguna función ni
        ningún dato cambian, y la biblioteca en IndexedDB no se toca. */
-    const APP_VERSION = '4.1';
+    /* v4.2 · Cine: los fondos inmersivos de «Sonando ahora» y del
+       Escenario ganan viñeta cinematográfica y grano de película
+       (solo CSS sobre .np-bg y .stage-bg). Solo presentación:
+       ninguna función ni ningún dato cambian. */
+    const APP_VERSION = '4.2';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
