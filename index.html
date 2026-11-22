@@ -1966,8 +1966,8 @@
     <div class="app">
       <header class="top">
         <div class="top-in">
-          <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.16</span>
+          <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.17</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2777,7 +2777,7 @@
       if(kind === 'search') return '<div class="empty"><div class="art">' + icon('search') + '</div><h2>Nada por aquí</h2><p>No encontré canciones que coincidan con tu búsqueda. Prueba con otro título, artista o álbum.</p></div>';
       if(kind === 'playlists') return '<div class="empty"><div class="art">' + icon('addPl') + '</div><h2>Aún no tienes playlists</h2><p>Crea tu primera playlist y junta ahí las canciones para cada momento: la fiesta, el coche, la tarde tranquila…</p><div class="cta"><button class="btn btn-acc" data-act="newPlaylist">' + icon('plus','sm') + 'Crear playlist</button></div></div>';
       if(kind === 'playlistEmpty') return '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Esta playlist está vacía</h2><p>Abre el menú ⋯ de cualquier canción y elige «Agregar a una playlist» para sumarla aquí.</p></div>';
-      return '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Tu escenario está vacío</h2><p>Agrega las canciones que ya tienes en tu teléfono o computadora. Se guardan <strong>solo en este dispositivo</strong>, sin subir nada a internet, y estarán aquí cuando vuelvas.</p><div class="cta"><button class="btn btn-acc" data-act="addFiles">' + icon('plus','sm') + 'Elegir archivos</button><button class="btn btn-ghost" data-act="addFolder">' + icon('folder','sm') + 'Elegir carpeta</button></div><p class="hint">También puedes arrastrar y soltar tus archivos aquí.</p></div>';
+      return '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Tu escenario está vacío</h2><p>Agrega las canciones que ya tienes en tu teléfono o computadora. Se guardan <strong>solo en este dispositivo</strong>, sin subir tu música a internet, y estarán aquí cuando vuelvas.</p><div class="cta"><button class="btn btn-acc" data-act="addFiles">' + icon('plus','sm') + 'Elegir archivos</button><button class="btn btn-ghost" data-act="addFolder">' + icon('folder','sm') + 'Elegir carpeta</button></div><p class="hint">También puedes arrastrar y soltar tus archivos aquí.</p></div>';
     }
 
     /* Movimiento direccional v2.1: recuerda la última vista/detalle para
@@ -3160,7 +3160,7 @@
        o vaciar cambia al momento, y ni la búsqueda ni el cambio de
        pestaña lo alteran, porque cuenta state.tracks entero. Solo
        presentación: ningún dato ni el esquema cambian. */
-    const APP_VERSION = '4.16';
+    const APP_VERSION = '4.17';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4360,7 +4360,7 @@
     $('#btnClearLibrary').addEventListener('click', clearLibrary);
     $('#btnDeleteDisliked').addEventListener('click', deleteDislikedTracks);
     function addMenu(){
-      openSheet('<h3>Agregar música</h3><p class="sub">Los archivos se guardan solo en este dispositivo. Nada se sube a internet.</p>' +
+      openSheet('<h3>Agregar música</h3><p class="sub">Los archivos se guardan solo en este dispositivo. Tu música nunca se sube a internet.</p>' +
         '<button class="sheet-item" data-a="files">' + icon('file') + 'Elegir archivos</button>' +
         '<button class="sheet-item" data-a="folder">' + icon('folder') + 'Elegir una carpeta completa</button>');
       sheet.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', ()=>{
