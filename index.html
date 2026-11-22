@@ -667,6 +667,9 @@
       .sync-state{ width:10px; height:10px; border-radius:50%; background:var(--muted); flex:none; }
       .sync-state.on{ background:#2fce8f; }
       .sync-note{ margin:14px 6px 2px; padding:12px 14px; background:var(--surface2); border-radius:14px; color:var(--muted); font-size:13.5px; line-height:1.55; }
+      .sync-warn{ margin:10px 6px 2px; padding:12px 14px; background:color-mix(in srgb, var(--danger) 12%, var(--surface2)); border:1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius:14px; color:var(--danger); font-size:13.5px; line-height:1.55; font-weight:600; }
+      .sync-counts{ margin:2px 6px 10px; display:flex; flex-direction:column; gap:4px; }
+      .sync-counts .sync-line{ margin:0; }
       .modal{
         position:fixed; inset:0; z-index:72; display:none; align-items:center; justify-content:center; padding:20px;
       }
@@ -3018,7 +3021,7 @@
        render() y el resto vive en el CSS de la ronda) y el
        esqueleto de carga con acabado de cristal. Solo
        presentación: ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.8';
+    const APP_VERSION = '4.9';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4226,13 +4229,15 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
-       huella → calificación, y la huella es artista|título|duración, así
-       la misma canción se reconoce en cualquier dispositivo aunque su ID
-       local sea distinto.
+       huella → calificación, y la huella es artista|título (v4.9: sin la
+       duración exacta, que rompía las coincidencias entre dispositivos;
+       la duración viaja solo como dato auxiliar «d» dentro de cada
+       entrada, para desempatar), así la misma canción se reconoce en
+       cualquier dispositivo aunque su ID local sea distinto.
        v4.8: el SDK de Firebase se carga SIEMPRE al arrancar (diferido, sin
        bloquear la interfaz ni la reproducción) y onAuthStateChanged queda
        registrado desde el inicio, para captar cualquier sesión persistida
@@ -4255,7 +4260,9 @@
       appId: "1:638865917438:web:daf969e48609184cbb6caf"
     };
     const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
-    let ratingsMap = {};        // huella -> {r:'like'|'dislike'|'', t:ms}
+    let ratingsMap = {};        // huella (artista|título) -> {r:'like'|'dislike'|'', t:ms, d?:segundos}
+    let syncCloudCount = 0;     // v4.9: calificaciones (like/dislike) vistas en la nube en la última lectura/fusión
+    let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
     let syncUser = null;        // usuario de Firebase o null
     let syncReady = false;      // SDK cargado e inicializado
     let syncFailed = false;     // el SDK no pudo cargar
@@ -4277,12 +4284,47 @@
       return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
     }
     function trackFingerprint(t){
-      return fpNorm(t.artist) + '|' + fpNorm(t.title) + '|' + Math.round(t.duration || 0);
+      // v4.9 · Huella tolerante: solo artista|título normalizados, SIN la
+      // duración exacta. La duración va como «d» auxiliar en la entrada.
+      return fpNorm(t.artist) + '|' + fpNorm(t.title);
+    }
+    // v4.9 · Migración de claves antiguas artista|título|duración →
+    // artista|título, conservando la duración como «d» en la entrada.
+    // Si dos claves antiguas caen en la misma clave nueva, gana la de
+    // marca de tiempo mayor (la misma regla de fusión de siempre).
+    function migrateRatingsMap(map){
+      if(!map || typeof map !== 'object') return {};
+      const out = {};
+      for(const k in map){
+        const e = map[k]; if(!e) continue;
+        const entry = { r: e.r || '', t: e.t || 0 };
+        if(e.d != null && !isNaN(Number(e.d))) entry.d = Math.round(Number(e.d));
+        let nk = k;
+        const parts = String(k).split('|');
+        if(parts.length === 3 && /^-?\d+$/.test(parts[2].trim())){
+          nk = parts[0] + '|' + parts[1];
+          if(entry.d == null) entry.d = parseInt(parts[2].trim(), 10);
+        }
+        if(!out[nk]){ out[nk] = entry; }
+        else if((entry.t || 0) >= (out[nk].t || 0)){
+          if(entry.d == null && out[nk].d != null) entry.d = out[nk].d;
+          out[nk] = entry;
+        } else if(out[nk].d == null && entry.d != null){
+          out[nk].d = entry.d;
+        }
+      }
+      return out;
+    }
+    function countRatings(map){
+      let n = 0;
+      if(!map || typeof map !== 'object') return 0;
+      for(const k in map){ const e = map[k]; if(e && (e.r === 'like' || e.r === 'dislike')) n++; }
+      return n;
     }
     function ratingsHash(map){
       const keys = Object.keys(map).sort();
       let s = '';
-      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.r : '') + '@' + (e ? e.t : 0) + ';'; }
+      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.r : '') + '@' + (e ? e.t : 0) + '#' + (e && e.d != null ? e.d : '') + ';'; }
       return String(hashStr(s));
     }
     async function syncSaveLocal(){
@@ -4292,9 +4334,14 @@
       try{ await dbPut('kv', { signedIn: !!syncUser, email: syncUser ? (syncUser.email || '') : '', lastSync: syncLastAt }, 'syncMeta'); }catch(e){}
     }
     async function syncLoadLocal(){
+      let migrated = false;
       try{
         const m = await dbGet('kv', 'ratingsMap');
-        if(m && typeof m === 'object') ratingsMap = m;
+        if(m && typeof m === 'object'){
+          const before = ratingsHash(m);
+          ratingsMap = migrateRatingsMap(m);
+          migrated = ratingsHash(ratingsMap) !== before || Object.keys(ratingsMap).length !== Object.keys(m).length;
+        }
         const meta = await dbGet('kv', 'syncMeta');
         if(meta){
           if(typeof meta.lastSync === 'number') syncLastAt = meta.lastSync;
@@ -4309,21 +4356,32 @@
       state.tracks.forEach(t => {
         if(!t.rating) return;
         const fp = trackFingerprint(t);
-        if(!ratingsMap[fp]){ ratingsMap[fp] = { r: t.rating, t: 0 }; seeded = true; }
+        if(!ratingsMap[fp]){ ratingsMap[fp] = { r: t.rating, t: 0, d: Math.round(t.duration || 0) }; seeded = true; }
       });
-      if(seeded) syncSaveLocal();
+      if(seeded || migrated) syncSaveLocal();
     }
     function mergeRatings(a, b){
+      // v4.9: ambos lados se migran primero (claves antiguas con
+      // duración → clave sin duración, conservando «d»), para aprovechar
+      // todo lo subido con v4.7/v4.8.
+      const A = migrateRatingsMap(a);
+      const B = migrateRatingsMap(b);
       const out = {};
-      for(const k in a) out[k] = a[k];
-      for(const k in b){
-        if(!out[k] || (b[k].t || 0) >= (out[k].t || 0)) out[k] = b[k];
+      for(const k in A) out[k] = A[k];
+      for(const k in B){
+        if(!out[k] || (B[k].t || 0) >= (out[k].t || 0)) out[k] = B[k];
       }
       return out;
     }
     // Aplica el mapa a todas las canciones locales que coincidan por huella.
+    // v4.9 · Aplicación tolerante: las canciones se agrupan por
+    // artista|título; con una sola candidata se aplica aunque su duración
+    // difiera; con varias y «d» en la entrada, se aplica a las que estén
+    // dentro de ±3 s de «d» (si ninguna cae en el margen, a todas).
     async function syncApplyToTracks(){
       let changed = false;
+      let applied = 0;
+      ratingsMap = migrateRatingsMap(ratingsMap);
       const byFp = {};
       state.tracks.forEach(t => {
         const fp = trackFingerprint(t);
@@ -4332,11 +4390,19 @@
       for(const fp in ratingsMap){
         const e = ratingsMap[fp]; if(!e) continue;
         const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
-        const list = byFp[fp]; if(!list) continue;
-        for(const t of list){
+        const list = byFp[fp]; if(!list || !list.length) continue;
+        let targets = list;
+        if(list.length > 1 && e.d != null && !isNaN(Number(e.d))){
+          const d = Number(e.d);
+          const near = list.filter(t => Math.abs(Math.round(t.duration || 0) - d) <= 3);
+          if(near.length) targets = near;
+        }
+        for(const t of targets){
+          if(want) applied++;
           if(t.rating !== want){ t.rating = want; await saveTrackMeta(t); changed = true; }
         }
       }
+      syncAppliedCount = applied;
       if(changed){ render(); if(typeof syncPlayerUI === 'function') syncPlayerUI(); }
       return changed;
     }
@@ -4344,7 +4410,7 @@
     // entra al mapa local siempre, haya sesión o no, y sube si hay sesión.
     function syncNoteRating(t){
       if(!t) return;
-      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: Date.now() };
+      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: Date.now(), d: Math.round(t.duration || 0) };
       syncSaveLocal();
       if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
     }
@@ -4357,11 +4423,13 @@
     }
     async function syncUpload(){
       if(!syncUser || !syncReady) return;
+      ratingsMap = migrateRatingsMap(ratingsMap);
       const h = ratingsHash(ratingsMap);
       if(h === syncLastHash) return;
       try{
         await syncDocRef().set({ ratings: ratingsMap });
         syncLastHash = h;
+        syncCloudCount = countRatings(ratingsMap);
         syncLastAt = Date.now();
         syncSaveMeta();
         syncRefreshSheet();
@@ -4455,6 +4523,7 @@
       try{
         const snap = await syncDocRef().get();
         const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
+        syncCloudCount = countRatings(migrateRatingsMap(remote));
         ratingsMap = mergeRatings(ratingsMap, remote);
         await syncSaveLocal();
         await syncApplyToTracks();
@@ -4475,7 +4544,9 @@
     async function syncOnRemote(snap){
       if(!snap || !snap.exists || !syncUser) return;
       const remote = (snap.data() && snap.data().ratings) || {};
-      const rh = ratingsHash(remote);
+      const remoteMigrated = migrateRatingsMap(remote);
+      const rh = ratingsHash(remoteMigrated);
+      syncCloudCount = countRatings(remoteMigrated);
       if(rh === syncLastHash) return; // es lo que acabamos de subir
       syncApplying = true;
       try{
@@ -4560,9 +4631,18 @@
         body += '<p class="sync-line"><span class="sync-state"></span><span>Conectando…</span></p>' +
           '<p class="sync-line muted">Comprobando tu sesión de Google…</p>';
       } else if(syncUser){
+        const nLocal = countRatings(ratingsMap);
         body += '<p class="sync-line"><span class="sync-state on"></span><span>Conectado como <strong>' + esc(syncUser.email || 'tu cuenta de Google') + '</strong></span></p>' +
           '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
-          '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
+          '<div class="sync-counts">' +
+          '<p class="sync-line">En este dispositivo: ' + nLocal + ' calificaciones</p>' +
+          '<p class="sync-line">En la nube: ' + syncCloudCount + ' calificaciones</p>' +
+          '<p class="sync-line">Aplicadas en este dispositivo: ' + syncAppliedCount + '</p>' +
+          '</div>';
+        if(syncCloudCount > 0 && syncAppliedCount === 0){
+          body += '<p class="sync-warn">⚠ La nube tiene calificaciones que no coinciden con ninguna canción de este dispositivo</p>';
+        }
+        body += '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
       } else {
         body += '<p class="sync-line"><span class="sync-state"></span><span>Sin sesión</span></p>' +
           '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
@@ -4571,7 +4651,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista, título y duración de cada canción. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción (la duración solo ayuda a desempatar si hay dos canciones iguales). Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
