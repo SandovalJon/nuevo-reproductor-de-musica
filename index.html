@@ -291,9 +291,17 @@
       .dup-dislike.on{ background:color-mix(in srgb, var(--danger) 16%, var(--surface2)); color:var(--danger); }
       .dup-purge{ padding:12px 4px 0; }
       .dup-purge .btn{ min-height:44px; }
+      /* v4.22 · Grupos conservados enteros: su nota al final de la
+         vista, con el botón para volver a mostrarlos. */
+      .dup-kept-note{
+        margin-top:18px; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+        background:var(--surface); border:1px solid var(--line); border-radius:18px;
+      }
+      .dup-kept-note p{ margin:0; flex:1; min-width:200px; color:var(--muted); font-size:14px; line-height:1.5; }
+      .dup-kept-note p strong{ color:var(--ink); }
       @media (max-width:520px){
         .dup-head{ flex-wrap:wrap; }
-        .dup-head .play-group{ width:100%; }
+        .dup-head .play-group, .dup-head .keep-all{ width:100%; }
       }
       .back-row{ display:flex; align-items:center; gap:6px; padding:12px 0 2px; font-weight:700; font-size:17px; }
       .back-row button{ display:flex; align-items:center; gap:4px; padding:8px 10px 8px 2px; min-height:44px; font-weight:700; font-size:16px; }
@@ -2017,7 +2025,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.21</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.22</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2509,6 +2517,16 @@
        hora de borrar en conjunto. */
     const isDupMarked = t => !!(t && t.dupDislike);
     const isPurgeMarked = t => !!(t && (t.rating === 'dislike' || t.dupDislike));
+    /* v4.22 · «Quedarme con las 2»: Sando encontró un grupo cuyas
+       versiones quiere conservar TODAS, pero quiere que deje de
+       aparecer en Duplicadas. La decisión se guarda por copia con
+       otro campo opcional de la ficha (dupKeep), igual de local
+       que dupDislike: no borra nada, no toca calificaciones ni la
+       sincronización. Un grupo se considera conservado —y sale de
+       la vista— solo cuando TODAS sus copias llevan la marca; si
+       más adelante llega otra versión de esa canción (sin marca),
+       el grupo vuelve a aparecer para que la revise. */
+    const isDupKeptGroup = ts => ts.length > 1 && ts.every(t => t.dupKeep);
     function playable(ids){ return ids.filter(id => { const t = getTrack(id); return t && !isDisliked(t); }); }
 
     async function saveSettings(){
@@ -3153,6 +3171,9 @@
       const groups = [];
       map.forEach((ts, key) => {
         if(ts.length < 2) return;
+        // v4.22: un grupo conservado entero («Quedarme con las 2»)
+        // ya no es un duplicado por resolver: no se muestra.
+        if(isDupKeptGroup(ts)) return;
         // Dentro del grupo: primero las calificadas con «Me gusta»,
         // luego las de mayor tamaño (suelen ser las de mejor calidad)
         // y por último las más recientes.
@@ -3164,6 +3185,21 @@
       });
       groups.sort((a, b) => (b.tracks.length - a.tracks.length) || a.title.localeCompare(b.title, 'es'));
       return groups;
+    }
+    /* v4.22 · Los grupos que Sando decidió conservar enteros: no se
+       muestran como duplicados, pero la vista los recuerda al final
+       (o en el estado vacío) con un botón para volver a mostrarlos,
+       por si algún día quiere revisarlos otra vez. */
+    function keptDuplicateGroups(){
+      const map = new Map();
+      Array.from(state.tracks.values()).filter(matchesSearch).forEach(t => {
+        const k = dupKey(t);
+        if(!map.has(k)) map.set(k, []);
+        map.get(k).push(t);
+      });
+      const kept = [];
+      map.forEach(ts => { if(isDupKeptGroup(ts)) kept.push(ts); });
+      return kept;
     }
     function dupVersionHTML(t, group){
       const playing = t.id === state.currentId;
@@ -3200,15 +3236,20 @@
       const all = Array.from(state.tracks.values());
       if(!all.length){ content.innerHTML = greetHTML() + emptyHTML('library'); bindContent(); return; }
       const groups = duplicateGroups();
+      const keptGroups = keptDuplicateGroups();
       if(!groups.length){
-        content.innerHTML = state.search ? emptyHTML('search') :
-          '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin versiones duplicadas</h2><p>Cada canción de tu biblioteca aparece una sola vez: no hay dos versiones de la misma canción. Los títulos que solo cambian por el calificativo —«visualizer», «video oficial», «letra» y similares— cuentan como la misma canción, así que si agregas otra versión de una que ya tienes, aparecerá aquí agrupada con ella.</p></div>';
+        if(state.search){ content.innerHTML = emptyHTML('search'); }
+        else if(keptGroups.length){
+          content.innerHTML = '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin duplicados por revisar</h2><p>Las versiones que decidiste conservar ya no aparecen aquí: tienes <strong>' + keptGroups.length + (keptGroups.length === 1 ? ' grupo conservado' : ' grupos conservados') + '</strong> y todas sus versiones siguen en tu biblioteca, como siempre. Si algún día quieres volver a revisarlos, puedes mostrarlos de nuevo.</p><div class="cta"><button class="btn btn-ghost" data-dup-restore-kept>' + icon('refresh','sm') + 'Volver a mostrarlos</button></div></div>';
+        } else {
+          content.innerHTML = '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin versiones duplicadas</h2><p>Cada canción de tu biblioteca aparece una sola vez: no hay dos versiones de la misma canción. Los títulos que solo cambian por el calificativo —«visualizer», «video oficial», «letra» y similares— cuentan como la misma canción, así que si agregas otra versión de una que ya tienes, aparecerá aquí agrupada con ella.</p></div>';
+        }
         bindContent(); return;
       }
       const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
       const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
       const dislikedCount = all.filter(isPurgeMarked).length;
-      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones.</p></div>';
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo. También puedes marcar cada versión con «No me gusta»: las marcadas se borran junto con el resto de canciones que no te gustan al pulsar «Borrar las que no me gustan», aquí o en Canciones. Y si de un grupo quieres quedarte con todas sus versiones, pulsa «Quedarme con las 2» en su cabecera: no se borra nada y el grupo deja de aparecer aquí.</p></div>';
       if(dislikedCount){
         h += '<div class="dup-purge"><button class="btn btn-danger-soft" data-dup-purge-disliked>' + icon('trash','sm') + 'Borrar las que no me gustan (' + dislikedCount + ')</button></div>';
       }
@@ -3216,9 +3257,13 @@
         const rep = g.tracks[0];
         h += '<section class="dup-group"><div class="dup-head">' + coverHTML(rep) +
           '<div class="meta"><div class="t">' + esc(g.title) + '</div><div class="a">' + esc(g.artist) + ' · ' + g.tracks.length + ' versiones</div></div>' +
-          '<button class="btn btn-ghost play-group" data-dup-playgroup="' + rep.id + '">' + icon('play','sm') + 'Escuchar todas</button></div>' +
+          '<button class="btn btn-ghost play-group" data-dup-playgroup="' + rep.id + '">' + icon('play','sm') + 'Escuchar todas</button>' +
+          '<button class="btn dup-keep keep-all" data-dup-keepall="' + rep.id + '">' + icon('check','sm') + (g.tracks.length === 2 ? 'Quedarme con las 2' : 'Quedarme con todas') + '</button></div>' +
           '<div class="rows">' + g.tracks.map(t => dupVersionHTML(t, g)).join('') + '</div></section>';
       });
+      if(keptGroups.length){
+        h += '<div class="dup-kept-note"><p>Además conservas <strong>' + keptGroups.length + (keptGroups.length === 1 ? ' grupo' : ' grupos') + '</strong> que ya no aparecen aquí; todas sus versiones siguen en tu biblioteca.</p><button class="btn btn-ghost" data-dup-restore-kept>' + icon('refresh','sm') + 'Volver a mostrarlos</button></div>';
+      }
       content.innerHTML = h;
       bindContent(groups.reduce((acc, g) => acc.concat(g.tracks.map(t => t.id)), []));
     }
@@ -3247,6 +3292,36 @@
       if(!saved) toast('La marca no se pudo guardar en este dispositivo.', 4200);
       else if(t.dupDislike) toast('«' + t.title + '» se borrará junto con las que no te gustan');
       else toast('«' + t.title + '» ya no está marcada para borrar');
+      render();
+    }
+    /* v4.22 · «Quedarme con las 2» (o «con todas»): Sando quiere
+       conservar TODAS las versiones de un grupo y que el grupo
+       desaparezca de Duplicadas. No se borra nada: cada copia del
+       grupo recibe su marca dupKeep en su ficha (saveTrackMeta),
+       tan local como dupDislike — no entra al mapa de
+       sincronización ni sube a la nube — y duplicateGroups() deja
+       de mostrar los grupos cuyas copias la llevan todas. Si
+       mañana agrega otra versión de esa canción, vendrá sin marca
+       y el grupo reaparecerá para que la revise. */
+    async function keepAllVersions(repId){
+      const group = dupGroupOf(repId); if(!group || group.length < 2) return;
+      let failed = false;
+      for(const t of group){
+        if(!t.dupKeep){ t.dupKeep = true; const ok = await saveTrackMeta(t); if(!ok) failed = true; }
+      }
+      if(failed) toast('La decisión no se pudo guardar en este dispositivo.', 4200);
+      else toast('Te quedas con las ' + group.length + ' versiones de «' + group[0].title + '»: ya no saldrá en Duplicadas');
+      render();
+    }
+    /* v4.22 · Deshacer lo anterior: quita la marca dupKeep de todas
+       las fichas que la tengan y los grupos conservados vuelven a
+       mostrarse en Duplicadas. */
+    async function restoreKeptGroups(){
+      let n = 0;
+      for(const t of state.tracks.values()){
+        if(t.dupKeep){ t.dupKeep = null; await saveTrackMeta(t); n++; }
+      }
+      if(n) toast('Los grupos conservados vuelven a mostrarse en Duplicadas');
       render();
     }
     function keepOnlyVersion(keepId){
@@ -3483,7 +3558,21 @@
        marca, y «Quedarme con esta» la retira de la copia que
        se queda. Sin tocar la agrupación (dupKey), la huella
        de la sincro, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.21';
+    /* v4.22 · Pedido por Sando: encontró un grupo del que quiere
+       quedarse con las 2 versiones, pero quiere que desaparezca
+       de Duplicadas. Cada cabecera de grupo lleva ahora el botón
+       «Quedarme con las 2» («con todas» si son más): no borra
+       nada, marca cada copia del grupo con dupKeep en su ficha
+       —campo opcional y solo local, como dupDislike: no entra
+       al mapa de sincronización ni sube a la nube— y la vista
+       deja de mostrar los grupos cuyas copias llevan todas la
+       marca. La vista recuerda los grupos conservados (en el
+       estado vacío o con una nota al final) con un «Volver a
+       mostrarlos» que quita las marcas, y si llega una versión
+       nueva de esa canción, sin marca, el grupo reaparece solo
+       para su revisión. Sin tocar la agrupación (dupKey), la
+       huella de la sincro, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.22';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4574,6 +4663,12 @@
       }
       const dupKeep = e.target.closest('[data-dup-keep]');
       if(dupKeep){ e.stopPropagation(); keepOnlyVersion(dupKeep.dataset.dupKeep); return; }
+      /* v4.22 · «Quedarme con las 2»: conserva todas las versiones
+         del grupo y lo saca de la vista, sin borrar nada. */
+      const dupKeepAll = e.target.closest('[data-dup-keepall]');
+      if(dupKeepAll){ e.stopPropagation(); keepAllVersions(dupKeepAll.dataset.dupKeepall); return; }
+      const dupRestore = e.target.closest('[data-dup-restore-kept]');
+      if(dupRestore){ e.stopPropagation(); restoreKeptGroups(); return; }
       /* v4.21 · «No me gusta» por versión: marca (o desmarca) solo
          esa copia con su marca por copia (toggleDupDislike), que no
          viaja por la huella compartida de la sincronización; el
