@@ -2025,7 +2025,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.24</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.25</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3125,11 +3125,28 @@
       'music video', 'video musical', 'official mv', 'visualizer', 'visualizador',
       'remastered', 'remasterizado', 'remaster', 'lyrics', 'letra', 'en vivo',
       'official', 'oficial', 'audio', 'video', 'live', 'mv', 'hd', '4k', 'hq'];
+    /* v4.25 · Un segmento entre paréntesis/corchetes SOLO se quita
+       si es un calificativo conocido (o una colaboración): hasta la
+       v4.24 se quitaban TODOS, y «(Parte 1)» y «(Parte 2)» —o una
+       versión entre paréntesis— se fundían en el mismo grupo aunque
+       para Sando son secciones distintas. Los segmentos que no son
+       calificativo se quedan en el título base y distinguen grupo. */
+    function isDupQualifierSegment(raw){
+      const c = fpNorm(raw).replace(/\.+$/, '').trim();
+      if(!c) return true;
+      if(/^(feat|ft|featuring)\b/.test(c)) return true;
+      for(const q of DUP_QUALS){
+        if(c === q || c.startsWith(q + ' ')) return true;
+      }
+      return false;
+    }
     function dupBaseTitle(title){
       let s = fpNorm(title);
-      // Lo que va entre paréntesis o corchetes casi siempre es el
-      // calificativo: «(Visualizer)», «[Video Oficial]», «(HD)».
-      s = s.replace(/\([^)]*\)/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+      // Lo que va entre paréntesis o corchetes SOLO se quita cuando
+      // es el calificativo: «(Visualizer)», «[Video Oficial]», «(HD)».
+      // Lo demás —«(Parte 1)», «(Parte 2)»— se conserva y separa grupo.
+      s = s.replace(/\(([^)]*)\)/g, (m, inner) => isDupQualifierSegment(inner) ? ' ' : m)
+           .replace(/\[([^\]]*)\]/g, (m, inner) => isDupQualifierSegment(inner) ? ' ' : m);
       // Colaboración al final: «feat. X», «ft. X», «featuring X» no
       // cambia la canción, solo el título con que se guardó.
       s = s.replace(/\b(feat|ft|featuring)\b.*$/, ' ');
@@ -3228,14 +3245,17 @@
       const detail = fmt(t.duration) + ' · ' + fmtSize(t.size) +
         (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') +
         (t.addedAt ? ' · agregada el ' + esc(fmtAdded(t.addedAt)) : '');
-      return '<div class="row dup-ver ' + (playing ? 'playing' : '') + ' ' + (marked ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-dup-row="' + t.id + '">' +
+      // v4.25: el grupo PINTADO viaja en el propio botón/fila (sus IDs
+      // exactos), para que las acciones actúen solo sobre lo que se ve.
+      const idsCsv = group.tracks.map(o => o.id).join(',');
+      return '<div class="row dup-ver ' + (playing ? 'playing' : '') + ' ' + (marked ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-dup-row="' + t.id + '" data-dup-ids="' + idsCsv + '">' +
         '<div class="dup-ver-main">' + coverHTML(t) +
           '<div class="meta"><div class="t" title="' + meta + '">' + meta + '</div><div class="a">' + detail + '</div><div class="dup-tags">' + tags + '</div></div>' +
-          '<button class="dup-play" data-dup-play="' + t.id + '" aria-label="Escuchar esta versión de ' + esc(t.title) + '">' + icon('play') + '</button>' +
+          '<button class="dup-play" data-dup-play="' + t.id + '" data-dup-ids="' + idsCsv + '" aria-label="Escuchar esta versión de ' + esc(t.title) + '">' + icon('play') + '</button>' +
           '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="' + rateLabel + '">' + icon(heartIcon) + '</button>' +
         '</div>' +
         '<div class="dup-actions">' +
-          '<button class="btn dup-keep" data-dup-keep="' + t.id + '">' + icon('check','sm') + 'Quedarme con esta</button>' +
+          '<button class="btn dup-keep" data-dup-keep="' + t.id + '" data-dup-ids="' + idsCsv + '">' + icon('check','sm') + 'Quedarme con esta</button>' +
           '<button class="btn dup-dislike' + (marked ? ' on' : '') + '" data-dup-dislike="' + t.id + '" aria-pressed="' + (marked ? 'true' : 'false') + '">' + icon('heartSlash','sm') + (marked ? 'Quitar el No me gusta' : 'No me gusta') + '</button>' +
           '<button class="btn btn-danger-soft" data-dup-del="' + t.id + '">' + icon('trash','sm') + 'Borrar esta versión</button>' +
         '</div></div>';
@@ -3263,10 +3283,11 @@
       }
       groups.forEach(g => {
         const rep = g.tracks[0];
+        const idsCsv = g.tracks.map(t => t.id).join(',');
         h += '<section class="dup-group"><div class="dup-head">' + coverHTML(rep) +
           '<div class="meta"><div class="t">' + esc(g.title) + '</div><div class="a">' + esc(g.artist) + ' · ' + g.tracks.length + ' versiones</div></div>' +
-          '<button class="btn btn-ghost play-group" data-dup-playgroup="' + rep.id + '">' + icon('play','sm') + 'Escuchar todas</button>' +
-          '<button class="btn dup-keep keep-all" data-dup-keepall="' + rep.id + '">' + icon('check','sm') + (g.tracks.length === 2 ? 'Quedarme con las 2' : 'Quedarme con todas') + '</button></div>' +
+          '<button class="btn btn-ghost play-group" data-dup-playgroup="' + rep.id + '" data-dup-ids="' + idsCsv + '">' + icon('play','sm') + 'Escuchar todas</button>' +
+          '<button class="btn dup-keep keep-all" data-dup-keepall="' + rep.id + '" data-dup-ids="' + idsCsv + '">' + icon('check','sm') + (g.tracks.length === 2 ? 'Quedarme con las 2' : 'Quedarme con todas') + '</button></div>' +
           '<div class="rows">' + g.tracks.map(t => dupVersionHTML(t, g)).join('') + '</div></section>';
       });
       if(keptGroups.length){
@@ -3280,6 +3301,22 @@
       const k = dupKey(t);
       const tracks = Array.from(state.tracks.values()).filter(o => dupKey(o) === k);
       return tracks.length ? tracks : null;
+    }
+    /* v4.25 · El grupo EXACTO que se pintó en pantalla: los botones y
+       filas de Duplicadas llevan los IDs de su grupo (data-dup-ids) y
+       las acciones trabajan sobre esa lista, sin recalcular la clave
+       sobre toda la biblioteca. Así «Quedarme con esta» ya no puede
+       alcanzar copias que no se ven —por una búsqueda activa— ni
+       canciones que la clave tolerante juntaba de más. dupGroupOf
+       queda solo como respaldo si un botón llegara sin su lista. */
+    function dupTracksByIds(ids){
+      if(!Array.isArray(ids) || !ids.length) return null;
+      const tracks = ids.map(id => getTrack(id)).filter(Boolean);
+      return tracks.length ? tracks : null;
+    }
+    function dupIdsFromEl(el){
+      const raw = el && el.dataset ? el.dataset.dupIds : '';
+      return raw ? raw.split(',').filter(Boolean) : null;
     }
     /* v4.21 · El «No me gusta» de una versión en Duplicadas. Si la
        copia ya trae el «No me gusta» de siempre (su calificación), el
@@ -3317,8 +3354,9 @@
        de mostrar los grupos cuyas copias la llevan todas. Si
        mañana agrega otra versión de esa canción, vendrá sin marca
        y el grupo reaparecerá para que la revise. */
-    async function keepAllVersions(repId){
-      const group = dupGroupOf(repId); if(!group || group.length < 2) return;
+    async function keepAllVersions(repId, ids){
+      // v4.25: el grupo es el pintado (sus IDs), no uno recalculado.
+      const group = dupTracksByIds(ids) || dupGroupOf(repId); if(!group || group.length < 2) return;
       let failed = false;
       for(const t of group){
         if(!t.dupKeep){ t.dupKeep = true; const ok = await saveTrackMeta(t); if(!ok) failed = true; }
@@ -3351,15 +3389,23 @@
        copias que ya traían el «No me gusta» de su calificación ya
        están para borrar y no se tocan. Sin confirmación: marcar no
        destruye nada. */
-    async function keepOnlyVersion(keepId){
+    async function keepOnlyVersion(keepId, ids){
       const keep = getTrack(keepId); if(!keep) return;
-      const group = dupGroupOf(keepId); if(!group) return;
+      // v4.25: el grupo es EXACTAMENTE el pintado en pantalla (los IDs
+      // que trae el botón), no uno recalculado con dupKey sobre toda
+      // la biblioteca: nada fuera de ese grupo se marca, ni siquiera
+      // copias ocultas por la búsqueda o juntadas de más por la clave.
+      const group = dupTracksByIds(ids) || dupGroupOf(keepId); if(!group) return;
+      if(!group.some(t => t.id === keepId)) return;
       // v4.21: quedarse con una copia le quita su marca por copia, si
       // la tenía: es la que se queda, no debe caer en la próxima
       // barrida de «Borrar las que no me gustan».
       // v4.23: esa retirada también se sincroniza (syncNoteDupMark),
       // para que la copia quede desmarcada en todos los dispositivos.
-      if(keep.dupDislike){ keep.dupDislike = null; keep.dupDislikeAt = Date.now(); saveTrackMeta(keep); syncNoteDupMark(keep); }
+      // v4.25: la retirada se ESPERA (guardada y anotada) antes de
+      // marcar a las demás, para que ninguna subida en curso pueda
+      // dejar la copia elegida marcada otra vez.
+      if(keep.dupDislike){ keep.dupDislike = null; keep.dupDislikeAt = Date.now(); await saveTrackMeta(keep); await syncNoteDupMark(keep); }
       const others = group.filter(t => t.id !== keepId);
       if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); render(); return; }
       let failed = false, newly = 0;
@@ -3646,7 +3692,32 @@
        borrado desaparece de este botón. Sin tocar la agrupación
        (dupKey), la huella de la sincro de calificaciones, la
        biblioteca ni el esquema. */
-    const APP_VERSION = '4.24';
+    /* v4.25 · Arreglo pedido por Sando: «cuando presiono quedarme
+       con esta modifica otras secciones que no he calificado aparte
+       de la que estoy, pasa a veces». Había dos vías, y se cortan
+       las dos. (1) La inmediata: «Quedarme con esta» (y «Quedarme
+       con las 2», y la cola del grupo) ya no recalcula el grupo con
+       dupKey sobre TODA la biblioteca —alcanzaba copias ocultas por
+       la búsqueda y canciones juntadas de más por la clave—: actúa
+       exactamente sobre los IDs del grupo pintado, que cada botón y
+       fila lleva consigo (data-dup-ids). Además la agrupación ya
+       solo quita los paréntesis/corchetes que son calificativos
+       conocidos: «(Parte 1)» y «(Parte 2)» ya no se funden en un
+       mismo grupo. (2) La de la sincro: la clave por copia de la
+       v4.23 (nombre|tamaño) podía coincidir entre copias de grupos
+       distintos y la marca de una caía sobre la otra al sincronizar
+       o reabrir; la clave suma ahora duración, artista y título, el
+       mapa antiguo se migra solo cuando la copia casa sin ambigüedad
+       (si casa con varias, la entrada no se aplica a nadie), y una
+       desmarcada local más reciente —la de la copia elegida— ya no
+       puede ser pisada por una marca vieja: la entrada se repara
+       como retirada. La retirada de la copia elegida además se
+       espera guardada y anotada antes de marcar a las demás. Las
+       calificaciones y las marcas legítimas no se tocan, y ninguna
+       marca ya puesta se borra en bloque: cada una se sigue pudiendo
+       quitar copia a copia. Sin tocar la huella de la sincro de
+       calificaciones, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.25';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4725,7 +4796,8 @@
       if(dupPlay){
         e.stopPropagation();
         const id = dupPlay.dataset.dupPlay;
-        const group = dupGroupOf(id);
+        // v4.25: la cola es el grupo pintado (sus IDs), no uno recalculado.
+        const group = dupTracksByIds(dupIdsFromEl(dupPlay)) || dupGroupOf(id);
         const snap = coverSnapshot(dupPlay.closest('.dup-ver') ? dupPlay.closest('.dup-ver').querySelector('.cover') : null);
         playContext(group ? group.map(t => t.id) : [id], id, { shuffle:false });
         flyCoverToPlayer(snap);
@@ -4733,7 +4805,7 @@
       }
       const dupGroupPlay = e.target.closest('[data-dup-playgroup]');
       if(dupGroupPlay){
-        const group = dupGroupOf(dupGroupPlay.dataset.dupPlaygroup);
+        const group = dupTracksByIds(dupIdsFromEl(dupGroupPlay)) || dupGroupOf(dupGroupPlay.dataset.dupPlaygroup);
         if(group && group.length){
           const first = playable(group.map(t => t.id))[0] || group[0].id;
           playContext(group.map(t => t.id), first, { shuffle:false });
@@ -4741,11 +4813,11 @@
         return;
       }
       const dupKeep = e.target.closest('[data-dup-keep]');
-      if(dupKeep){ e.stopPropagation(); keepOnlyVersion(dupKeep.dataset.dupKeep); return; }
+      if(dupKeep){ e.stopPropagation(); keepOnlyVersion(dupKeep.dataset.dupKeep, dupIdsFromEl(dupKeep)); return; }
       /* v4.22 · «Quedarme con las 2»: conserva todas las versiones
          del grupo y lo saca de la vista, sin borrar nada. */
       const dupKeepAll = e.target.closest('[data-dup-keepall]');
-      if(dupKeepAll){ e.stopPropagation(); keepAllVersions(dupKeepAll.dataset.dupKeepall); return; }
+      if(dupKeepAll){ e.stopPropagation(); keepAllVersions(dupKeepAll.dataset.dupKeepall, dupIdsFromEl(dupKeepAll)); return; }
       const dupRestore = e.target.closest('[data-dup-restore-kept]');
       if(dupRestore){ e.stopPropagation(); restoreKeptGroups(); return; }
       /* v4.21 · «No me gusta» por versión: marca (o desmarca) solo
@@ -4780,7 +4852,8 @@
       const dupRow = e.target.closest('[data-dup-row]');
       if(dupRow){
         const id = dupRow.dataset.dupRow;
-        const group = dupGroupOf(id);
+        // v4.25: la cola es el grupo pintado (sus IDs), no uno recalculado.
+        const group = dupTracksByIds(dupIdsFromEl(dupRow)) || dupGroupOf(id);
         const snap = coverSnapshot(dupRow.querySelector('.cover'));
         playContext(group ? group.map(t => t.id) : [id], id, { shuffle:false });
         flyCoverToPlayer(snap);
@@ -5096,8 +5169,13 @@
         }
         // v4.23: el mapa de marcas de duplicados vive en su propia
         // clave de kv, junto al de calificaciones.
+        // v4.25: al cargarlo se migra a la clave reforzada de copia
+        // y, si la migración cambió algo, se guarda ya migrado.
         const dm = await dbGet('kv', 'dupMarksMap');
-        if(dm && typeof dm === 'object') dupMarksMap = sanitizeDupMap(dm);
+        if(dm && typeof dm === 'object'){
+          dupMarksMap = migrateDupMarksMap(dm);
+          if(dupMarksHash(dupMarksMap) !== dupMarksHash(sanitizeDupMap(dm))) syncSaveDupLocal();
+        }
         const meta = await dbGet('kv', 'syncMeta');
         if(meta){
           if(typeof meta.lastSync === 'number') syncLastAt = meta.lastSync;
@@ -5193,10 +5271,54 @@
        artista|título de las calificaciones: así una marca jamás puede
        caer sobre otra copia del grupo, y la de la v4.15 sigue intacta. */
     function dupCopyKey(t){
-      // La identidad de UNA copia: su archivo. Dos versiones de la
-      // misma canción con el mismo nombre y tamaño serían el mismo
-      // archivo, y la importación ya las trata como una sola.
+      // La identidad de UNA copia: su archivo Y su canción.
+      // v4.25 · La clave de la v4.23 era solo nombre|tamaño, y dos
+      // copias de grupos DISTINTOS podían compartirla (mismo nombre
+      // de archivo y mismo tamaño, o nombres que solo difieren en
+      // acentos/mayúsculas, que fpNorm iguala): la marca de una caía
+      // sobre la otra al sincronizar o reabrir. La clave suma ahora
+      // la duración redondeada y el artista|título normalizados, así
+      // que una marca solo casa con esa copia de esa canción.
+      if(!t) return '||||';
+      return fpNorm(t.fileName || t.title || '') + '|' + (t.size || 0) + '|' + Math.round(t.duration || 0) + '|' + fpNorm(t.artist || '') + '|' + fpNorm(t.title || '');
+    }
+    function dupCopyKeyLegacy(t){
+      // La clave de la v4.23/v4.24 (nombre|tamaño), solo para
+      // reconocer y migrar las entradas antiguas del mapa.
       return fpNorm(t && (t.fileName || t.title) || '') + '|' + ((t && t.size) || 0);
+    }
+    /* v4.25 · Migración del mapa de marcas a la clave reforzada: una
+       entrada antigua se reescribe bajo la clave nueva SOLO si en
+       este dispositivo casa con UNA ÚNICA copia por su clave
+       antigua. Si casa con varias —justo el caso ambiguo que causaba
+       el salpique— o con ninguna (la copia puede vivir en otro
+       dispositivo), la entrada se queda tal cual y no se aplica a
+       nadie aquí; la marca buena de cada ficha vuelve a entrar al
+       mapa por la semilla de siempre con su clave nueva. Al reescribir,
+       si la clave nueva ya tenía entrada, manda la más reciente y en
+       empate la marca puesta, como en mergeDupMarks. */
+    function migrateDupMarksMap(map){
+      const out = sanitizeDupMap(map);
+      if(!state.tracks || !state.tracks.size) return out;
+      const byLegacy = {};
+      const newKeys = new Set();
+      state.tracks.forEach(t => {
+        const lk = dupCopyKeyLegacy(t);
+        (byLegacy[lk] = byLegacy[lk] || []).push(t);
+        newKeys.add(dupCopyKey(t));
+      });
+      for(const k of Object.keys(out)){
+        if(newKeys.has(k)) continue;
+        const cands = byLegacy[k];
+        if(!cands || cands.length !== 1) continue;
+        const nk = dupCopyKey(cands[0]);
+        const e = out[k];
+        delete out[k];
+        if(!out[nk]){ out[nk] = e; continue; }
+        const o = out[nk];
+        if((e.t || 0) > (o.t || 0) || ((e.t || 0) === (o.t || 0) && e.m === 1 && o.m !== 1)) out[nk] = e;
+      }
+      return out;
     }
     function sanitizeDupMap(map){
       if(!map || typeof map !== 'object') return {};
@@ -5211,7 +5333,8 @@
       // Fusión por marca de tiempo, como la de calificaciones: gana
       // la decisión más reciente; en empate, la marca puesta gana a
       // la retirada (una retirada real siempre lleva su marca nueva).
-      const A = sanitizeDupMap(a), B = sanitizeDupMap(b);
+      // v4.25: ambos lados se migran primero a la clave reforzada.
+      const A = migrateDupMarksMap(a), B = migrateDupMarksMap(b);
       const out = {};
       for(const k in A) out[k] = A[k];
       for(const k in B){
@@ -5258,8 +5381,9 @@
       if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
     }
     // Aplica el mapa de marcas a las copias locales. Cada entrada cae
-    // SOLO sobre la copia con su mismo archivo y tamaño; las demás
-    // copias del grupo ni se miran. La antigüedad manda en los dos
+    // SOLO sobre la copia con su misma clave reforzada (archivo,
+    // tamaño, duración, artista y título, v4.25); las demás copias
+    // del grupo ni se miran. La antigüedad manda en los dos
     // sentidos, como en las calificaciones (v4.12/v4.13): una entrada
     // más nueva marca o desmarca la copia; una marca local más nueva
     // que su entrada repara la entrada, para que el dato bueno sea el
@@ -5289,6 +5413,13 @@
           if(et > lt || lt === 0){
             t.dupDislike = true; t.dupDislikeAt = et;
             await saveTrackMeta(t); changed = true;
+          } else {
+            // v4.25: la ficha trae una decisión local MÁS reciente
+            // (su desmarcada, p. ej. la de la copia elegida con
+            // «Quedarme con esta») y la entrada es una marca vieja:
+            // la marca NO pisa a la desmarcada y la entrada se
+            // repara como retirada, para que no resucite al reabrir.
+            dupMarksMap[k] = { m: 0, t: lt }; repaired = true;
           }
         } else if(et > lt){
           // La copia ya está desmarcada: solo se anota la marca de la
