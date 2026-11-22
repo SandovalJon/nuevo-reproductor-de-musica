@@ -8,9 +8,11 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Sonando" />
+    <meta name="application-name" content="Sonando" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="icon" href="data:," />
-    <title>Nuevo Reproductor de Música</title>
+    <title>Sonando</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -1618,15 +1620,15 @@
         <span class="splash-note sn2"><span data-ic="note"></span></span>
         <div class="splash-logo"><span data-ic="note"></span></div>
       </div>
-      <div class="splash-name">Nuevo Reproductor</div>
+      <div class="splash-name">Sonando</div>
       <div class="splash-sub">Tu música, en tu dispositivo</div>
     </div>
     <div id="halo" aria-hidden="true"></div>
     <div class="app">
       <header class="top">
         <div class="top-in">
-          <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.0</span>
+          <h1>Sonando<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.1</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2615,7 +2617,11 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '4.0';
+    /* v4.1 · El bautizo: la app se llama «Sonando» — nombre en el splash,
+       en el título del documento, en las metas de nombre y como título
+       principal de la cabecera. Solo presentación: ninguna función ni
+       ningún dato cambian, y la biblioteca en IndexedDB no se toca. */
+    const APP_VERSION = '4.1';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3168,7 +3174,7 @@
       if(!t) updateHalo(null);
       $('#mini').classList.toggle('show', !!t);
       document.body.classList.toggle('has-track', !!t);
-      document.title = t ? (playing ? '▶ ' : '') + t.title + ' · ' + t.artist : 'Nuevo Reproductor de Música';
+      document.title = t ? (playing ? '▶ ' : '') + t.title + ' · ' + t.artist : 'Sonando';
       if(!t) return;
       // Mini
       setBigCover($('#miniCover'), t);
