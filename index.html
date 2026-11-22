@@ -1140,6 +1140,117 @@
         .appearance .theme-lbl, .appearance .ap-lbl{ min-width:0; }
       }
     </style>
+    <style>
+      /* ============ v3.4 · Brillo fino ============
+         Ronda visual de pulido conjunto, sin tocar funciones ni datos:
+         1) claro y oscuro quedan parejos en contraste, bordes, divisores
+         y superficies; 2) el cambio de portada — la grande de «Sonando
+         ahora», el fondo inmersivo y el vinilo — se funde con curvas y
+         tiempos refinados, sin parpadeos ni saltos; 3) el Escenario
+         recibe el mismo acabado de cristal, tipografía y espaciado que
+         el resto de la interfaz. Todo respeta prefers-reduced-motion. */
+
+      /* 1 · Paleta pareja en ambos modos: el texto secundario gana
+         contraste en claro (antes se quedaba corto sobre el fondo) y la
+         línea de bordes y divisores sube un punto en los dos modos, para
+         que ninguna tarjeta, buscador, píldora o separador se pierda
+         sobre su superficie. La superficie secundaria clara se
+         profundiza un pelo: botones, píldoras y estados al pasar el
+         puntero se distinguen del fondo y de las tarjetas blancas sin
+         perder la identidad cálida de la app. */
+      :root{
+        --muted:#6e6055;
+        --line:rgba(32,25,20,.15);
+        --surface2:#f2e9e0;
+      }
+      :root[data-mode="oscuro"]{
+        --line:rgba(247,240,234,.14);
+      }
+      /* Selección de texto y foco visible con el color de acento, igual
+         de cuidados en claro y en oscuro. */
+      ::selection{ background:color-mix(in srgb, var(--acc) 30%, transparent); }
+      button:focus-visible, [role="button"]:focus-visible, select:focus-visible{ outline:2px solid var(--acc); outline-offset:2px; }
+      /* Al cambiar de modo, las superficies principales se funden en vez
+         de saltar de golpe (el cuerpo ya lo hacía desde la v2.7). Solo
+         se animan fondo y borde, y solo en elementos sin otra
+         transición propia. */
+      .search, select.sort, .seg, .icon-btn, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty{
+        transition:background-color .35s ease, border-color .35s ease;
+      }
+
+      /* 2 · Fundidos de portada refinados: la salida es breve y coincide
+         con el instante en que el código cambia la imagen (180 ms), y
+         la entrada es más larga y suave, así el cambio se lee como un
+         fundido cruzado limpio. Los fondos inmersivos de «Sonando
+         ahora» y del Escenario cruzan con una curva más amable y un
+         poco más de tiempo, y el título acompaña con una subida mínima.
+         El disco de vinilo va dentro de la portada, así que hereda el
+         mismo fundido al cambiar de canción. */
+      .np-bg-layer{ transition:opacity 1s cubic-bezier(.45,0,.2,1); }
+      .stage-bg-layer{ transition:opacity 1.1s cubic-bezier(.45,0,.2,1); }
+      .np-cover{ transition:transform .7s cubic-bezier(.22,.9,.3,1), filter .7s ease, box-shadow .9s ease, opacity .6s cubic-bezier(.45,0,.2,1); }
+      .np-cover.swap{ opacity:0; transform:scale(.96); transition:opacity .17s ease-in, transform .17s ease-in, filter .17s ease-in, box-shadow .17s ease-in; }
+      .stage-cover{ transition:transform .7s cubic-bezier(.22,.9,.3,1), filter .7s ease, box-shadow .9s ease, opacity .6s cubic-bezier(.45,0,.2,1); }
+      .stage-cover.swap{ opacity:0; transform:scale(.97); transition:opacity .17s ease-in, transform .17s ease-in, filter .17s ease-in, box-shadow .17s ease-in; }
+      .np-title{ transition:opacity .5s cubic-bezier(.45,0,.2,1), transform .5s cubic-bezier(.45,0,.2,1); }
+      .np-title.swap{ opacity:0; transform:translateY(6px); transition:opacity .16s ease-in, transform .16s ease-in; }
+
+      /* 3 · Escenario al mismo nivel de detalle: sus controles y su
+         botón de cierre llevan el mismo cristal esmerilado, anillo
+         interior y sombra que los de «Sonando ahora», con la misma
+         respuesta al toque; la tarjeta de «Siguiente», el botón Fiesta
+         y la barra de progreso comparten ese acabado, el carrusel de la
+         cola entra con un fundido breve y responde al pasar el puntero,
+         y el título gigante reparte sus líneas con equilibrio. Su fondo
+         inmersivo de siempre no cambia, en claro ni en oscuro. */
+      .stage-in{ padding:28px 24px calc(28px + env(safe-area-inset-bottom)); }
+      .stage h2{ text-wrap:balance; }
+      .stage-controls button{
+        backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3);
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.16), 0 6px 18px rgba(0,0,0,.18);
+        transition:transform .18s ease, background .25s ease, box-shadow .25s ease;
+      }
+      .stage-controls button:active{ transform:scale(.93); }
+      .stage-controls .big{ box-shadow:0 14px 30px rgba(0,0,0,.35); backdrop-filter:none; -webkit-backdrop-filter:none; }
+      .stage-close{
+        backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3);
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.15), 0 6px 18px rgba(0,0,0,.18);
+        transition:transform .18s ease, background .25s ease, box-shadow .25s ease;
+      }
+      .stage-close:active{ transform:scale(.93); }
+      .stage-party-btn{ backdrop-filter:blur(10px) saturate(1.3); -webkit-backdrop-filter:blur(10px) saturate(1.3); }
+      .stage-next{ backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3); }
+      .stage-prog .bar i{ transition:width .25s linear; }
+      .stage-queue.show{ animation:stageQueueIn .45s cubic-bezier(.22,.9,.32,1) both; }
+      @keyframes stageQueueIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+      @media (hover:hover){
+        .sq-item:hover .cover{ transform:scale(1.04); }
+        .sq-item.is-next:hover .cover{ transform:scale(1.09); }
+      }
+      /* En dispositivos modestos el cristal nuevo del Escenario también
+         se abarata, como el resto de difuminados desde la v3.2. */
+      html.perf-lite .stage-controls button, html.perf-lite .stage-close,
+      html.perf-lite .stage-next, html.perf-lite .stage-party-btn{
+        backdrop-filter:blur(7px) saturate(1.25); -webkit-backdrop-filter:blur(7px) saturate(1.25);
+      }
+      html.perf-lite .stage-controls .big{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+
+      /* Con movimiento reducido, nada de lo anterior se mueve ni se
+         funde: los cambios de portada y de modo son instantáneos, como
+         en todas las rondas anteriores. */
+      @media (prefers-reduced-motion: reduce){
+        .np-bg-layer, .stage-bg-layer,
+        .np-cover, .np-cover.swap, .stage-cover, .stage-cover.swap,
+        .np-title, .np-title.swap,
+        .search, select.sort, .seg, .icon-btn, .modal .box, .modal input[type="text"], .aseg, .mini, .tabs, .version-tag, .empty,
+        .stage-controls button, .stage-close, .stage-prog .bar i{ transition:none; }
+        .np-cover.swap, .stage-cover.swap{ opacity:1; transform:none; }
+        .np-title.swap{ opacity:1; transform:none; }
+        .stage-controls button:active, .stage-close:active{ transform:none; }
+        .stage-queue.show{ animation:none; }
+        .sq-item:hover .cover, .sq-item.is-next:hover .cover{ transform:none; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1169,7 +1280,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.3</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.4</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2155,7 +2266,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.3';
+    const APP_VERSION = '3.4';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
