@@ -23,8 +23,7 @@
         --ink:#201914; --muted:#7d7066; --line:rgba(32,25,20,.10);
         --acc:#f0512f; --acc2:#ff9e4f; --acc-ink:#ffffff;
         --danger:#d93a2b; --ok:#1f9d63;
-        --shadow:0 18px 40px rgba(60,30,10,.16);
-        --shadow-soft:0 10px 26px rgba(60,30,10,.12);
+        /* --shadow y --shadow-soft viven en el bloque de la v2.2 (relieve) */
         --radius:22px;
         --halo-c1:transparent; --halo-c2:transparent;
         color-scheme:light;
@@ -37,8 +36,6 @@
         --ink:#f7f0ea; --muted:#ab9d97; --line:rgba(247,240,234,.10);
         --acc:#ff6a3d; --acc2:#ffb35c; --acc-ink:#ffffff;
         --danger:#ff6a5c; --ok:#3ecf8e;
-        --shadow:0 18px 44px rgba(0,0,0,.5);
-        --shadow-soft:0 10px 26px rgba(0,0,0,.38);
         color-scheme:dark;
       }
       *{ box-sizing:border-box; }
@@ -68,7 +65,7 @@
       #halo.fading{ opacity:.25; }
       @media (prefers-reduced-motion: reduce){ #halo{ transition:none; } }
       .app{ display:flex; flex-direction:column; height:100dvh; position:relative; z-index:1; background:transparent; }
-      .main{ flex:1; overflow-y:auto; padding:0 16px 132px; scroll-padding-bottom:140px; background:transparent; }
+      .main{ flex:1; overflow-y:auto; background:transparent; /* el relleno lo fija el bloque de la v2.0 */ }
       .wrap{ max-width:1060px; margin:0 auto; }
 
       header.top{
@@ -81,7 +78,7 @@
       #btnInstall[hidden]{ display:none; }
       @media (max-width:520px){ #btnInstall, #btnUpdate{ padding:9px 12px; font-size:14px; } }
       #btnUpdate:disabled{ opacity:.65; cursor:wait; }
-      .top h1{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin:0; flex:1; line-height:1.1; }
+      .top h1{ font-weight:800; letter-spacing:-.02em; margin:0; flex:1; line-height:1.1; /* tamaño display en la v2.0 */ }
       .top h1 span{ display:block; font-size:13px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:2px; }
       .version-tag{ font-size:12.5px; font-weight:700; color:var(--muted); background:var(--surface2); border:1px solid var(--line); padding:6px 10px; border-radius:999px; white-space:nowrap; }
       .btn{
@@ -91,7 +88,7 @@
       }
       .btn:active{ transform:scale(.97); }
       @media (prefers-reduced-motion: reduce){ .btn{ transition:none; } .btn:active{ transform:none; } }
-      .btn-acc{ background:linear-gradient(135deg, var(--acc), var(--acc2)); color:var(--acc-ink); box-shadow:0 8px 20px rgba(240,81,47,.32); }
+      .btn-acc{ background:linear-gradient(135deg, var(--acc), var(--acc2)); color:var(--acc-ink); /* su sombra con el color del tema está en la v2.0 */ }
       .btn-ghost{ background:var(--surface2); color:var(--ink); box-shadow:var(--shadow-soft); }
       .btn-danger{ background:var(--danger); color:#fff; }
       .btn-danger-soft{ background:var(--surface2); color:var(--danger); }
@@ -113,14 +110,11 @@
       .tab:active{ transform:scale(.97); }
       .tab.on{ background:var(--ink); color:var(--bg); border-color:transparent; }
       @media (max-width:520px){
-        .tabs{ gap:6px; padding-left:12px; padding-right:12px; }
-        .tab{ padding:8px 12px; font-size:14px; }
-        .search{ flex:1 1 100%; }
         .shuffle-all{ margin-left:0; }
       }
 
       /* Toolbar */
-      .toolbar{ display:flex; gap:8px; align-items:center; padding:10px 0 4px; flex-wrap:wrap; }
+      .toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; /* su respiro lo fija la escala de la v3.3 */ }
       .search{
         flex:1; min-width:170px; display:flex; align-items:center; gap:8px;
         background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:0 14px; min-height:44px;
@@ -132,7 +126,7 @@
         padding:0 12px; min-height:44px; font-weight:500;
       }
       .seg{ display:flex; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:3px; }
-      .seg button{ width:40px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+      .seg button{ border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--muted); /* tamaño táctil en la v3.3 */ }
       .seg button.on{ background:var(--surface2); color:var(--ink); }
       .shuffle-all{ margin-left:auto; }
 
@@ -177,27 +171,24 @@
       .row .t{ font-weight:600; font-size:15.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .row .a{ color:var(--muted); font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .row .dur{ color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
-      .row .rate{ width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); }
+      .row .rate{ display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); /* 44px táctiles en la v3.3 */ }
       .row .rate.like{ color:var(--acc); }
       .row .rate.dislike{ color:var(--danger); }
-      .row .more{ width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); }
+      .row .more{ display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); /* 44px táctiles en la v3.3 */ }
       .cover{
         width:60px; height:60px; border-radius:16px; overflow:hidden; flex:none; position:relative;
         display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.92);
         font-weight:800; font-size:24px;
-        box-shadow:0 10px 22px -6px var(--cover-glow, rgba(60,30,10,.28)), inset 0 0 0 1px rgba(255,255,255,.16);
-        transition:transform .25s ease, box-shadow .25s ease;
+        transition:transform .25s ease, box-shadow .25s ease; /* la sombra con relieve vive en la v2.2 */
       }
       .row:hover .cover, .card:hover .cover, .group-row:hover .cover{ transform:scale(1.03); }
-      .cover img{ width:100%; height:100%; object-fit:cover; }
       /* Portadas que entran suaves v1.9: fundido desde borroso (blur-up) al cargar */
-      .cover img{ opacity:0; filter:blur(14px) saturate(1.25); transform:scale(1.07); transition:opacity .55s ease, filter .55s ease, transform .55s ease; }
+      .cover img{ width:100%; height:100%; object-fit:cover; opacity:0; filter:blur(14px) saturate(1.25); transform:scale(1.07); transition:opacity .55s ease, filter .55s ease, transform .55s ease; }
       .cover img.in{ opacity:1; filter:blur(0) saturate(1); transform:scale(1); }
       @media (prefers-reduced-motion: reduce){ .cover img{ opacity:1; filter:none; transform:none; transition:none; } }
       /* Barritas animadas v1.8: se ven en la canción actual; bailan solo si suena */
       .cover .eq{ position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; gap:3px; padding-bottom:13px; background:rgba(10,5,5,.38); }
       .row.playing .cover .eq, .card.playing .cover .eq{ display:flex; }
-      .eq{ align-items:flex-end; }
       .eq i{ width:4px; background:#fff; border-radius:2px; height:6px; box-shadow:0 0 8px color-mix(in srgb, var(--play-accent, var(--acc)) 80%, transparent); animation:eqb .9s ease-in-out infinite; animation-play-state:paused; }
       body.is-playing .row.playing .eq i, body.is-playing .card.playing .eq i{ animation-play-state:running; }
       .eq i:nth-child(1){ animation-delay:0s; } .eq i:nth-child(2){ animation-delay:.22s; height:10px; } .eq i:nth-child(3){ animation-delay:.44s; } .eq i:nth-child(4){ animation-delay:.15s; height:8px; }
@@ -223,7 +214,7 @@
       @media (min-width:860px){ .grid{ grid-template-columns:repeat(4, 1fr); } }
       @media (min-width:1100px){ .grid{ grid-template-columns:repeat(5, 1fr); } }
       .card{ cursor:pointer; min-width:0; border-radius:24px; padding:6px; margin:-6px; transition:background .25s ease, box-shadow .25s ease, transform .2s ease; }
-      .card:hover{ background:var(--surface); box-shadow:var(--shadow-soft); }
+      .card:hover{ background:var(--surface); /* su sombra al pasar el puntero vive en la v2.2 */ }
       .card:active{ transform:scale(.98); }
       .card.playing{ background:color-mix(in srgb, var(--play-accent, var(--acc)) 12%, var(--surface)); box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--play-accent, var(--acc)) 45%, transparent), var(--shadow-soft); }
       .card .cover{ width:100%; height:auto; aspect-ratio:1; border-radius:20px; font-size:48px; }
@@ -242,11 +233,11 @@
       .group-row .chev{ color:var(--muted); }
       .back-row{ display:flex; align-items:center; gap:6px; padding:12px 0 2px; font-weight:700; font-size:17px; }
       .back-row button{ display:flex; align-items:center; gap:4px; padding:8px 10px 8px 2px; min-height:44px; font-weight:700; font-size:16px; }
-      .detail-head{ display:flex; gap:16px; align-items:center; padding:10px 0 16px; }
+      .detail-head{ display:flex; gap:16px; align-items:center; /* su respiro lo fija la escala de la v3.3 */ }
       .detail-head .cover{ width:116px; height:116px; border-radius:24px; font-size:46px; }
       .detail-head h2{ margin:0 0 4px; font-size:23px; font-weight:800; letter-spacing:-.01em; }
       .detail-head p{ margin:0; color:var(--muted); font-size:14px; }
-      .detail-actions{ display:flex; gap:8px; flex-wrap:wrap; padding-bottom:10px; }
+      .detail-actions{ display:flex; gap:8px; flex-wrap:wrap; /* su respiro lo fija la escala de la v3.3 */ }
 
       /* Empty states */
       .empty{
@@ -256,7 +247,7 @@
       .empty .art{
         width:92px; height:92px; margin:0 auto 18px; border-radius:28px;
         background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff;
-        display:flex; align-items:center; justify-content:center; box-shadow:0 14px 30px rgba(240,81,47,.3);
+        display:flex; align-items:center; justify-content:center; /* su sombra con el color del tema está en la v2.0 */
       }
       .empty .art .ic{ width:44px; height:44px; }
       .empty h2{ margin:0 0 8px; font-size:22px; font-weight:800; }
@@ -266,7 +257,7 @@
 
       /* Mini player */
       .mini{
-        position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); z-index:40;
+        position:fixed; left:10px; right:10px; /* su altura sobre la navegación flotante la fija la v2.0 */
         /* Cristal esmerilado v1.9: vidrio difuminado sobre el halo de la app */
         background:color-mix(in srgb, var(--surface) 66%, transparent);
         backdrop-filter:blur(20px) saturate(1.45); -webkit-backdrop-filter:blur(20px) saturate(1.45);
@@ -274,12 +265,12 @@
         display:none; align-items:center; gap:10px; padding:8px 10px; cursor:pointer;
       }
       .mini.show{ display:flex; }
-      .mini .cover{ width:54px; height:54px; border-radius:15px; font-size:21px; }
+      .mini .cover{ width:54px; height:54px; font-size:21px; /* redonda como disco desde la v2.6 */ }
       .mini .meta{ flex:1; min-width:0; }
       .mini .t{ font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .mini .a{ color:var(--muted); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .mini .prog{ position:absolute; left:14px; right:14px; bottom:4px; height:5px; border-radius:3px; background:var(--line); overflow:hidden; }
-      .mini .prog i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--acc), var(--acc2)); border-radius:3px; box-shadow:0 0 8px rgba(240,81,47,.55); }
+      .mini .prog i{ display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--acc), var(--acc2)); border-radius:3px; /* su brillo con el color del tema está en la v2.0 */ }
       .mini button{ width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
       .mini .play-b{ background:var(--ink); color:var(--bg); }
       @media (min-width:900px){ .mini{ left:50%; right:auto; transform:translateX(-50%); width:min(680px, calc(100% - 32px)); } }
@@ -297,7 +288,7 @@
       /* Now Playing — fondo inmersivo con la portada difuminada */
       .np{ color:#fff; overflow:hidden; background:#0a0708; --np-c1:#f0512f; --np-c2:#7a2b18; }
       .np-bg{ position:absolute; inset:0; z-index:0; overflow:hidden; background:#0a0708; }
-      .np-bg-layer{ position:absolute; inset:-56px; z-index:0; background-size:cover; background-position:center; filter:blur(52px) saturate(1.45) brightness(.78); transform:scale(1.12); opacity:0; transition:opacity .75s ease; }
+      .np-bg-layer{ position:absolute; inset:-56px; z-index:0; background-size:cover; background-position:center; filter:blur(52px) saturate(1.45) brightness(.78); transform:scale(1.12); opacity:0; /* su fundido refinado vive en la v3.4 */ }
       .np-bg-layer.active{ opacity:1; }
       /* Fondo que fluye v1.9: aurora lenta con los colores de la canción actual */
       .np-aurora{
@@ -323,11 +314,11 @@
       .np-top button{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; background:rgba(255,255,255,.10); backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3); box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
       .np-cover-wrap{ display:flex; justify-content:center; padding:22px 0 8px; }
       .np-cover{
-        width:min(78vw, 360px); aspect-ratio:1; border-radius:30px; overflow:hidden; position:relative;
+        width:min(78vw, 360px); aspect-ratio:1; overflow:hidden; position:relative;
         display:flex; align-items:center; justify-content:center; font-size:118px; font-weight:800; color:rgba(255,255,255,.94);
-        box-shadow:0 34px 70px rgba(0,0,0,.55), 0 18px 52px -8px var(--np-c1);
-        transition:transform .6s ease, filter .6s ease, box-shadow .8s ease, opacity .45s ease;
         filter:brightness(1);
+        /* redonda como disco desde la v2.6; su sombra con relieve vive en
+           la v2.2 y sus transiciones refinadas en la v3.4 */
       }
       .np-cover img{ width:100%; height:100%; object-fit:cover; }
       .np-cover.swap{ opacity:0; transform:scale(.965); }
@@ -337,11 +328,12 @@
       @keyframes breathe{ 0%,100%{ transform:scale(1); filter:brightness(1); } 50%{ transform:scale(1.032); filter:brightness(1.08); } }
       @keyframes glowPulse{ 0%,100%{ box-shadow:0 34px 70px rgba(0,0,0,.55), 0 18px 52px -8px var(--np-c1); } 50%{ box-shadow:0 38px 78px rgba(0,0,0,.58), 0 22px 68px -4px var(--np-c1); } }
       @media (prefers-reduced-motion: reduce){ .np.playing .np-cover{ animation:none; filter:none; } }
-      .np-title{ text-align:center; margin-top:20px; transition:opacity .35s ease; text-shadow:0 2px 18px rgba(0,0,0,.45); }
+      .np-title{ text-align:center; text-shadow:0 2px 18px rgba(0,0,0,.45); /* aire y fundido: v3.0 y v3.4 */ }
       .np-title.swap{ opacity:0; }
-      .np-title h2{ margin:0; font-size:31px; font-weight:800; letter-spacing:-.02em; line-height:1.12; }
-      /* Título con degradado v1.9: construido con los colores de la portada */
+      /* Título con degradado v1.9: construido con los colores de la portada
+         (el tamaño display lo fija la v2.0 y el de dos columnas la v3.0) */
       .np-title h2{
+        margin:0; font-weight:800; letter-spacing:-.02em; line-height:1.12;
         background:linear-gradient(100deg, color-mix(in srgb, var(--np-c1) 45%, #ffffff) 0%, #ffffff 42%, color-mix(in srgb, var(--np-c2) 52%, #ffffff) 78%, color-mix(in srgb, var(--np-c1) 62%, #ffffff) 100%);
         -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:none;
       }
@@ -395,7 +387,7 @@
         box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
       }
       .np-actions button.on{ background:#fff; color:#1c1210; }
-      .queue-box{ margin-top:16px; background:rgba(0,0,0,.28); border-radius:18px; padding:8px 6px; display:none; }
+      .queue-box{ background:rgba(0,0,0,.28); border-radius:18px; padding:8px 6px; display:none; /* su respiro lo fija la escala de la v3.3 */ }
       .queue-box.show{ display:block; }
       .queue-box h3{ margin:8px 12px 6px; font-size:14px; font-weight:700; }
       .q-row{ display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:12px; cursor:pointer; }
@@ -404,13 +396,13 @@
       .q-row .meta{ flex:1; min-width:0; }
       .q-row .t{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .q-row .a{ font-size:12px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .q-row .x{ width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:50%; opacity:.8; }
+      .q-row .x{ display:flex; align-items:center; justify-content:center; border-radius:50%; opacity:.8; /* 44px táctiles en la v3.3 */ }
       .q-empty{ padding:10px 14px 14px; font-size:14px; opacity:.8; }
 
       /* Stage mode — mismo fondo inmersivo que «Sonando ahora» */
       .stage{ color:#fff; overflow:hidden; background:#0a0708; --np-c1:#f0512f; }
       .stage-bg{ position:absolute; inset:0; z-index:0; overflow:hidden; }
-      .stage-bg-layer{ position:absolute; inset:-64px; z-index:0; background-size:cover; background-position:center; filter:blur(64px) saturate(1.45) brightness(.72); transform:scale(1.12); opacity:0; transition:opacity .8s ease; }
+      .stage-bg-layer{ position:absolute; inset:-64px; z-index:0; background-size:cover; background-position:center; filter:blur(64px) saturate(1.45) brightness(.72); transform:scale(1.12); opacity:0; /* su fundido refinado vive en la v3.4 */ }
       .stage-bg-layer.active{ opacity:1; }
       .stage.playing .stage-bg-layer.active{ animation:drift 18s ease-in-out infinite alternate; }
       @keyframes drift{ from{ transform:scale(1.12) rotate(0deg); } to{ transform:scale(1.22) rotate(6deg); } }
@@ -420,9 +412,8 @@
       .stage-cover{
         width:min(72vw, 40vh, 430px); aspect-ratio:1; border-radius:32px; overflow:hidden; position:relative; flex:none;
         display:flex; align-items:center; justify-content:center; font-size:130px; font-weight:800; color:rgba(255,255,255,.94);
-        box-shadow:0 40px 90px rgba(0,0,0,.6), 0 20px 60px -10px var(--np-c1);
-        transition:transform .6s ease, filter .6s ease, box-shadow .8s ease, opacity .45s ease;
         filter:brightness(1);
+        /* su sombra con relieve vive en la v2.2 y sus transiciones en la v3.4 */
       }
       .stage-cover.swap{ opacity:0; }
       @media (prefers-reduced-motion: reduce){ .stage-cover{ transition:none; } .stage-cover.swap{ opacity:1; } }
@@ -435,7 +426,7 @@
       .stage-next{
         display:none; align-items:center; gap:12px; margin-top:24px; padding:10px 16px 10px 10px;
         background:rgba(0,0,0,.34); border:1px solid rgba(255,255,255,.16); border-radius:18px;
-        backdrop-filter:blur(8px); max-width:min(78vw, 480px); width:100%; text-align:left;
+        max-width:min(78vw, 480px); width:100%; text-align:left; /* su cristal lo iguala la v3.4 */
         box-shadow:0 14px 34px rgba(0,0,0,.32);
       }
       .stage-next.show{ display:flex; }
@@ -478,7 +469,7 @@
         position:absolute; top:calc(14px + env(safe-area-inset-top)); left:16px; z-index:3;
         display:flex; align-items:center; gap:7px; padding:10px 16px; min-height:44px; border-radius:999px;
         background:rgba(0,0,0,.35); color:#fff; font-size:14.5px; font-weight:700; letter-spacing:.01em;
-        border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(6px);
+        border:1px solid rgba(255,255,255,.22); /* su cristal lo iguala la v3.4 */
         transition:background .25s ease, box-shadow .25s ease, border-color .25s ease;
       }
       .stage-party-btn .ic{ width:19px; height:19px; }
@@ -652,9 +643,11 @@
       .modal input[type=text]:focus{ border-color:var(--acc); }
       .modal .row-btns{ display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
       .toast{
-        position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translate(-50%, 20px); z-index:90;
-        background:var(--ink); color:var(--bg); padding:12px 20px; border-radius:999px; font-weight:600; font-size:14.5px;
-        opacity:0; pointer-events:none; transition:all .3s; box-shadow:var(--shadow); max-width:calc(100vw - 40px); text-align:center;
+        position:fixed; left:50%; transform:translate(-50%, 20px); z-index:90;
+        font-weight:600; font-size:14.5px;
+        opacity:0; pointer-events:none; transition:all .3s; max-width:calc(100vw - 40px); text-align:center;
+        /* su altura sobre la navegación la fija la v2.0 y su tarjeta de
+           cristal, con fondo, borde y relleno, la v2.4 */
       }
       .toast.show{ opacity:1; transform:translate(-50%, 0); }
       .drop-veil{
@@ -716,7 +709,6 @@
       @media (max-width:520px){
         .top h1{ font-size:27px; }
         .theme-row{ margin-top:4px; }
-        .greet{ padding-top:8px; }
         .greet h2{ font-size:26px; }
         .empty{ padding:26px 20px 22px; margin-top:12px; }
         .empty .art{ width:68px; height:68px; border-radius:22px; margin-bottom:12px; }
@@ -771,11 +763,10 @@
       @keyframes splashHide{ to{ opacity:0; visibility:hidden; } }
       @media (prefers-reduced-motion: reduce){ #splash{ animation:splashHide .3s ease .3s forwards; } .splash-logo, .splash-logo [data-ic], .splash-name, .splash-sub{ animation:none; } .splash-logo::after, .splash-note{ display:none; } }
 
-      /* Inicio renovado v2.0: saludo y carruseles grandes */
-      .greet{ padding:14px 2px 2px; }
+      /* Inicio renovado v2.0: saludo y carruseles grandes
+         (el respiro del saludo y de las secciones lo fija la escala de la v3.3) */
       .greet h2{ margin:0; font-size:32px; font-weight:800; letter-spacing:-.01em; line-height:1.08; }
       .greet p{ margin:5px 0 0; color:var(--muted); font-size:15px; }
-      .home-sec{ margin-top:20px; }
       .home-sec-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 2px; }
       .home-sec h3{ margin:0; font-size:22px; font-weight:800; }
       .link-btn{ color:var(--acc); font-weight:700; font-size:14px; padding:8px 6px; min-height:40px; }
@@ -790,7 +781,7 @@
       @media (prefers-reduced-motion: reduce){ .rail-card{ transition:none; } .rail-card:active{ transform:none; } }
 
       /* Artista y Álbum inmersivos v2.0: cabecera grande con la portada difuminada */
-      .detail-hero{ position:relative; border-radius:26px; overflow:hidden; margin:12px 0 14px; color:#fff; box-shadow:var(--shadow); }
+      .detail-hero{ position:relative; border-radius:26px; overflow:hidden; color:#fff; box-shadow:var(--shadow); /* su margen lo fija la escala de la v3.3 */ }
       .detail-hero-bg{ position:absolute; inset:-42px; background-size:cover; background-position:center; filter:blur(34px) saturate(1.45) brightness(.82); transform:scale(1.08); }
       .detail-hero-shade{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.38) 55%, rgba(0,0,0,.62)); }
       .detail-hero-in{ position:relative; padding:12px 16px 20px; }
@@ -1251,6 +1242,28 @@
         .sq-item:hover .cover, .sq-item.is-next:hover .cover{ transform:none; }
       }
     </style>
+    <style>
+      /* ============ v3.5 · LA GRAN 3.5: cierre del plan ============
+         Auditoría final de rendimiento y pulido conjunto de todo lo
+         construido hasta la 3.4, sin funciones nuevas ni cambios de
+         datos:
+         · Las reglas que las rondas v2.0–v3.4 dejaron sobrescritas
+           (sombras planas, tamaños y rellenos antiguos, cristales y
+           transiciones superados) se retiraron de sus bloques de
+           origen; cada propiedad vive ahora una sola vez, en el bloque
+           de la ronda que la dejó vigente, y el aspecto final es el
+           mismo píxel a píxel.
+         · En el JS se retiraron el estado que ya no se leía
+           (contextLabel), una asignación duplicada al sincronizar el
+           Escenario y la rama muerta de setShuffle; las imágenes de
+           portada se decodifican en segundo plano (decoding="async").
+         · Pulido final: los títulos grandes de las fichas inmersivas
+           y de «Sonando ahora» reparten sus líneas con el mismo
+           equilibrio (text-wrap: balance) que el título del Escenario
+           recibió en la v3.4, para que el conjunto se lea como una
+           sola pieza cerrada en claro y en oscuro. */
+      .detail-hero h2, .np-title h2{ text-wrap:balance; }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1280,7 +1293,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.4</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.5</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -1702,7 +1715,6 @@
       // Reproducción
       queue: [],               // ids en orden de reproducción
       baseQueue: [],           // orden original del contexto
-      contextLabel: '',
       qIndex: -1,
       currentId: null,
       shuffle: false,
@@ -1823,7 +1835,7 @@
     function coverHTML(t, extraCls){
       const url = state.coverUrls.get(t.id);
       const letter = esc((t.title || '?').trim().charAt(0).toUpperCase() || '♪');
-      const inner = url ? '<img src="' + url + '" alt=""' + (decodedCovers.has(url) ? ' class="in"' : '') + ' />' : '<span>' + letter + '</span>';
+      const inner = url ? '<img src="' + url + '" alt="" decoding="async"' + (decodedCovers.has(url) ? ' class="in"' : '') + ' />' : '<span>' + letter + '</span>';
       const lazy = (!url && t.hasCover) ? ' data-cid="' + t.id + '"' : '';
       return '<div class="cover ' + (extraCls||'') + '"' + lazy + ' style="background:' + gradientFor(t) + ';--cover-glow:' + accentFor(t) + '">' + inner +
              '<span class="eq"><i></i><i></i><i></i><i></i></span></div>';
@@ -1877,7 +1889,7 @@
         if(document.querySelector('.cover[data-cid]')) observeCovers();
       });
     }, { passive:true });
-    async function hydrateCovers(scopeEl){
+    async function hydrateCovers(){
       // v3.1: con IntersectionObserver, hidratar = observar las portadas
       // de lo ya pintado; cada una se carga al acercarse a la pantalla.
       if(coverObserver){ observeCovers(); return; }
@@ -2266,7 +2278,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.4';
+    const APP_VERSION = '3.5';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2342,7 +2354,6 @@
     function playContext(ids, startId, opts){
       opts = opts || {};
       state.baseQueue = ids.slice();
-      state.contextLabel = opts.label || '';
       const play = playable(ids);
       const useShuffle = opts.shuffle !== undefined ? opts.shuffle : state.shuffle;
       // Un modo pedido explícitamente («Todo en aleatorio», el «Aleatorio» de un
@@ -2485,9 +2496,8 @@
         const cur = state.currentId;
         const play = playable(state.baseQueue).filter(id => id !== cur);
         if(on) state.queue = [cur].concat(shuffleArr(play));
-        else state.queue = [cur].concat(playable(state.baseQueue).filter(id => id !== cur));
-        // Al apagar el aleatorio, restaurar el orden original desde la actual
-        if(!on){
+        else {
+          // Al apagar el aleatorio, restaurar el orden original desde la actual
           const all = playable(state.baseQueue);
           const pos = all.indexOf(cur);
           state.queue = pos >= 0 ? all : [cur].concat(play);
@@ -2658,7 +2668,7 @@
       el.style.background = gradientFor(t);
       const isBig = el.id === 'npCover' || el.id === 'stageCover';
       if(isBig) el.classList.add('has-track'); else el.classList.remove('has-track');
-      const art = url ? '<img src="' + url + '" alt="" />' : '<span>' + esc((t.title||'?').trim().charAt(0).toUpperCase() || '♪') + '</span>';
+      const art = url ? '<img src="' + url + '" alt="" decoding="async" />' : '<span>' + esc((t.title||'?').trim().charAt(0).toUpperCase() || '♪') + '</span>';
       /* Vinilo v2.6: la portada principal y la del mini van dentro de un
          disco que gira; el Escenario conserva su portada de siempre. */
       const isVinyl = el.id === 'npCover' || el.id === 'miniCover';
@@ -2811,7 +2821,6 @@
       np.style.setProperty('--np-c1', c1);
       np.style.setProperty('--np-c2', c2);
       $('#stage').style.setProperty('--np-c1', c1);
-      $('#stage').style.setProperty('--np-c2', c2);
       $('#stage').style.setProperty('--np-c2', c2);
       updateHalo(t, c1, c2);
       const bgCss = immersiveBg(t, c1, c2);
@@ -3350,7 +3359,6 @@
           try{ audio.load(); }catch(e){}
           state.currentId = null;
           state.queue = []; state.baseQueue = []; state.qIndex = -1;
-          state.contextLabel = '';
           // Portadas en memoria fuera.
           state.coverUrls.forEach(u => URL.revokeObjectURL(u));
           state.coverUrls.clear();
