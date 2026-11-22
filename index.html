@@ -1860,6 +1860,70 @@
         .skel{ animation:none; }
       }
     </style>
+    <style>
+      /* ============ v4.6 · LA GRAN 4.6 ============
+         Ronda de CIERRE del plan hasta la 4.5 — solo visual e
+         interfaz, sin funciones nuevas, sin rendimiento y sin
+         cambios de datos. Auditoría visual final de todo el plan
+         (bautizo 4.1, Cine 4.2, la función 4.3, Inicio 4.4,
+         Gracia 4.5 y lo heredado de los planes 2.0–4.0):
+         · La identidad «Sonando» ya vive con el mismo acabado en
+           la bienvenida (pastilla con resplandor del tema y filo
+           de luz cenital, nombre en Baloo 2), en la banda del
+           inicio (la misma pastilla y el mismo nombre) y en el
+           título y las metas de la app; ningún texto visible
+           conserva el nombre genérico anterior.
+         · Temas y modos: las cinco gamas y los dos modos pasan
+           por las mismas variables en biblioteca, «Sonando
+           ahora», Escenario, hojas y estados vacíos; las
+           transiciones de la 4.5 y la viñeta y el grano de la
+           4.2 se revisaron en móvil y en pantalla ancha sin
+           inconsistencias.
+         · Código visual muerto: la auditoría recorrió todas las
+           clases y los 35 @keyframes definidos y no encontró
+           ninguno sin uso (la clase .icon-btn ya se retiró en la
+           4.0), así que en esta ronda no se retira nada.
+         La auditoría sí encontró dos rincones donde la app se
+         presenta a sí misma SIN el acabado de marca establecido,
+         y se corrigen aquí:
+         1) LA PASTILLA DE LOS ESTADOS VACÍOS (.empty .art): la
+            nota sobre el degradado del tema solo llevaba el
+            resplandor exterior; gana el mismo filo de luz cenital
+            y la misma sombra interior de las pastillas de la
+            bienvenida y de la banda del inicio, para que las tres
+            se lean como la misma marca.
+         2) EL VELO DE ARRASTRE: su nota flotaba desnuda sobre el
+            velo, sin pastilla; ahora se presenta con la pastilla
+            de marca completa (degradado del tema, filo de luz y
+            halo de acento), centrada sobre su título.
+         Nada de lo nuevo se mueve: son acabados estáticos, así
+         que prefers-reduced-motion no necesita excepciones. */
+
+      /* 1 · La pastilla de los estados vacíos, con el acabado de
+         marca completo: filo de luz cenital y sombra interior,
+         sobre su resplandor del tema de siempre. */
+      .empty .art{
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.38),
+          inset 0 -16px 26px -16px rgba(0,0,0,.30),
+          0 14px 30px color-mix(in srgb, var(--acc) 32%, transparent);
+      }
+
+      /* 2 · La pastilla de marca del velo de arrastre: la misma
+         nota, el mismo degradado y el mismo filo de luz que en
+         la bienvenida y en el inicio. */
+      .veil-mark{
+        width:84px; height:84px; border-radius:26px; margin:0 auto;
+        background:linear-gradient(135deg, var(--acc), var(--acc2)); color:#fff;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.38),
+          inset 0 -14px 22px -14px rgba(0,0,0,.30),
+          0 18px 40px color-mix(in srgb, var(--acc) 38%, transparent),
+          0 8px 18px rgba(0,0,0,.25);
+      }
+      .veil-mark .ic{ width:42px; height:42px; }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1889,7 +1953,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.5</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.6</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2068,7 +2132,7 @@
     <div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
 
     <div class="drop-veil" id="dropVeil"><div class="in">
-      <span data-ic="note" style="display:inline-block"></span>
+      <span class="veil-mark"><span data-ic="note"></span></span>
       <h2>Suelta tu música aquí</h2><p>Los archivos se guardan solo en este dispositivo.</p>
     </div></div>
 
@@ -2942,7 +3006,7 @@
        render() y el resto vive en el CSS de la ronda) y el
        esqueleto de carga con acabado de cristal. Solo
        presentación: ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.5';
+    const APP_VERSION = '4.6';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
