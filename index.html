@@ -1963,7 +1963,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.8</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.13</span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
@@ -3083,7 +3083,23 @@
        reproductor, y se reenvía bien a la sincro (al importar se mide
        con más paciencia); 3) los fallos de guardado ya no se tragan
        en silencio: se reportan en consola y con aviso visible. */
-    const APP_VERSION = '4.12';
+    /* v4.13 · Sando confirmó que en la v4.12 el error seguía igual.
+       La guardia de la v4.12 solo cubría el borrado por entrada VACÍA;
+       quedaba el otro camino, que es el de su caso: si la subida de
+       una calificación recién puesta no llega a la nube (la app se
+       cierra o el sistema la mata durante una escucha larga, antes de
+       que la subida en espera salga), al reabrir la fusión resucita
+       la entrada ANTERIOR de la nube —con su calificación vieja— y la
+       aplicación la imponía sobre la ficha sin comparar antigüedad,
+       pisando la calificación nueva y hasta su marca «ratingAt».
+       Ahora la aplicación compara SIEMPRE marcas, en los dos sentidos:
+       una entrada solo cambia la calificación de una canción si es
+       tan nueva o más que la que la ficha guardó; si la ficha es más
+       nueva, manda la ficha y la entrada se repara con ella. Y al
+       cargar, el mapa local se reconcilia con las fichas antes de
+       fusionar, para que la verdad más fresca de este dispositivo
+       entre a la fusión ya puesta. Sin tocar biblioteca ni esquema. */
+    const APP_VERSION = '4.13';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -3440,7 +3456,7 @@
       t.ratingAt = Date.now();
       const saved = await saveTrackMeta(t);
       if(!saved) toast('Tu calificación no se pudo guardar en este dispositivo.', 4200);
-      syncNoteRating(t); // v4.7: el cambio entra al mapa de sincronización
+      await syncNoteRating(t); // v4.7: el cambio entra al mapa de sincronización · v4.13: se espera a que el mapa quede guardado
       if(t.rating === 'dislike'){
         toast('«' + t.title + '» quedó fuera de la rotación');
         if(id === state.currentId && !audio.paused){
@@ -4329,7 +4345,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -4457,11 +4473,41 @@
       // Semilla: las canciones calificadas antes de la v4.7 entran al mapa
       // con marca 0, para que cualquier dato real (de este dispositivo o
       // de la nube, con su marca de tiempo) siempre las gane.
+      // v4.13 · Reconciliación: la semilla ya no mira solo si la entrada
+      // FALTA; también la repara cuando la ficha es demostrablemente más
+      // nueva que la entrada (su «ratingAt» es posterior a la marca de
+      // la entrada, o la entrada quedó vacía sin ser una descalificación
+      // explícita más reciente). Así, si la subida de una calificación
+      // no llegó a salir —el caso de las escuchas largas, con la app
+      // cerrada o matada por el sistema antes de la subida en espera—,
+      // el mapa que entra a la fusión ya trae la calificación buena y
+      // la entrada vieja de la nube no puede resucitar sobre ella.
       let seeded = false;
       state.tracks.forEach(t => {
         if(!t.rating) return;
         const fp = trackFingerprint(t);
-        if(!ratingsMap[fp]){ ratingsMap[fp] = { r: t.rating, t: 0, d: Math.round(t.duration || 0) }; seeded = true; }
+        const ratingT = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0;
+        const dur = Math.round(t.duration || 0);
+        const e = ratingsMap[fp];
+        if(!e){ ratingsMap[fp] = { r: t.rating, t: ratingT, d: dur }; seeded = true; return; }
+        const entryRated = e.r === 'like' || e.r === 'dislike';
+        const entryT = e.t || 0;
+        const keepD = dur > 0 ? dur : (e.d != null ? e.d : dur);
+        if(!entryRated){
+          // Entrada vacía: solo manda si es una descalificación
+          // explícita más reciente que la calificación de la ficha.
+          if(!(ratingT > 0 && entryT > ratingT)){
+            ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+          }
+          return;
+        }
+        if(e.r !== t.rating && ratingT > entryT){
+          ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+        } else if(e.r === t.rating && ratingT > entryT){
+          // Coinciden en el valor: se refresca la marca con la de la
+          // ficha, para que en la fusión pese lo que de verdad pesa.
+          ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+        }
       });
       if(seeded || migrated) syncSaveLocal();
     }
@@ -4508,24 +4554,49 @@
         const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
         const list = byFp[fp]; if(!list || !list.length) continue;
         let targets = list;
-        if(list.length > 1 && e.d != null && !isNaN(Number(e.d))){
+        // v4.13: el desempate por «d» solo se usa si la duración de la
+        // entrada es un dato real (> 0). Con «d» en 0 —el dato malo
+        // típico de los audios largos al importarse— el filtro dejaba
+        // fuera justo a la copia buena (la de duración ya corregida)
+        // y la calificación caía en la copia equivocada o en ninguna.
+        if(list.length > 1 && e.d != null && !isNaN(Number(e.d)) && Number(e.d) > 0){
           const d = Number(e.d);
           const near = list.filter(t => Math.abs(Math.round(t.duration || 0) - d) <= 3);
           if(near.length) targets = near;
         }
         for(const t of targets){
           if(want){
-            applied++;
             if(t.rating !== want){
+              /* v4.13 · La antigüedad manda en los dos sentidos: si la
+                 ficha guardó su calificación DESPUÉS de la marca de la
+                 entrada (ratingAt > e.t), la entrada es el dato viejo
+                 —p. ej. la nube conservó la calificación anterior
+                 porque la subida de la nueva no llegó a salir— y NO
+                 puede pisar a la ficha (la v4.12 solo protegía el caso
+                 de entrada vacía; con entrada llena y vieja, la
+                 aplicación imponía el valor viejo y hasta rebajaba el
+                 «ratingAt» de la ficha a la marca vieja). Manda la
+                 ficha y la entrada se repara con ella, para que el
+                 dato bueno sea el que quede y suba. */
+              const ratingT2 = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0;
+              if(ratingT2 > (e.t || 0)){
+                ratingsMap[fp] = { r: t.rating, t: ratingT2, d: Math.round(t.duration || 0) || (e.d || 0) };
+                repaired = true;
+                continue;
+              }
+              applied++;
               t.rating = want;
               if(e.t) t.ratingAt = e.t;
               await saveTrackMeta(t); changed = true;
-            } else if(!t.ratingAt && e.t){
-              // La calificación ya coincidía pero la ficha no tenía su
-              // marca de tiempo: se anota en silencio para que una
-              // futura descalificación explícita pueda compararse.
-              t.ratingAt = e.t;
-              await saveTrackMeta(t);
+            } else if(t.rating === want){
+              applied++;
+              if(!t.ratingAt && e.t){
+                // La calificación ya coincidía pero la ficha no tenía su
+                // marca de tiempo: se anota en silencio para que una
+                // futura descalificación explícita pueda compararse.
+                t.ratingAt = e.t;
+                await saveTrackMeta(t);
+              }
             }
             continue;
           }
@@ -4563,14 +4634,25 @@
     }
     // Cada cambio de calificación pasa por aquí (lo llama setRating):
     // entra al mapa local siempre, haya sesión o no, y sube si hay sesión.
-    function syncNoteRating(t){
+    async function syncNoteRating(t){
       if(!t) return;
       // v4.12: la entrada usa la misma marca que quedó en la ficha
       // (ratingAt), para que las comparaciones de antigüedad de la
       // aplicación protegida comparen el mismo instante.
       const ts = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : Date.now();
-      ratingsMap[trackFingerprint(t)] = { r: t.rating || '', t: ts, d: Math.round(t.duration || 0) };
-      syncSaveLocal();
+      const fp = trackFingerprint(t);
+      const prev = ratingsMap[fp];
+      const nd = Math.round(t.duration || 0);
+      // v4.13: si la duración de la ficha sigue en 0 (audio largo aún
+      // sin reproducir) no se pisa una «d» buena ya conocida: ese 0 era
+      // el dato que luego desempataba mal en la aplicación.
+      const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
+      ratingsMap[fp] = { r: t.rating || '', t: ts, d: keepD };
+      // v4.13: el guardado del mapa se ESPERA (setRating lo aguarda):
+      // antes quedaba «en el aire» y, si la app se cerraba justo tras
+      // calificar —lo típico al terminar una escucha larga—, el mapa
+      // en disco podía quedarse viejo aunque la ficha sí se guardó.
+      await syncSaveLocal();
       if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
     }
     /* v4.12 · La duración se corrige sola al reproducir: si la duración
@@ -4924,7 +5006,12 @@
         content.innerHTML = '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Algo salió mal al abrir tu biblioteca</h2><p>Tu música sigue guardada en este dispositivo. Cierra y vuelve a abrir la página para intentarlo de nuevo.</p></div>';
       }
     })();
-    window.addEventListener('beforeunload', ()=>{ saveSettings(); });
+    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); }catch(e){} });
+    // v4.13: al pasar la app a segundo plano se deja el mapa de
+    // calificaciones guardado en disco. En el móvil es el momento en
+    // que el sistema puede matar la app durante una escucha larga, y
+    // es justo ahí donde la subida en espera podía no salir nunca.
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); }catch(e){} } });
     </script>
 
     <script>
