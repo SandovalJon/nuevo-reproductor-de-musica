@@ -2044,6 +2044,7 @@
             <button class="btn btn-ghost shuffle-all" id="btnShuffleAll"><span data-ic="shuffle"></span>Todo en aleatorio</button>
             <button class="btn btn-ghost shuffle-unrated" id="btnShuffleUnrated"><span class="btn-ic-badge"><span data-ic="shuffle"></span><i class="btn-badge" aria-hidden="true">?</i></span>Aleatorio sin calificar</button>
             <button class="btn btn-danger-soft" id="btnClearLibrary"><span data-ic="trash"></span>Vaciar biblioteca</button>
+            <button class="btn btn-danger-soft" id="btnDeleteDisliked"><span data-ic="trash"></span>Borrar las que no me gustan</button>
           </div>
           <div id="content"></div>
         </div>
@@ -2797,6 +2798,7 @@
           $$('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
           $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
           $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+          $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           content.classList.remove('screen-in', 'screen-fwd', 'screen-back', 'cascade');
           content.classList.add(dir === 'fwd' ? 'view-out-fwd' : 'view-out-back');
           setTimeout(()=>{
@@ -2815,6 +2817,7 @@
       $$('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
       $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
       $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+      $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       const firstRender = !renderedOnce;
       renderedOnce = true;
       if(state.detail) renderDetail();
@@ -3021,7 +3024,13 @@
        render() y el resto vive en el CSS de la ronda) y el
        esqueleto de carga con acabado de cristal. Solo
        presentación: ninguna función ni ningún dato cambian. */
-    const APP_VERSION = '4.10';
+    /* v4.11 · Función nueva pedida por Sando: «Borrar las que no me
+       gustan», un botón en Canciones que borra de una vez todas las
+       canciones con «No me gusta» aplicando exactamente la misma
+       limpieza del borrado individual. El mapa de calificaciones de
+       la sincronización no se toca, igual que en el borrado
+       individual: al re-agregar una canción recupera su «No me gusta». */
+    const APP_VERSION = '4.11';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4029,24 +4038,48 @@
         render();
       });
     }
+    /* Limpieza completa de una canción, sin confirmación ni aviso: la
+       usan el borrado individual (deleteTrack) y el borrado en lote de
+       las que no gustan (v4.11), para que ambos hagan exactamente lo
+       mismo. El mapa de calificaciones de la sincronización NO se toca:
+       si la canción vuelve a agregarse, recupera su calificación. */
+    async function purgeTrack(id){
+      await dbDel('tracks', id); await dbDel('files', id); await dbDel('covers', id);
+      state.tracks.delete(id);
+      if(state.coverUrls.has(id)){ URL.revokeObjectURL(state.coverUrls.get(id)); state.coverUrls.delete(id); }
+      for(const pl of state.playlists){
+        if(pl.trackIds.includes(id)){ pl.trackIds = pl.trackIds.filter(x => x !== id); await savePlaylist(pl); }
+      }
+      state.queue = state.queue.filter(x => x !== id);
+      state.baseQueue = state.baseQueue.filter(x => x !== id);
+      if(state.currentId === id){
+        audio.pause(); audio.removeAttribute('src'); state.currentId = null; state.qIndex = -1;
+        syncPlayerUI();
+      } else {
+        state.qIndex = state.queue.indexOf(state.currentId);
+      }
+    }
     function deleteTrack(id){
       const t = getTrack(id); if(!t) return;
       confirmModal('¿Eliminar esta canción?', '«' + t.title + '» se borrará de la biblioteca y de tus playlists en este dispositivo. El archivo original, fuera de la app, no se toca.', 'Eliminar', async () => {
-        await dbDel('tracks', id); await dbDel('files', id); await dbDel('covers', id);
-        state.tracks.delete(id);
-        if(state.coverUrls.has(id)){ URL.revokeObjectURL(state.coverUrls.get(id)); state.coverUrls.delete(id); }
-        for(const pl of state.playlists){
-          if(pl.trackIds.includes(id)){ pl.trackIds = pl.trackIds.filter(x => x !== id); await savePlaylist(pl); }
-        }
-        state.queue = state.queue.filter(x => x !== id);
-        state.baseQueue = state.baseQueue.filter(x => x !== id);
-        if(state.currentId === id){
-          audio.pause(); audio.removeAttribute('src'); state.currentId = null; state.qIndex = -1;
-          syncPlayerUI();
-        } else {
-          state.qIndex = state.queue.indexOf(state.currentId);
-        }
+        await purgeTrack(id);
         toast('Canción eliminada');
+        render();
+      });
+    }
+    /* v4.11 · «Borrar las que no me gustan»: borra de una vez todas las
+       canciones con «No me gusta», cada una con la misma limpieza del
+       borrado individual (purgeTrack). Sin ninguna marcada, solo avisa. */
+    function deleteDislikedTracks(){
+      const ids = Array.from(state.tracks.values()).filter(t => t.rating === 'dislike').map(t => t.id);
+      if(!ids.length){ toast('No tienes canciones con No me gusta'); return; }
+      const n = ids.length;
+      const text = (n === 1
+        ? 'Se borrará 1 canción de Sonando en este dispositivo: su archivo guardado dentro de la app y su portada, y saldrá de las playlists y de la cola. Los archivos originales, fuera de la app, no se tocan.'
+        : 'Se borrarán ' + n + ' canciones de Sonando en este dispositivo: sus archivos guardados dentro de la app y sus portadas, y saldrán de las playlists y de la cola. Los archivos originales, fuera de la app, no se tocan.');
+      confirmModal('¿Borrar las que no te gustan?', text, 'Sí, borrarlas', async () => {
+        for(const id of ids){ await purgeTrack(id); }
+        toast(n === 1 ? 'Se borró 1 canción' : 'Se borraron ' + n + ' canciones');
         render();
       });
     }
@@ -4190,6 +4223,7 @@
         });
     }
     $('#btnClearLibrary').addEventListener('click', clearLibrary);
+    $('#btnDeleteDisliked').addEventListener('click', deleteDislikedTracks);
     function addMenu(){
       openSheet('<h3>Agregar música</h3><p class="sub">Los archivos se guardan solo en este dispositivo. Nada se sube a internet.</p>' +
         '<button class="sheet-item" data-a="files">' + icon('file') + 'Elegir archivos</button>' +
