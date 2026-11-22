@@ -245,6 +245,52 @@
       .group-row .t{ font-weight:700; font-size:16.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .group-row .a{ color:var(--muted); font-size:13.5px; }
       .group-row .chev{ color:var(--muted); }
+      /* ============ v4.18 · Versiones duplicadas ============
+         Vista especial: cada grupo junta las copias de una misma
+         canción (misma huella título+artista) y cada versión se
+         presenta con lo que la distingue —archivo, duración,
+         tamaño, álbum y fecha— para escucharla, compararla y
+         borrar las que sobren sin salir de la vista. */
+      .dup-summary{ padding:16px 4px 4px; }
+      .dup-summary h2{ margin:0 0 6px; font-size:24px; font-weight:800; letter-spacing:-.01em; }
+      .dup-summary p{ margin:0; color:var(--muted); font-size:14.5px; line-height:1.55; max-width:640px; }
+      .dup-summary p strong{ color:var(--ink); }
+      .dup-group{
+        margin-top:18px; background:var(--surface); border:1px solid var(--line);
+        border-radius:22px; padding:14px 12px 10px; box-shadow:var(--shadow-soft);
+      }
+      .dup-head{ display:flex; align-items:center; gap:13px; padding:2px 4px 10px; }
+      .dup-head .cover{ width:56px; height:56px; border-radius:15px; font-size:22px; }
+      .dup-head .meta{ flex:1; min-width:0; }
+      .dup-head .t{ font-weight:800; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .dup-head .a{ color:var(--muted); font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .dup-head .play-group{ flex:none; }
+      .dup-ver{ display:block; padding:10px; }
+      .dup-ver-main{ display:flex; align-items:center; gap:13px; }
+      .dup-ver-main .meta{ flex:1; min-width:0; }
+      .dup-ver-main .t{ font-weight:600; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .dup-ver-main .a{ color:var(--muted); font-size:13px; line-height:1.45; white-space:normal; overflow:visible; text-overflow:clip; }
+      .dup-play{
+        width:46px; height:46px; flex:none; border-radius:50%;
+        background:var(--ink); color:var(--bg);
+        display:flex; align-items:center; justify-content:center;
+      }
+      .dup-play .ic{ width:20px; height:20px; }
+      .row.playing .dup-play{ background:var(--acc); color:var(--acc-ink); }
+      .dup-tags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; }
+      .dup-tag{
+        font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px;
+        background:var(--surface2); color:var(--muted); border:1px solid var(--line);
+      }
+      .dup-tag.same{ color:var(--ok); }
+      .dup-tag.diff{ color:var(--acc); }
+      .dup-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+      .dup-actions .btn{ min-height:42px; padding:8px 14px; font-size:13.5px; }
+      .dup-keep{ background:color-mix(in srgb, var(--ok) 14%, var(--surface2)); color:var(--ok); }
+      @media (max-width:520px){
+        .dup-head{ flex-wrap:wrap; }
+        .dup-head .play-group{ width:100%; }
+      }
       .back-row{ display:flex; align-items:center; gap:6px; padding:12px 0 2px; font-weight:700; font-size:17px; }
       .back-row button{ display:flex; align-items:center; gap:4px; padding:8px 10px 8px 2px; min-height:44px; font-weight:700; font-size:16px; }
       .detail-head{ display:flex; gap:16px; align-items:center; /* su respiro lo fija la escala de la v3.3 */ }
@@ -1967,7 +2013,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.17</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.18</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2028,8 +2074,8 @@
       <nav class="tabs" id="tabs" aria-label="Vistas de la biblioteca">
         <button class="tab on" data-view="songs">Canciones</button>
         <button class="tab" data-view="artists">Artistas</button>
-        <button class="tab" data-view="albums">Álbumes</button>
         <button class="tab" data-view="playlists">Playlists</button>
+        <button class="tab" data-view="duplicates">Duplicadas</button>
       </nav>
 
       <main class="main" id="main">
@@ -2422,8 +2468,8 @@
       tracks: new Map(),       // id -> meta
       playlists: [],           // {id,name,trackIds,createdAt}
       coverUrls: new Map(),    // id -> objectURL de la portada incrustada
-      view: 'songs',           // songs | artists | albums | playlists
-      detail: null,            // {type:'artist'|'album'|'playlist', key}
+      view: 'songs',           // songs | artists | playlists | duplicates
+      detail: null,            // {type:'artist'|'playlist', key}
       search: '',
       sort: 'recent',
       viewMode: 'list',
@@ -2783,7 +2829,7 @@
     /* Movimiento direccional v2.1: recuerda la última vista/detalle para
        saber si la navegación avanza (entra desde la derecha), vuelve
        (desde la izquierda) o es la misma pantalla (fundido vertical). */
-    const VIEW_ORDER = ['songs', 'artists', 'albums', 'playlists'];
+    const VIEW_ORDER = ['songs', 'artists', 'playlists', 'duplicates'];
     let lastNav = null;
     function navDirection(){
       const cur = { view: state.view, detail: state.detail ? state.detail.type + ':' + state.detail.key : null };
@@ -2882,8 +2928,8 @@
       if(state.detail) renderDetail();
       else if(state.view === 'songs') renderSongs();
       else if(state.view === 'artists') renderArtists();
-      else if(state.view === 'albums') renderAlbums();
       else if(state.view === 'playlists') renderPlaylists();
+      else if(state.view === 'duplicates') renderDuplicates();
       if(dir || firstRender) applyCascade();
       observeCovers();
     }
@@ -2961,20 +3007,6 @@
       }), '', null, null);
       bindContent();
     }
-    function renderAlbums(){
-      const all = Array.from(state.tracks.values());
-      if(!all.length){ content.innerHTML = emptyHTML('library'); bindContent(); return; }
-      const map = groupBy(t => t.album + '|' + t.artist);
-      let keys = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
-      if(state.search) keys = keys.filter(k => k.toLowerCase().includes(state.search.toLowerCase()));
-      if(!keys.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      paintList('<div class="grid">', keys.map(k => {
-        const ts = map.get(k); const rep = sortedTracks(ts)[0];
-        return '<div class="card" data-album="' + esc(k) + '">' + coverHTML(rep) +
-          '<div class="t">' + esc(rep.album) + '</div><div class="a">' + esc(rep.artist) + ' · ' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>';
-      }), '</div>', '.grid', null);
-      bindContent();
-    }
     function favPlaylist(){
       const ids = Array.from(state.tracks.values()).filter(t => t.rating === 'like').sort((a,b)=> b.addedAt - a.addedAt).map(t => t.id);
       return { id:'__favs', name:'Favoritas', trackIds: ids, auto:true };
@@ -3000,6 +3032,128 @@
       else paintList('', items, addBtn, null, '.pl-add');
       bindContent();
     }
+    /* ============ v4.18 · Versiones duplicadas ============
+       Vista especial pedida por Sando: tiene varias versiones de la
+       misma canción y quiere escucharlas y elegir con cuál quedarse.
+       El grupo de cada canción se forma con la MISMA huella de la
+       sincronización (trackFingerprint: artista|título normalizados,
+       sin duración), así que las copias que comparten título y
+       artista —aunque vengan de álbumes o archivos distintos—
+       quedan juntas. Cada versión muestra lo que la distingue
+       (nombre de archivo, duración, tamaño, álbum, fecha en que se
+       agregó y su calificación) y se puede escuchar con la cola
+       limitada al grupo, para comparar una tras otra; «Quedarme
+       con esta» borra las demás copias del grupo con la limpieza
+       de siempre (purgeTrack), previa confirmación con el espacio
+       que se libera, y cada versión también se puede borrar sola
+       con el borrado individual de siempre (deleteTrack). Sin
+       tocar el esquema ni el mapa de calificaciones: igual que en
+       cualquier borrado, si una copia vuelve a agregarse recupera
+       la calificación de su huella. */
+    function fmtSize(bytes){
+      if(!bytes || !isFinite(bytes) || bytes <= 0) return '—';
+      if(bytes < 1024) return bytes + ' B';
+      if(bytes < 1024 * 1024) return (bytes / 1024).toFixed(1).replace('.', ',') + ' KB';
+      if(bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2).replace('.', ',') + ' GB';
+    }
+    function fmtAdded(ts){
+      if(!ts) return '';
+      try{ return new Date(ts).toLocaleDateString('es', { day:'numeric', month:'short', year:'numeric' }); }
+      catch(e){ return ''; }
+    }
+    function duplicateGroups(){
+      const map = new Map();
+      Array.from(state.tracks.values()).filter(matchesSearch).forEach(t => {
+        const k = trackFingerprint(t);
+        if(!map.has(k)) map.set(k, []);
+        map.get(k).push(t);
+      });
+      const groups = [];
+      map.forEach((ts, key) => {
+        if(ts.length < 2) return;
+        // Dentro del grupo: primero las calificadas con «Me gusta»,
+        // luego las de mayor tamaño (suelen ser las de mejor calidad)
+        // y por último las más recientes.
+        const tracks = ts.slice().sort((a, b) =>
+          ((b.rating === 'like') - (a.rating === 'like')) ||
+          ((b.size || 0) - (a.size || 0)) ||
+          ((b.addedAt || 0) - (a.addedAt || 0)));
+        groups.push({ key, title: tracks[0].title, artist: tracks[0].artist, tracks });
+      });
+      groups.sort((a, b) => (b.tracks.length - a.tracks.length) || a.title.localeCompare(b.title, 'es'));
+      return groups;
+    }
+    function dupVersionHTML(t, group){
+      const playing = t.id === state.currentId;
+      const likeCls = t.rating === 'like' ? 'like' : (t.rating === 'dislike' ? 'dislike' : '');
+      const heartIcon = t.rating === 'like' ? 'heart' : (t.rating === 'dislike' ? 'heartSlash' : 'heartO');
+      const rateLabel = t.rating === 'like' ? 'Quitar el Me gusta' : (t.rating === 'dislike' ? 'Quitar el No me gusta' : 'Marcar Me gusta o No me gusta');
+      // Copia idéntica: otra versión del grupo con la misma duración
+      // (±1 s) y el mismo tamaño; si ninguna coincide, esta versión
+      // se distingue de las demás por duración o por tamaño.
+      const identical = group.tracks.some(o => o.id !== t.id && (o.size || 0) === (t.size || 0) && Math.abs((o.duration || 0) - (t.duration || 0)) <= 1);
+      const tags = identical
+        ? '<span class="dup-tag same">Copia idéntica a otra</span>'
+        : '<span class="dup-tag diff">Difiere de las demás</span>';
+      const meta = esc(t.fileName || t.title);
+      const detail = fmt(t.duration) + ' · ' + fmtSize(t.size) +
+        (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') +
+        (t.addedAt ? ' · agregada el ' + esc(fmtAdded(t.addedAt)) : '');
+      return '<div class="row dup-ver ' + (playing ? 'playing' : '') + ' ' + (isDisliked(t) ? 'disliked' : '') + '"' + (playing ? ' style="--play-accent:' + accentFor(t) + '"' : '') + ' data-dup-row="' + t.id + '">' +
+        '<div class="dup-ver-main">' + coverHTML(t) +
+          '<div class="meta"><div class="t" title="' + meta + '">' + meta + '</div><div class="a">' + detail + '</div><div class="dup-tags">' + tags + '</div></div>' +
+          '<button class="dup-play" data-dup-play="' + t.id + '" aria-label="Escuchar esta versión de ' + esc(t.title) + '">' + icon('play') + '</button>' +
+          '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="' + rateLabel + '">' + icon(heartIcon) + '</button>' +
+        '</div>' +
+        '<div class="dup-actions">' +
+          '<button class="btn dup-keep" data-dup-keep="' + t.id + '">' + icon('check','sm') + 'Quedarme con esta</button>' +
+          '<button class="btn btn-danger-soft" data-dup-del="' + t.id + '">' + icon('trash','sm') + 'Borrar esta versión</button>' +
+        '</div></div>';
+    }
+    function renderDuplicates(){
+      const all = Array.from(state.tracks.values());
+      if(!all.length){ content.innerHTML = greetHTML() + emptyHTML('library'); bindContent(); return; }
+      const groups = duplicateGroups();
+      if(!groups.length){
+        content.innerHTML = state.search ? emptyHTML('search') :
+          '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin versiones duplicadas</h2><p>Cada canción de tu biblioteca aparece una sola vez: no hay copias con el mismo título y artista. Si agregas otra versión de una canción, aparecerá aquí agrupada con la que ya tienes.</p></div>';
+        bindContent(); return;
+      }
+      const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
+      const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo.</p></div>';
+      groups.forEach(g => {
+        const rep = g.tracks[0];
+        h += '<section class="dup-group"><div class="dup-head">' + coverHTML(rep) +
+          '<div class="meta"><div class="t">' + esc(g.title) + '</div><div class="a">' + esc(g.artist) + ' · ' + g.tracks.length + ' versiones</div></div>' +
+          '<button class="btn btn-ghost play-group" data-dup-playgroup="' + rep.id + '">' + icon('play','sm') + 'Escuchar todas</button></div>' +
+          '<div class="rows">' + g.tracks.map(t => dupVersionHTML(t, g)).join('') + '</div></section>';
+      });
+      content.innerHTML = h;
+      bindContent(groups.reduce((acc, g) => acc.concat(g.tracks.map(t => t.id)), []));
+    }
+    function dupGroupOf(id){
+      const t = getTrack(id); if(!t) return null;
+      const k = trackFingerprint(t);
+      const tracks = Array.from(state.tracks.values()).filter(o => trackFingerprint(o) === k);
+      return tracks.length ? tracks : null;
+    }
+    function keepOnlyVersion(keepId){
+      const keep = getTrack(keepId); if(!keep) return;
+      const group = dupGroupOf(keepId); if(!group) return;
+      const others = group.filter(t => t.id !== keepId);
+      if(!others.length){ toast('Esta ya es la única versión de «' + keep.title + '»'); return; }
+      const freed = others.reduce((s, t) => s + (t.size || 0), 0);
+      const names = others.map(t => '«' + (t.fileName || t.title) + '»').join(', ');
+      confirmModal('¿Quedarte solo con esta versión?',
+        'Se borrarán ' + others.length + (others.length === 1 ? ' versión' : ' versiones') + ' de «' + keep.title + '» (' + names + ') de Sonando en este dispositivo y liberarás ' + fmtSize(freed) + '. La que queda es «' + (keep.fileName || keep.title) + '» (' + fmt(keep.duration) + ' · ' + fmtSize(keep.size) + '). Los archivos originales, fuera de la app, no se tocan.',
+        'Sí, quedarme con esta', async () => {
+          for(const t of others){ await purgeTrack(t.id); }
+          toast('Te quedaste con una versión de «' + keep.title + '»');
+          render();
+        });
+    }
     function renderDetail(){
       const d = state.detail;
       let title = '', sub = '', repTrack = null, tracks = [];
@@ -3007,10 +3161,6 @@
         tracks = Array.from(state.tracks.values()).filter(t => t.artist === d.key);
         title = d.key; repTrack = sortedTracks(tracks)[0];
         sub = tracks.length + (tracks.length === 1 ? ' canción' : ' canciones');
-      } else if(d.type === 'album'){
-        tracks = Array.from(state.tracks.values()).filter(t => (t.album + '|' + t.artist) === d.key);
-        repTrack = sortedTracks(tracks)[0];
-        title = repTrack ? repTrack.album : 'Álbum'; sub = (repTrack ? repTrack.artist + ' · ' : '') + tracks.length + ' canciones';
       } else if(d.type === 'playlist'){
         const pl = d.key === '__favs' ? favPlaylist() : state.playlists.find(p => p.id === d.key);
         if(!pl){ state.detail = null; return render(); }
@@ -3027,7 +3177,7 @@
         actions += '<button class="btn btn-ghost" data-act="renamePlaylist">' + icon('pencil','sm') + 'Renombrar</button>' +
                    '<button class="btn btn-ghost" data-act="deletePlaylist">' + icon('trash','sm') + 'Borrar</button>';
       }
-      const immersive = (d.type === 'artist' || d.type === 'album') && !!repTrack;
+      const immersive = d.type === 'artist' && !!repTrack;
       let head;
       if(immersive){
         const cols = trackColors(repTrack);
@@ -3160,7 +3310,23 @@
        o vaciar cambia al momento, y ni la búsqueda ni el cambio de
        pestaña lo alteran, porque cuenta state.tracks entero. Solo
        presentación: ningún dato ni el esquema cambian. */
-    const APP_VERSION = '4.17';
+    /* v4.18 · Función nueva pedida por Sando: la vista especial
+       «Versiones duplicadas». Una pestaña más que agrupa las copias
+       de cada canción por su huella título+artista (la misma de la
+       sincronización), presenta cada versión con su archivo,
+       duración, tamaño, álbum y fecha, la deja escuchar con la
+       cola limitada a su grupo para comparar, y permite quedarse
+       con una sola («Quedarme con esta» borra las demás copias
+       con confirmación y el espacio liberado) o borrar versiones
+       sueltas. Sin tocar biblioteca ni esquema: el borrado reusa
+       purgeTrack/deleteTrack de siempre.
+       En la misma versión, a pedido de Sando, desaparece el
+       apartado de «Álbumes»: fuera su pestaña, su vista y su
+       detalle. Canciones, Artistas, Playlists y Duplicadas no se
+       tocan, y el álbum de cada canción se queda guardado en su
+       ficha (sigue viéndose en su fila, en Duplicadas y en la
+       búsqueda), solo deja de ser una sección de navegación. */
+    const APP_VERSION = '4.18';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4221,6 +4387,32 @@
 
     /* ================= Delegación de clics en el contenido ================= */
     content.addEventListener('click', e => {
+      /* v4.18 · Versiones duplicadas: sus botones mandan antes que el
+         resto de la delegación (la fila también lleva el corazón de
+         siempre, que sigue por su camino de [data-rate]). */
+      const dupPlay = e.target.closest('[data-dup-play]');
+      if(dupPlay){
+        e.stopPropagation();
+        const id = dupPlay.dataset.dupPlay;
+        const group = dupGroupOf(id);
+        const snap = coverSnapshot(dupPlay.closest('.dup-ver') ? dupPlay.closest('.dup-ver').querySelector('.cover') : null);
+        playContext(group ? group.map(t => t.id) : [id], id, { shuffle:false });
+        flyCoverToPlayer(snap);
+        return;
+      }
+      const dupGroupPlay = e.target.closest('[data-dup-playgroup]');
+      if(dupGroupPlay){
+        const group = dupGroupOf(dupGroupPlay.dataset.dupPlaygroup);
+        if(group && group.length){
+          const first = playable(group.map(t => t.id))[0] || group[0].id;
+          playContext(group.map(t => t.id), first, { shuffle:false });
+        }
+        return;
+      }
+      const dupKeep = e.target.closest('[data-dup-keep]');
+      if(dupKeep){ e.stopPropagation(); keepOnlyVersion(dupKeep.dataset.dupKeep); return; }
+      const dupDel = e.target.closest('[data-dup-del]');
+      if(dupDel){ e.stopPropagation(); deleteTrack(dupDel.dataset.dupDel); return; }
       const rate = e.target.closest('[data-rate]');
       if(rate){ e.stopPropagation(); rateCycle(rate.dataset.rate); return; }
       const more = e.target.closest('[data-more]');
@@ -4238,10 +4430,17 @@
       if(act){ handleAct(act.dataset.act); return; }
       const artist = e.target.closest('[data-artist]');
       if(artist){ state.detail = { type:'artist', key: artist.dataset.artist }; render(); $('#main').scrollTop = 0; return; }
-      const album = e.target.closest('[data-album]');
-      if(album){ state.detail = { type:'album', key: album.dataset.album }; render(); $('#main').scrollTop = 0; return; }
       const pl = e.target.closest('[data-playlist]');
       if(pl){ state.detail = { type:'playlist', key: pl.dataset.playlist }; render(); $('#main').scrollTop = 0; return; }
+      const dupRow = e.target.closest('[data-dup-row]');
+      if(dupRow){
+        const id = dupRow.dataset.dupRow;
+        const group = dupGroupOf(id);
+        const snap = coverSnapshot(dupRow.querySelector('.cover'));
+        playContext(group ? group.map(t => t.id) : [id], id, { shuffle:false });
+        flyCoverToPlayer(snap);
+        return;
+      }
       const song = e.target.closest('[data-song]');
       if(song){
         const snap = coverSnapshot(song.querySelector('.cover'));
