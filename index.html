@@ -1389,6 +1389,81 @@
         .link-btn:active{ transform:none; filter:none; }
       }
     </style>
+    <style>
+      /* ============ v3.8 · Color vivo ============
+         Ronda visual, sin tocar funciones ni datos: el color de la
+         portada que suena (--np-c1/--np-c2, los mismos que ya tiñen
+         el fondo inmersivo, la aurora, el halo y el degradado del
+         título) llega a más superficies de la zona de reproducción:
+         1) la barra de progreso y su brillo en «Sonando ahora» (la
+         onda y el pulgar), en el mini-reproductor y en el Escenario;
+         2) la selección de texto y el anillo de foco dentro de esas
+         tres vistas;
+         3) detalles secundarios de «Sonando ahora»: el estado activo
+         de los controles (aleatorio/repetir), la insignia de
+         «repetir 1», el botón de acción activo y el deslizador de
+         volumen; el mini suma un borde apenas teñido.
+         Convivencia con los 5 temas de la v2.0: el tema sigue
+         mandando en la biblioteca y la navegación — la selección y
+         el foco globales no cambian — y el color de la portada
+         manda solo en la zona de reproducción; sin canción sonando
+         el mini ni se muestra y «Sonando ahora» no se abre, así que
+         todo queda con el tema, como hasta hoy. Las dos variables
+         se registran con @property para que al cambiar de canción
+         cada superficie se funda al nuevo color en vez de saltar;
+         donde @property no exista, el cambio es instantáneo, igual
+         que hasta la v3.7. «Sonando ahora» y el Escenario son
+         inmersivos en claro y en oscuro, así que el tinte se lee
+         igual en los dos modos. Todo respeta
+         prefers-reduced-motion. */
+
+      @property --np-c1{ syntax:'<color>'; inherits:true; initial-value:#f0512f; }
+      @property --np-c2{ syntax:'<color>'; inherits:true; initial-value:#7a2b18; }
+
+      /* Fundido del color al cambiar de canción: en los overlays se
+         conserva intacta su transición de desplazamiento y en el
+         mini la de brillo/fondo/borde de la v3.7, sumando las dos
+         variables de color. */
+      .np, .stage{ transition:transform .38s cubic-bezier(.32,.72,.24,1), --np-c1 .9s ease, --np-c2 .9s ease; }
+      .mini{ transition:filter .18s ease, background-color .35s ease, border-color .35s ease, --np-c1 .9s ease, --np-c2 .9s ease; }
+      @media (prefers-reduced-motion: reduce){
+        .np, .stage, .mini{ transition:none; }
+      }
+
+      /* 1 · La barra de progreso y su brillo, con el color de la
+         canción: la onda se dibuja en el color aclarado para seguir
+         legible sobre el fondo inmersivo (su resplandor ya era de
+         ese color) y el pulgar de Firefox recibe el mismo brillo
+         que el de WebKit; la barra del Escenario pasa del blanco al
+         degradado aclarado de la portada, conservando su brillo; la
+         del mini cambia el degradado del tema por el de la portada
+         (el tema queda de respaldo vía var()). */
+      .seek-wave .wave-fill{ stroke:color-mix(in srgb, var(--np-c1) 62%, #ffffff); }
+      .seek input[type=range]::-moz-range-thumb{ box-shadow:0 2px 10px rgba(0,0,0,.45), 0 0 12px color-mix(in srgb, var(--np-c1) 70%, transparent); }
+      .stage-prog .bar i{ background:linear-gradient(90deg, color-mix(in srgb, var(--np-c1) 68%, #ffffff), color-mix(in srgb, var(--np-c2, var(--np-c1)) 68%, #ffffff)); }
+      .mini .prog i{ background:linear-gradient(90deg, var(--np-c1, var(--acc)), var(--np-c2, var(--acc2))); box-shadow:0 0 8px color-mix(in srgb, var(--np-c1, var(--acc)) 55%, transparent); }
+      .mini{ border-color:color-mix(in srgb, var(--np-c1, var(--acc)) 38%, var(--line)); }
+
+      /* 2 · Selección y foco dentro de la zona de reproducción: la
+         selección global y el anillo global siguen con el tema; solo
+         dentro de «Sonando ahora», el mini y el Escenario toman el
+         color de la canción. */
+      .np ::selection, .stage ::selection, .mini ::selection{ background:color-mix(in srgb, var(--np-c1, var(--acc)) 45%, transparent); }
+      .np :focus-visible, .stage :focus-visible{ outline-color:var(--np-c1); }
+      .mini:focus-visible, .mini :focus-visible{ outline-color:var(--np-c1, var(--acc)); }
+
+      /* 3 · Detalles secundarios de «Sonando ahora»: el ámbar fijo
+         de los estados activos pasa a ser el color de la canción
+         aclarado (el texto oscuro de la insignia y del botón activo
+         se conserva, legible sobre el tinte claro), y el deslizador
+         de volumen acentúa con ese mismo color. El «me gusta»
+         conserva su rojo propio: es significado, no decoración. */
+      .np-controls button.on{ color:color-mix(in srgb, var(--np-c1) 42%, #ffffff); }
+      .np-controls button.on::after{ background:color-mix(in srgb, var(--np-c1) 42%, #ffffff); }
+      .rep1{ background:color-mix(in srgb, var(--np-c1) 45%, #ffffff); }
+      .np-actions button.on{ background:color-mix(in srgb, var(--np-c1) 30%, #ffffff); }
+      .np .vol input[type=range]{ accent-color:color-mix(in srgb, var(--np-c1) 65%, #ffffff); }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -1418,7 +1493,7 @@
       <header class="top">
         <div class="top-in">
           <h1>Tu música<span>Todo vive en tu dispositivo. Nada se sube a internet.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v3.7</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v3.8</span>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
@@ -2407,7 +2482,7 @@
       const h1 = h % 360, h2 = (h1 + 45 + (h >> 3) % 70) % 360;
       return ['hsl(' + h1 + ' 72% 52%)', 'hsl(' + h2 + ' 78% 38%)'];
     }
-    const APP_VERSION = '3.7';
+    const APP_VERSION = '3.8';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -2976,6 +3051,14 @@
       np.style.setProperty('--np-c2', c2);
       $('#stage').style.setProperty('--np-c1', c1);
       $('#stage').style.setProperty('--np-c2', c2);
+      /* v3.8 · Color vivo: el mini-reproductor recibe los mismos dos
+         colores de la portada — su barra de progreso y su brillo, su
+         borde, su selección y su anillo de foco viven de estas
+         variables (con el color del tema como respaldo en el CSS
+         para cuando aún no suena nada). */
+      const miniEl = $('#mini');
+      miniEl.style.setProperty('--np-c1', c1);
+      miniEl.style.setProperty('--np-c2', c2);
       updateHalo(t, c1, c2);
       const bgCss = immersiveBg(t, c1, c2);
       npFlip = applyImmersive($('#npBgA'), $('#npBgB'), bgCss, npFlip);
