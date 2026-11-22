@@ -2013,7 +2013,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.18</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.19</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3035,11 +3035,13 @@
     /* ============ v4.18 · Versiones duplicadas ============
        Vista especial pedida por Sando: tiene varias versiones de la
        misma canción y quiere escucharlas y elegir con cuál quedarse.
-       El grupo de cada canción se forma con la MISMA huella de la
-       sincronización (trackFingerprint: artista|título normalizados,
-       sin duración), así que las copias que comparten título y
-       artista —aunque vengan de álbumes o archivos distintos—
-       quedan juntas. Cada versión muestra lo que la distingue
+       El grupo de cada canción se forma con artista + título base
+       (v4.19: dupKey, una clave tolerante que ignora los
+       calificativos de versión del título —«visualizer», «video
+       oficial»…— porque las versiones de Sando llegan con títulos
+       distintos; la huella exacta de la sincronización no se toca),
+       así que las copias de la misma canción —aunque vengan de
+       álbumes o archivos distintos— quedan juntas. Cada versión muestra lo que la distingue
        (nombre de archivo, duración, tamaño, álbum, fecha en que se
        agregó y su calificación) y se puede escuchar con la cola
        limitada al grupo, para comparar una tras otra; «Quedarme
@@ -3062,10 +3064,73 @@
       try{ return new Date(ts).toLocaleDateString('es', { day:'numeric', month:'short', year:'numeric' }); }
       catch(e){ return ''; }
     }
+    /* v4.19 · La queja de Sando: en Duplicadas no aparecía nada
+       porque sus versiones de una misma canción tienen títulos
+       DISTINTOS — «… (Visualizer)» frente a «… Video Oficial» y
+       cosas por el estilo — y la huella exacta título+artista de
+       la v4.18 nunca las juntaba. El grupo ya no se forma con la
+       huella de la sincronización (esa sigue intacta: es la que
+       decide qué calificación va con qué canción), sino con una
+       clave propia y tolerante: dupKey quita del título los
+       calificativos de versión y compara solo artista + título
+       base. Así «Canción», «Canción (Visualizer)», «Canción -
+       Video Oficial» y «Canción [Lyric Video]» caen en el mismo
+       grupo, y cada fila sigue mostrando el título/archivo real
+       de su versión para distinguirlas al escuchar. */
+    const DUP_QUALS = ['official music video', 'video musical oficial',
+      'official lyric video', 'lyric video', 'video con letra', 'video de letras',
+      'official audio', 'audio oficial', 'official video', 'video oficial',
+      'music video', 'video musical', 'official mv', 'visualizer', 'visualizador',
+      'remastered', 'remasterizado', 'remaster', 'lyrics', 'letra', 'en vivo',
+      'official', 'oficial', 'audio', 'video', 'live', 'mv', 'hd', '4k', 'hq'];
+    function dupBaseTitle(title){
+      let s = fpNorm(title);
+      // Lo que va entre paréntesis o corchetes casi siempre es el
+      // calificativo: «(Visualizer)», «[Video Oficial]», «(HD)».
+      s = s.replace(/\([^)]*\)/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+      // Colaboración al final: «feat. X», «ft. X», «featuring X» no
+      // cambia la canción, solo el título con que se guardó.
+      s = s.replace(/\b(feat|ft|featuring)\b.*$/, ' ');
+      // Calificativos sueltos al final, tras separador o pegados,
+      // en bucle: «video oficial hd» pierde dos capas.
+      let prev = null;
+      while(s && s !== prev){
+        prev = s;
+        s = s.replace(/[\s\-–—|:·•]+$/, '').trim();
+        for(const q of DUP_QUALS){
+          if(s === q){ s = ''; break; }
+          if(s.endsWith(' ' + q) || s.endsWith('-' + q) || s.endsWith('|' + q) || s.endsWith(':' + q)){
+            s = s.slice(0, s.length - q.length); break;
+          }
+        }
+        s = s.replace(/[\s\-–—|:·•]+$/, '').trim();
+      }
+      s = s.replace(/\s+/g, ' ').trim();
+      // Si el título era SOLO el calificativo, no hay base que
+      // comparar: se conserva el título normalizado tal cual.
+      return s || fpNorm(title);
+    }
+    function dupArtistKey(artist){
+      // El mismo artista a veces llega como «X», «X - Topic»
+      // (canales automáticos) o «X Oficial»: se comparan igual.
+      let s = fpNorm(artist).replace(/[\s\-–—|:·•]+$/, '').trim();
+      let prev = null;
+      while(s && s !== prev){
+        prev = s;
+        for(const q of ['topic', 'vevo', 'oficial', 'official']){
+          if(s.endsWith(' ' + q) || s.endsWith('-' + q)){ s = s.slice(0, s.length - q.length); break; }
+        }
+        s = s.replace(/[\s\-–—|:·•]+$/, '').trim();
+      }
+      return s || fpNorm(artist);
+    }
+    function dupKey(t){
+      return dupArtistKey(t.artist) + '|' + dupBaseTitle(t.title);
+    }
     function duplicateGroups(){
       const map = new Map();
       Array.from(state.tracks.values()).filter(matchesSearch).forEach(t => {
-        const k = trackFingerprint(t);
+        const k = dupKey(t);
         if(!map.has(k)) map.set(k, []);
         map.get(k).push(t);
       });
@@ -3117,12 +3182,12 @@
       const groups = duplicateGroups();
       if(!groups.length){
         content.innerHTML = state.search ? emptyHTML('search') :
-          '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin versiones duplicadas</h2><p>Cada canción de tu biblioteca aparece una sola vez: no hay copias con el mismo título y artista. Si agregas otra versión de una canción, aparecerá aquí agrupada con la que ya tienes.</p></div>';
+          '<div class="empty"><div class="art">' + icon('check') + '</div><h2>Sin versiones duplicadas</h2><p>Cada canción de tu biblioteca aparece una sola vez: no hay dos versiones de la misma canción. Los títulos que solo cambian por el calificativo —«visualizer», «video oficial», «letra» y similares— cuentan como la misma canción, así que si agregas otra versión de una que ya tienes, aparecerá aquí agrupada con ella.</p></div>';
         bindContent(); return;
       }
       const totalVers = groups.reduce((s, g) => s + g.tracks.length, 0);
       const totalSize = groups.reduce((s, g) => s + g.tracks.reduce((x, t) => x + (t.size || 0), 0), 0);
-      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo.</p></div>';
+      let h = '<div class="dup-summary"><h2>Versiones duplicadas</h2><p>Tienes <strong>' + groups.length + (groups.length === 1 ? ' canción' : ' canciones') + ' con varias versiones</strong> · ' + totalVers + ' versiones en total · ocupan ' + fmtSize(totalSize) + '. Las versiones se agrupan por artista y título, ignorando calificativos como «visualizer» o «video oficial». Toca una versión para escucharla (las del grupo suenan una tras otra) y, cuando lo tengas claro, pulsa «Quedarme con esta»: las demás copias de ese grupo se borran de este dispositivo.</p></div>';
       groups.forEach(g => {
         const rep = g.tracks[0];
         h += '<section class="dup-group"><div class="dup-head">' + coverHTML(rep) +
@@ -3135,8 +3200,8 @@
     }
     function dupGroupOf(id){
       const t = getTrack(id); if(!t) return null;
-      const k = trackFingerprint(t);
-      const tracks = Array.from(state.tracks.values()).filter(o => trackFingerprint(o) === k);
+      const k = dupKey(t);
+      const tracks = Array.from(state.tracks.values()).filter(o => dupKey(o) === k);
       return tracks.length ? tracks : null;
     }
     function keepOnlyVersion(keepId){
@@ -3326,7 +3391,21 @@
        tocan, y el álbum de cada canción se queda guardado en su
        ficha (sigue viéndose en su fila, en Duplicadas y en la
        búsqueda), solo deja de ser una sección de navegación. */
-    const APP_VERSION = '4.18';
+    /* v4.19 · Arreglo pedido por Sando: en Duplicadas no aparecía
+       nada porque sus versiones de una misma canción tienen
+       títulos diferentes («visualizer» frente a «video oficial»
+       y similares) y la huella exacta de la v4.18 nunca las
+       juntaba. La vista ahora agrupa con dupKey, una clave
+       tolerante propia de esta vista: quita del título los
+       paréntesis/corchetes, las colaboraciones «feat.» y los
+       calificativos de versión al final (visualizer, video
+       oficial, lyric video, audio oficial, letra, en vivo, hd…)
+       y del artista los sufijos de canal («- Topic», «Oficial»),
+       comparando solo artista + título base. La huella de la
+       sincronización (trackFingerprint) NO se toca, y biblioteca
+       y esquema quedan intactos: solo cambia qué se considera
+       «la misma canción» dentro de esta vista. */
+    const APP_VERSION = '4.19';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
