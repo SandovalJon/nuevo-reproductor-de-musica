@@ -2043,7 +2043,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.35</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.36</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2751,6 +2751,7 @@
       const files = Array.from(fileList || []).filter(isAudioFile);
       if(!files.length){ toast('No encontré archivos de audio ahí.'); return; }
       let added = 0, skipped = 0;
+      const newIds = []; // v4.36: ids de las canciones que nacen en ESTA importación (para el informe de heredadas)
       const existing = new Set(Array.from(state.tracks.values()).map(t => t.fileName + '|' + t.size));
       for(let i = 0; i < files.length; i++){
         const f = files[i];
@@ -2782,6 +2783,7 @@
           await dbPut('tracks', t);
           state.tracks.set(t.id, t);
           existing.add(f.name + '|' + f.size);
+          newIds.push(t.id);
           added++;
         }catch(e){ skipped++; }
       }
@@ -2798,6 +2800,7 @@
       // calificación puesta. Si la lectura de la nube falla (sin
       // conexión), se aplica el mapa local y la fusión en vivo o el
       // próximo «Sincronizar ahora» completan el resto.
+      let importHits = [];
       if(added){
         if(syncUser && syncReady){
           try{
@@ -2823,14 +2826,77 @@
         // v4.35: y hereda su decisión de «Quedarme con las 2» si su
         // copia ya estaba conservada en el mapa de conservadas: un
         // grupo reimportado entero vuelve a quedar oculto.
+        // v4.36: la aplicación va con la recolección activa, para
+        // saber qué canciones NUEVAS recibieron calificación del mapa
+        // y por qué vía (el informe y el deshacer de esta tanda).
+        syncApplyCollect = { ids: new Set(newIds), hits: [] };
         try{ await syncApplyToTracks(); }catch(e){}
         try{ await syncApplyDupMarks(); }catch(e){}
         try{ await syncApplyDupKeeps(); }catch(e){}
+        importHits = syncApplyCollect ? syncApplyCollect.hits.slice() : [];
+        syncApplyCollect = null;
       }
       render();
       if(added && skipped) toast('Se agregaron ' + added + ' canciones · ' + skipped + ' omitidas (repetidas o con error).', 3600);
       else if(added) toast(added === 1 ? 'Se agregó 1 canción a tu biblioteca.' : 'Se agregaron ' + added + ' canciones a tu biblioteca.', 3200);
       else toast('Esas canciones ya estaban en tu biblioteca.');
+      // v4.36: si alguna canción nueva llegó calificada desde el
+      // mapa, se muestra el informe con su desglose por vía y el
+      // botón para quitar solo esas heredadas.
+      if(importHits.length){
+        lastImportUndo = importHits.slice();
+        showImportRatingReport(added, importHits);
+      }
+    }
+
+    /* v4.36 · Informe de importación y su deshacer: cuántas de las
+       canciones recién agregadas llegaron ya calificadas desde el
+       mapa y por qué vía (huella exacta, mismo archivo, título
+       corroborado o duración corroborada), con la opción de quitar
+       SOLO esas calificaciones heredadas. Lo que Sando califique a
+       mano no se toca jamás: el deshacer compara el valor actual de
+       cada ficha con el heredado y respeta cualquier cambio
+       posterior. La lista vive en memoria (lastImportUndo) y el
+       deshacer también se ofrece en la hoja de Sincronización
+       mientras siga pendiente. */
+    let lastImportUndo = [];
+    function showImportRatingReport(addedCount, hits){
+      const by = { exact:0, file:0, title:0, duration:0 };
+      hits.forEach(h => { if(by[h.route] != null) by[h.route]++; });
+      const lines = [];
+      if(by.exact) lines.push('<p class="sync-line">Por artista y título exactos: ' + by.exact + '</p>');
+      if(by.file) lines.push('<p class="sync-line">Por ser el mismo archivo (nombre y tamaño): ' + by.file + '</p>');
+      if(by.title) lines.push('<p class="sync-line">Por título, con artista o duración coincidentes: ' + by.title + '</p>');
+      if(by.duration) lines.push('<p class="sync-line">Por duración, con título o artista coincidentes: ' + by.duration + '</p>');
+      openSheet(
+        '<h3>Calificaciones heredadas</h3>' +
+        '<p class="sub">De las ' + addedCount + ' canciones agregadas, ' + hits.length + (hits.length === 1 ? ' ya traía' : ' ya traían') + ' calificación del mapa de sincronización:</p>' +
+        lines.join('') +
+        '<p class="sub">Si alguna no le corresponde a su canción, quítalas todas de golpe: solo se deshacen las heredadas en esta importación; lo que calificaste a mano no se toca.</p>' +
+        '<button class="sheet-item" id="undoImportBtn">' + icon('x') + 'Quitar las calificaciones heredadas de esta importación</button>' +
+        '<button class="sheet-item" id="keepImportBtn">' + icon('check') + 'Dejarlas así</button>'
+      );
+      const ub = document.getElementById('undoImportBtn');
+      if(ub) ub.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
+      const kb = document.getElementById('keepImportBtn');
+      if(kb) kb.addEventListener('click', closeSheet);
+    }
+    async function undoImportRatings(){
+      const hits = lastImportUndo || [];
+      lastImportUndo = [];
+      let n = 0;
+      for(const h of hits){
+        const t = getTrack(h.id); if(!t) continue;
+        if(t.rating !== h.rating) continue; // cambió después a mano: manda la decisión posterior
+        t.rating = null;
+        t.ratingAt = Date.now();
+        await saveTrackMeta(t);
+        await syncNoteRating(t); // la retirada entra al mapa como cualquier descalificación y sube si hay sesión
+        n++;
+      }
+      render();
+      if(typeof syncPlayerUI === 'function') syncPlayerUI();
+      toast(n ? ('Se quitaron ' + n + (n === 1 ? ' calificación heredada' : ' calificaciones heredadas') + ' de esta importación.') : 'No había calificaciones heredadas que quitar.', 3800);
     }
 
     /* ================= Render de la biblioteca ================= */
@@ -3978,7 +4044,38 @@
        las entradas nuevas viven en su propia clave de kv y en su
        propio campo del documento, y los documentos antiguos sin
        «dupKeep» se leen igual (llega vacío). */
-    const APP_VERSION = '4.35';
+    /* v4.36 · Queja de Sando: «agregué nuevas canciones y la mayoría
+       ya estaban calificadas y muchas con dislike» — de canciones que
+       NUNCA había tenido. Diagnóstico: las nuevas nacen sin calificar,
+       pero al importar se les aplica el mapa entero, y el mapa guarda
+       un fondo grande de entradas huérfanas (calificaciones de
+       canciones ya borradas, cargado a «No me gusta» porque las que
+       gustan siguen en la biblioteca y las rechazadas se borran y su
+       entrada queda libre). Dos rescates eran demasiado confiados:
+       el de TÍTULO (v4.14/v4.26) aplicaba con que el título casara,
+       sin mirar el artista, y el de DURACIÓN (v4.15) aplicaba con que
+       la duración cayera a ±3 s, sin mirar título ni artista — una
+       canción nueva que compartiera título o duración con una
+       huérfana heredaba su calificación, y encima el rescate
+       reescribía la entrada a nombre de la canción nueva y la subía,
+       propagando el error. Arreglo, sin tocar la huella ni borrar
+       nada del mapa: (1) los rescates débiles exigen CORROBORACIÓN —
+       el de título, que el artista coincida parcialmente (contención
+       o palabra significativa común; la coincidencia exacta sería la
+       huella misma) o que la duración case a ±3 s; el de duración,
+       solo para audios largos (≥45 min, su caso original) o con
+       coincidencia parcial de título o artista —; sin corroboración
+       la entrada queda huérfana y contada, NO aplicada; (2) un
+       rescate débil ya no reescribe ni sube la entrada: la
+       calificación queda solo en la ficha local y un falso positivo
+       no se propaga; (3) al importar se informa cuántas canciones
+       llegaron calificadas y por qué vía (huella exacta, mismo
+       archivo, título o duración) con un botón para quitar SOLO las
+       heredadas en esa importación (también ofrecido en la hoja de
+       Sincronización mientras siga pendiente); (4) la restauración
+       fuerte —huella exacta y mismo archivo+tamaño— queda intacta:
+       vaciar y volver a subir sigue recuperando las calificaciones. */
+    const APP_VERSION = '4.36';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5334,7 +5431,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5374,6 +5471,7 @@
     let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
     let syncOrphanCount = 0;     // v4.14: entradas con calificación que no casaron con ninguna canción en la última aplicación
     let syncOrphanList = [];     // v4.26: esas mismas entradas, nombradas ({artist, title, r}) para listarlas en la hoja
+    let syncApplyCollect = null; // v4.36: recolección opcional durante una aplicación ({ids:Set, hits:[{id, rating, route}]}); la usa la importación para su informe y su deshacer
     let syncNowBusy = false;     // v4.26: «Sincronizar ahora» en curso (evita dobles toques)
     let syncUser = null;        // usuario de Firebase o null
     let syncReady = false;      // SDK cargado e inicializado
@@ -5399,6 +5497,36 @@
       // v4.9 · Huella tolerante: solo artista|título normalizados, SIN la
       // duración exacta. La duración va como «d» auxiliar en la entrada.
       return fpNorm(t.artist) + '|' + fpNorm(t.title);
+    }
+    /* v4.36 · Coincidencia parcial de texto para CORROBORAR los
+       rescates débiles de syncApplyToTracks: dos textos «se parecen»
+       si uno contiene al otro (con al menos 4 caracteres) o si
+       comparten una palabra significativa (4+ caracteres ya
+       normalizados). Es deliberadamente más laxa que la huella
+       exacta —esa ya se probó antes y falló— pero mucho más estricta
+       que «el título coincide» o «la duración cae en la ventana» a
+       secas, que era lo que dejaba caer calificaciones huérfanas
+       sobre canciones nuevas que nunca habían sido calificadas. */
+    function fpTokens(s){
+      return fpNorm(s).split(/[^a-z0-9]+/).filter(w => w.length >= 4);
+    }
+    // Palabras cortas sin valor distintivo: no corroboran por sí solas
+    // aunque coincidan como palabra completa («the», «los»…).
+    const FP_STOPWORDS = new Set(['the', 'los', 'las', 'del', 'una', 'uno', 'con', 'por', 'para', 'and', 'feat']);
+    function fpWords(s){
+      return fpNorm(s).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !FP_STOPWORDS.has(w));
+    }
+    function partialTextMatch(a, b){
+      const na = fpNorm(a), nb = fpNorm(b);
+      if(!na || !nb) return false;
+      if(na.length >= 4 && nb.indexOf(na) !== -1) return true;
+      if(nb.length >= 4 && na.indexOf(nb) !== -1) return true;
+      const tb = new Set(fpTokens(b));
+      if(fpTokens(a).some(w => tb.has(w))) return true;
+      // Palabra completa corta pero distintiva («Sia» en «Sia Furler»):
+      // corrobora si aparece como palabra entera en el otro texto.
+      const wb = new Set(fpWords(b));
+      return fpWords(a).some(w => wb.has(w));
     }
     /* v4.33 · Identidad de archivo como dato auxiliar de la entrada:
        cada calificación guarda también el nombre («f») y el tamaño
@@ -5947,7 +6075,7 @@
       // en esta función interna, para reutilizarla tal cual en el
       // rescate por título con las mismas guardias de antigüedad de
       // la v4.12 y la v4.13, sin duplicarlas ni ablandarlas.
-      const applyTo = async (fp, e, list) => {
+      const applyTo = async (fp, e, list, route) => {
         const want = (e.r === 'like' || e.r === 'dislike') ? e.r : null;
         let targets = list;
         /* v4.15 · Ya NO hay desempate por «d» entre copias de la misma
@@ -5984,6 +6112,10 @@
                 continue;
               }
               applied++;
+              // v4.36: si una recolección está activa (la importación),
+              // se anota qué canción recibió qué calificación y por
+              // qué vía, para el informe y el deshacer de esa tanda.
+              if(syncApplyCollect && syncApplyCollect.ids.has(t.id)) syncApplyCollect.hits.push({ id: t.id, rating: want, route: route || 'exact' });
               t.rating = want;
               if(e.t) t.ratingAt = e.t;
               await saveTrackMeta(t); changed = true;
@@ -6032,7 +6164,7 @@
         if(list && list.length){
           list.forEach(t => claimed.add(t.id));
           if(e.r === 'like' || e.r === 'dislike') list.forEach(t => claimedRated.add(t.id));
-          await applyTo(fp, e, list);
+          await applyTo(fp, e, list, 'exact');
         }
         else if(e.r === 'like' || e.r === 'dislike') unmatched.push(fp);
       }
@@ -6076,24 +6208,36 @@
             const t = cand[0];
             const block = ratingsMap[trackFingerprint(t)];
             if(!(block && (block.r === 'like' || block.r === 'dislike'))){
-              await applyTo(fp, e, cand);
-              const cur = ratingsMap[fp] || e;
-              // v4.26: con varias copias, la entrada reescrita toma la
-              // calificación de la copia con la decisión local más
-              // reciente (la misma antigüedad que applyTo ya respetó:
-              // si una copia reparó la entrada con su dato más nuevo,
-              // esa copia es la de mayor ratingAt y manda su valor).
-              let freshest = cand[0];
-              for(const x of cand){ if((x.ratingAt || 0) > (freshest.ratingAt || 0)) freshest = x; }
-              ratingsMap[trackFingerprint(t)] = withFileId({
-                r: (freshest.rating || cur.r || ''),
-                t: Math.max(cur.t || 0, ...cand.map(x => (typeof x.ratingAt === 'number' && x.ratingAt > 0) ? x.ratingAt : 0)),
-                d: Math.round(t.duration || 0) || (cur.d || 0)
-              }, t, cur);
-              delete ratingsMap[fp];
-              cand.forEach(x => { claimed.add(x.id); claimedRated.add(x.id); });
-              repaired = true;
-              rescued = true;
+              /* v4.36 · CORROBORACIÓN obligatoria: el título solo ya
+                 no basta (ese era el agujero por el que canciones
+                 nuevas, nunca tenidas, heredaban calificaciones
+                 huérfanas —muchas «No me gusta»— de canciones ya
+                 borradas con el mismo título). Hace falta que el
+                 artista de la entrada coincida parcialmente con el
+                 de la candidata (contención o palabra significativa
+                 común; la coincidencia exacta sería la huella misma
+                 y ya se probó) o que la duración de la candidata
+                 case a ±3 s con la «d» guardada. Sin corroboración,
+                 la entrada queda huérfana y contada: NO se aplica. */
+              const entryArtist = fp.slice(0, fp.indexOf('|'));
+              const entryDur = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
+              const corroborated = cand.some(x => {
+                if(partialTextMatch(entryArtist, x.artist)) return true;
+                const xd = Math.round(x.duration || 0);
+                return entryDur > 0 && xd > 0 && Math.abs(xd - entryDur) <= 3;
+              });
+              if(corroborated){
+                await applyTo(fp, e, cand, 'title');
+                /* v4.36 · El rescate débil ya NO reescribe la entrada
+                   bajo la huella verdadera ni la borra del mapa (así
+                   lo hacía hasta la v4.35): la calificación queda
+                   solo en la ficha local, la entrada original sigue
+                   como estaba y nada de esto se sube como dato
+                   confirmado — un falso positivo no se propaga a la
+                   nube ni a los demás dispositivos. */
+                cand.forEach(x => { claimed.add(x.id); claimedRated.add(x.id); });
+                rescued = true;
+              }
             }
           }
         }
@@ -6129,7 +6273,7 @@
           });
           const candFps = new Set(cand.map(t => trackFingerprint(t)));
           if(cand.length && candFps.size === 1){
-            for(const t of cand) await applyTo(fp, e, [t]);
+            for(const t of cand) await applyTo(fp, e, [t], 'file');
             const cur = ratingsMap[fp] || e;
             const t0 = cand[0];
             let freshest = cand[0];
@@ -6179,18 +6323,28 @@
           });
           const fps = new Set(cand.map(t => trackFingerprint(t)));
           if(cand.length && fps.size === 1){
-            for(const t of cand) await applyTo(fp, e, [t]);
-            const cur = ratingsMap[fp] || e;
-            const t0 = cand[0];
-            ratingsMap[trackFingerprint(t0)] = withFileId({
-              r: (t0.rating || cur.r || ''),
-              t: Math.max(cur.t || 0, ...cand.map(t => (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0)),
-              d: Math.round(t0.duration || 0) || (cur.d || 0)
-            }, t0, cur);
-            delete ratingsMap[fp];
-            cand.forEach(t => { claimed.add(t.id); claimedRated.add(t.id); });
-            repaired = true;
-            rescued = true;
+            /* v4.36 · CORROBORACIÓN obligatoria: la duración sola ya
+               no basta en canciones normales —una ventana de ±3 s la
+               comparten miles de canciones, y por ahí las huérfanas
+               (cargadas a «No me gusta») caían sobre canciones nuevas
+               que nunca habían sido calificadas—. Solo se rescata si
+               es un audio largo («d» de 45 min o más: el caso original
+               de este rescate, donde la duración casi es una huella)
+               o si el título o el artista de la entrada coinciden
+               parcialmente con los de la candidata. Sin
+               corroboración, la entrada queda huérfana y contada. */
+            const eArtist = fp.slice(0, fp.indexOf('|'));
+            const eTitle = fp.slice(fp.indexOf('|') + 1);
+            const corroborated = d >= 2700 || cand.some(x => partialTextMatch(eTitle, x.title) || partialTextMatch(eArtist, x.artist));
+            if(corroborated){
+              for(const t of cand) await applyTo(fp, e, [t], 'duration');
+              /* v4.36 · Sin reescritura ni subida, igual que el
+                 rescate por título: la entrada original queda como
+                 estaba y la calificación vive solo en la ficha
+                 local; un falso positivo no se propaga. */
+              cand.forEach(t => { claimed.add(t.id); claimedRated.add(t.id); });
+              rescued = true;
+            }
           }
         }
         if(!rescued){ orphans++; orphanFps.push(fp); }
@@ -6602,6 +6756,12 @@
         // siguen contando y rescatando igual, solo deja de pintarse
         // ese bloque.
         body += '<button class="sheet-item" id="syncNow"' + (syncNowBusy ? ' disabled' : '') + '>' + icon('refresh') + (syncNowBusy ? 'Sincronizando…' : 'Sincronizar ahora') + '</button>';
+        // v4.36: mientras el deshacer de la última importación siga
+        // pendiente, la hoja también lo ofrece (por si el informe de
+        // importación se cerró sin decidir).
+        if(lastImportUndo && lastImportUndo.length){
+          body += '<button class="sheet-item" id="syncUndoImport">' + icon('x') + 'Quitar las ' + lastImportUndo.length + ' calificaciones heredadas de la última importación</button>';
+        }
         body += '<button class="sheet-item" id="syncOut">' + icon('x') + 'Cerrar sesión</button>';
       } else {
         body += '<p class="sync-line"><span class="sync-state"></span><span>Sin sesión</span></p>' +
@@ -6617,6 +6777,8 @@
       if(bi) bi.addEventListener('click', syncSignIn);
       const bn = document.getElementById('syncNow');
       if(bn) bn.addEventListener('click', syncSyncNow);
+      const bu = document.getElementById('syncUndoImport');
+      if(bu) bu.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
       const bo = document.getElementById('syncOut');
       if(bo) bo.addEventListener('click', syncSignOut);
     }
