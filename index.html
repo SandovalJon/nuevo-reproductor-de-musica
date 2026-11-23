@@ -2043,7 +2043,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.32</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.33</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2773,15 +2773,44 @@
           added++;
         }catch(e){ skipped++; }
       }
+      // v4.33 · La restauración de calificaciones al importar se
+      // ESPERA completa y trabaja con el mapa FRESCO, no con el de
+      // memoria: hasta la v4.32 la aplicación se lanzaba sin esperar
+      // (si la app se cerraba tras el aviso de «Se agregaron N», la
+      // restauración podía quedar a medias) y solo veía lo que hubiera
+      // en memoria en ese momento. Ahora, si hay sesión, primero se
+      // relee la nube y se fusiona por marca de tiempo —el mismo
+      // mergeRatings/mergeDupMarks de siempre— y luego se aplican
+      // ambos mapas aguardando a que terminen; el aviso de «Se
+      // agregaron N» solo sale cuando las canciones ya traen su
+      // calificación puesta. Si la lectura de la nube falla (sin
+      // conexión), se aplica el mapa local y la fusión en vivo o el
+      // próximo «Sincronizar ahora» completan el resto.
+      if(added){
+        if(syncUser && syncReady){
+          try{
+            const snap = await syncDocRef().get();
+            const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
+            const remoteDup = (snap.exists && snap.data() && snap.data().dupMarks) || {};
+            syncCloudCount = countRatings(migrateRatingsMap(remote));
+            syncCloudDupCount = countDupMarks(remoteDup);
+            ratingsMap = mergeRatings(ratingsMap, remote);
+            dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
+            await syncSaveLocal();
+            await syncSaveDupLocal();
+          }catch(e){ /* sin nube alcanzable: se aplica el mapa local */ }
+        }
+        // v4.7: una canción recién agregada hereda su calificación si su
+        // huella ya está en el mapa (p. ej. tras «Vaciar biblioteca»).
+        // v4.23: y hereda su marca de duplicado si su archivo (nombre y
+        // tamaño) ya estaba marcado en el mapa de marcas.
+        try{ await syncApplyToTracks(); }catch(e){}
+        try{ await syncApplyDupMarks(); }catch(e){}
+      }
       render();
       if(added && skipped) toast('Se agregaron ' + added + ' canciones · ' + skipped + ' omitidas (repetidas o con error).', 3600);
       else if(added) toast(added === 1 ? 'Se agregó 1 canción a tu biblioteca.' : 'Se agregaron ' + added + ' canciones a tu biblioteca.', 3200);
       else toast('Esas canciones ya estaban en tu biblioteca.');
-      // v4.7: una canción recién agregada hereda su calificación si su
-      // huella ya está en el mapa (p. ej. tras «Vaciar biblioteca»).
-      // v4.23: y hereda su marca de duplicado si su archivo (nombre y
-      // tamaño) ya estaba marcado en el mapa de marcas.
-      if(added){ syncApplyToTracks(); syncApplyDupMarks(); }
     }
 
     /* ================= Render de la biblioteca ================= */
@@ -3816,7 +3845,7 @@
        clic salta a la pestaña Canciones y sube al principio, sin
        tocar el audio ni la cola. Solo presentación y navegación:
        ni los datos, ni la biblioteca, ni el esquema cambian. */
-    const APP_VERSION = '4.32';
+    const APP_VERSION = '4.33';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5172,7 +5201,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5236,6 +5265,25 @@
       // duración exacta. La duración va como «d» auxiliar en la entrada.
       return fpNorm(t.artist) + '|' + fpNorm(t.title);
     }
+    /* v4.33 · Identidad de archivo como dato auxiliar de la entrada:
+       cada calificación guarda también el nombre («f») y el tamaño
+       («s») del archivo donde se calificó —la misma identidad
+       (fileName|size) con la que la importación reconoce un mismo
+       archivo y con la que ya viajan las marcas de Duplicadas—. NO
+       forma parte de la huella (que sigue siendo artista|título, sin
+       tocar, como se prometió en la v4.9): solo sirve de última red
+       al aplicar, para que una calificación cuya huella no case
+       pueda caer sobre la copia con ese mismo archivo. Nunca se
+       guardan valores «undefined» (Firestore los rechaza): el campo
+       solo entra si hay dato, propio de la ficha o heredado de la
+       entrada anterior que se pasa como respaldo. */
+    function withFileId(entry, t, fb){
+      const f = (t && t.fileName) || (fb && fb.f) || '';
+      if(f) entry.f = f;
+      const s = (t && t.size) || (fb && fb.s) || 0;
+      if(s) entry.s = s;
+      return entry;
+    }
     // v4.9 · Migración de claves antiguas artista|título|duración →
     // artista|título, conservando la duración como «d» en la entrada.
     // Si dos claves antiguas caen en la misma clave nueva, gana la de
@@ -5267,6 +5315,10 @@
         const e = map[k]; if(!e) continue;
         const entry = { r: e.r || '', t: e.t || 0 };
         if(e.d != null && !isNaN(Number(e.d))) entry.d = Math.round(Number(e.d));
+        // v4.33: la identidad de archivo («f»/«s») también sobrevive
+        // a la migración; sin esto, canonizar la clave la perdería.
+        if(typeof e.f === 'string' && e.f) entry.f = e.f;
+        if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) entry.s = Number(e.s);
         const parts = String(k).split('|');
         if(parts.length >= 3){
           const last = parts[parts.length - 1].trim();
@@ -5279,9 +5331,13 @@
         if(!out[nk]){ out[nk] = entry; }
         else if((entry.t || 0) >= (out[nk].t || 0)){
           if(entry.d == null && out[nk].d != null) entry.d = out[nk].d;
+          if(!entry.f && out[nk].f) entry.f = out[nk].f;
+          if(entry.s == null && out[nk].s != null) entry.s = out[nk].s;
           out[nk] = entry;
-        } else if(out[nk].d == null && entry.d != null){
-          out[nk].d = entry.d;
+        } else {
+          if(out[nk].d == null && entry.d != null) out[nk].d = entry.d;
+          if(!out[nk].f && entry.f) out[nk].f = entry.f;
+          if(out[nk].s == null && entry.s != null) out[nk].s = entry.s;
         }
       }
       return out;
@@ -5295,7 +5351,7 @@
     function ratingsHash(map){
       const keys = Object.keys(map).sort();
       let s = '';
-      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.r : '') + '@' + (e ? e.t : 0) + '#' + (e && e.d != null ? e.d : '') + ';'; }
+      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.r : '') + '@' + (e ? e.t : 0) + '#' + (e && e.d != null ? e.d : '') + '!' + (e && e.f ? e.f : '') + ':' + (e && e.s != null ? e.s : '') + ';'; }
       return String(hashStr(s));
     }
     async function syncSaveLocal(){
@@ -5353,7 +5409,7 @@
         const ratingT = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0;
         const dur = Math.round(t.duration || 0);
         const e = ratingsMap[fp];
-        if(!e){ ratingsMap[fp] = { r: t.rating, t: ratingT, d: dur }; seeded = true; return; }
+        if(!e){ ratingsMap[fp] = withFileId({ r: t.rating, t: ratingT, d: dur }, t); seeded = true; return; }
         const entryRated = e.r === 'like' || e.r === 'dislike';
         const entryT = e.t || 0;
         const keepD = dur > 0 ? dur : (e.d != null ? e.d : dur);
@@ -5361,16 +5417,16 @@
           // Entrada vacía: solo manda si es una descalificación
           // explícita más reciente que la calificación de la ficha.
           if(!(ratingT > 0 && entryT > ratingT)){
-            ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+            ratingsMap[fp] = withFileId({ r: t.rating, t: ratingT, d: keepD }, t, e); seeded = true;
           }
           return;
         }
         if(e.r !== t.rating && ratingT > entryT){
-          ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+          ratingsMap[fp] = withFileId({ r: t.rating, t: ratingT, d: keepD }, t, e); seeded = true;
         } else if(e.r === t.rating && ratingT > entryT){
           // Coinciden en el valor: se refresca la marca con la de la
           // ficha, para que en la fusión pese lo que de verdad pesa.
-          ratingsMap[fp] = { r: t.rating, t: ratingT, d: keepD }; seeded = true;
+          ratingsMap[fp] = withFileId({ r: t.rating, t: ratingT, d: keepD }, t, e); seeded = true;
         }
       });
       if(seeded || migrated) syncSaveLocal();
@@ -5640,7 +5696,7 @@
                  dato bueno sea el que quede y suba. */
               const ratingT2 = (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0;
               if(ratingT2 > (e.t || 0)){
-                ratingsMap[fp] = { r: t.rating, t: ratingT2, d: Math.round(t.duration || 0) || (e.d || 0) };
+                ratingsMap[fp] = withFileId({ r: t.rating, t: ratingT2, d: Math.round(t.duration || 0) || (e.d || 0) }, t, e);
                 repaired = true;
                 continue;
               }
@@ -5679,7 +5735,7 @@
             t.ratingAt = entryT;
             await saveTrackMeta(t); changed = true;
           } else {
-            ratingsMap[fp] = { r: t.rating, t: Date.now(), d: Math.round(t.duration || 0) };
+            ratingsMap[fp] = withFileId({ r: t.rating, t: Date.now(), d: Math.round(t.duration || 0) }, t, e);
             repaired = true;
           }
         }
@@ -5746,11 +5802,11 @@
               // esa copia es la de mayor ratingAt y manda su valor).
               let freshest = cand[0];
               for(const x of cand){ if((x.ratingAt || 0) > (freshest.ratingAt || 0)) freshest = x; }
-              ratingsMap[trackFingerprint(t)] = {
+              ratingsMap[trackFingerprint(t)] = withFileId({
                 r: (freshest.rating || cur.r || ''),
                 t: Math.max(cur.t || 0, ...cand.map(x => (typeof x.ratingAt === 'number' && x.ratingAt > 0) ? x.ratingAt : 0)),
                 d: Math.round(t.duration || 0) || (cur.d || 0)
-              };
+              }, t, cur);
               delete ratingsMap[fp];
               cand.forEach(x => { claimed.add(x.id); claimedRated.add(x.id); });
               repaired = true;
@@ -5759,6 +5815,54 @@
           }
         }
         if(!rescued) stillUnmatched.push(fp);
+      }
+      /* v4.33 · Rescate por archivo: si ni la huella ni el título
+         casan, la entrada aún guarda el nombre y el tamaño del
+         archivo donde se calificó («f»/«s», que viajan en el mapa
+         desde esta versión). Al volver a agregar las canciones —el
+         caso de Sando: calificar todas, sincronizar y reimportar—
+         el archivo es el MISMO aunque el artista o el título salgan
+         distintos de las etiquetas, así que la coincidencia por
+         archivo es exacta, no una adivinanza. Solo se rescata si
+         TODAS las copias con ese nombre y tamaño comparten UNA sola
+         huella, esa huella no tiene ya una calificación propia y
+         ninguna de esas copias está gobernada por otra entrada con
+         calificación — las mismas guardias de los demás rescates —.
+         Se aplica con las guardias de antigüedad de siempre y la
+         entrada se reescribe bajo la huella verdadera. Las entradas
+         calificadas antes de la v4.33 no traen «f»/«s» y este
+         rescate simplemente no las alcanza: siguen con la huella,
+         el título y la duración de siempre. */
+      const afterFile = [];
+      for(const fp of stillUnmatched){
+        const e = ratingsMap[fp]; if(!e){ continue; }
+        let rescued = false;
+        if(e.f && e.s){
+          const cand = Array.from(state.tracks.values()).filter(t => {
+            if(claimedRated.has(t.id)) return false;
+            if((t.fileName || '') !== e.f || (t.size || 0) !== Number(e.s)) return false;
+            const own = ratingsMap[trackFingerprint(t)];
+            return !(own && (own.r === 'like' || own.r === 'dislike'));
+          });
+          const candFps = new Set(cand.map(t => trackFingerprint(t)));
+          if(cand.length && candFps.size === 1){
+            for(const t of cand) await applyTo(fp, e, [t]);
+            const cur = ratingsMap[fp] || e;
+            const t0 = cand[0];
+            let freshest = cand[0];
+            for(const x of cand){ if((x.ratingAt || 0) > (freshest.ratingAt || 0)) freshest = x; }
+            ratingsMap[trackFingerprint(t0)] = withFileId({
+              r: (freshest.rating || cur.r || ''),
+              t: Math.max(cur.t || 0, ...cand.map(x => (typeof x.ratingAt === 'number' && x.ratingAt > 0) ? x.ratingAt : 0)),
+              d: Math.round(t0.duration || 0) || (cur.d || 0)
+            }, t0, cur);
+            delete ratingsMap[fp];
+            cand.forEach(x => { claimed.add(x.id); claimedRated.add(x.id); });
+            repaired = true;
+            rescued = true;
+          }
+        }
+        if(!rescued) afterFile.push(fp);
       }
       /* v4.15 · Rescate por duración, la última red: si ni la huella
          ni el título casan (en los MP3 largos de tipo podcast,
@@ -5778,7 +5882,7 @@
          forma exacta. */
       let orphans = 0;
       const orphanFps = []; // v4.26: las huérfanas se nombran, no solo se cuentan
-      for(const fp of stillUnmatched){
+      for(const fp of afterFile){
         const e = ratingsMap[fp]; if(!e){ orphans++; continue; }
         const d = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
         let rescued = false;
@@ -5795,11 +5899,11 @@
             for(const t of cand) await applyTo(fp, e, [t]);
             const cur = ratingsMap[fp] || e;
             const t0 = cand[0];
-            ratingsMap[trackFingerprint(t0)] = {
+            ratingsMap[trackFingerprint(t0)] = withFileId({
               r: (t0.rating || cur.r || ''),
               t: Math.max(cur.t || 0, ...cand.map(t => (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0)),
               d: Math.round(t0.duration || 0) || (cur.d || 0)
-            };
+            }, t0, cur);
             delete ratingsMap[fp];
             cand.forEach(t => { claimed.add(t.id); claimedRated.add(t.id); });
             repaired = true;
@@ -5844,7 +5948,10 @@
       // sin reproducir) no se pisa una «d» buena ya conocida: ese 0 era
       // el dato que luego desempataba mal en la aplicación.
       const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
-      ratingsMap[fp] = { r: t.rating || '', t: ts, d: keepD };
+      // v4.33: la entrada guarda además el nombre y el tamaño del
+      // archivo de la ficha (o los hereda de la entrada anterior), para
+      // el rescate por archivo al volver a agregar la canción.
+      ratingsMap[fp] = withFileId({ r: t.rating || '', t: ts, d: keepD }, t, prev);
       // v4.13: el guardado del mapa se ESPERA (setRating lo aguarda):
       // antes quedaba «en el aire» y, si la app se cerraba justo tras
       // calificar —lo típico al terminar una escucha larga—, el mapa
@@ -5877,7 +5984,7 @@
         if(e){
           if(e.d !== realR){ e.d = realR; await syncSaveLocal(); if(syncUser && syncReady && !syncApplying) syncScheduleUpload(); }
         } else if(t.rating){
-          ratingsMap[fp] = { r: t.rating, t: (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0, d: realR };
+          ratingsMap[fp] = withFileId({ r: t.rating, t: (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0, d: realR }, t);
           await syncSaveLocal();
           if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
         }
@@ -6061,6 +6168,15 @@
       syncRefreshSheet();
       try{
         await syncInitialMerge();
+        // v4.33: el ciclo dice la verdad completa. syncInitialMerge
+        // anuncia «Calificaciones sincronizadas ☁» al terminar, pero
+        // hasta la v4.32 nada avisaba de las entradas que quedaron
+        // SIN coincidencia en este dispositivo (el conteo existía,
+        // pero solo se veía abriendo la hoja). Si las hay, se dice
+        // aquí mismo cuántas son; la hoja sigue mostrando el conteo.
+        if(syncOrphanCount > 0){
+          toast('Sincronizado ☁ · ' + syncOrphanCount + (syncOrphanCount === 1 ? ' calificación quedó' : ' calificaciones quedaron') + ' sin coincidencia en este dispositivo', 4200);
+        }
       } finally {
         syncNowBusy = false;
         syncRefreshSheet();
@@ -6193,7 +6309,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
@@ -6226,6 +6342,16 @@
         tracks.forEach(t => state.tracks.set(t.id, t));
         state.playlists = playlists.sort((a,b)=> a.createdAt - b.createdAt);
         await syncLoadLocal(); // v4.7: mapa local de calificaciones (kv)
+        // v4.33: al abrir la app se aplica el mapa LOCAL a las
+        // canciones, haya sesión o no. Hasta la v4.32 la aplicación
+        // solo corría dentro de la fusión inicial con sesión: una
+        // biblioteca reimportada sin sesión (o antes de que Firebase
+        // confirmara la persistida) se quedaba con las canciones sin
+        // calificar aunque el mapa guardado en el dispositivo las
+        // tuviera todas. Con sesión, la fusión inicial vuelve a
+        // aplicar el mapa ya fusionado con la nube, como siempre.
+        try{ await syncApplyToTracks(); }catch(e){}
+        try{ await syncApplyDupMarks(); }catch(e){}
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
           if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
