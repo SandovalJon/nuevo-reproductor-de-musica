@@ -828,6 +828,18 @@
       /* En el teléfono la cabecera y el estado vacío se compactan para que
          ningún botón quede bajo la navegación flotante */
       @media (max-width:520px){
+        /* v4.37 · La barra de herramientas también se compacta en el
+           teléfono: con el botón nuevo («Resetear calificaciones») la
+           barra gana una fila y su último botón quedaba pintado justo
+           bajo la navegación flotante al abrir la vista. Botones un
+           poco más bajos y juntos, y la búsqueda y el orden a su
+           misma altura: la barra entera sube y ningún botón queda
+           bajo la navegación. En escritorio no cambia nada. */
+        #toolbar{ gap:6px; padding:8px 0 6px; }
+        .toolbar .btn{ min-height:40px; padding:7px 13px; font-size:14px; }
+        .toolbar .search{ min-height:40px; }
+        .toolbar select.sort{ min-height:40px; }
+        .toolbar .seg button{ width:40px; height:36px; }
         .top h1{ font-size:27px; }
         .theme-row{ margin-top:4px; }
         .greet h2{ font-size:26px; }
@@ -2043,7 +2055,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.36</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.37</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2127,6 +2139,7 @@
             <button class="btn btn-ghost" id="btnGoDuplicates"><span data-ic="copy"></span>Duplicadas</button>
             <button class="btn btn-danger-soft" id="btnClearLibrary"><span data-ic="trash"></span>Vaciar biblioteca</button>
             <button class="btn btn-danger-soft" id="btnDeleteDisliked"><span data-ic="trash"></span>Borrar las que no me gustan</button>
+            <button class="btn btn-danger-soft" id="btnResetRatings"><span data-ic="refresh"></span>Resetear calificaciones</button>
           </div>
           <div id="content"></div>
         </div>
@@ -3085,6 +3098,7 @@
           $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
           $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+          $('#btnResetRatings').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           $('#btnGoDuplicates').style.display = (state.view === 'duplicates') ? 'none' : '';
           content.classList.remove('screen-in', 'screen-fwd', 'screen-back', 'cascade');
           content.classList.add(dir === 'fwd' ? 'view-out-fwd' : 'view-out-back');
@@ -3105,6 +3119,7 @@
       $('#toolbar').style.display = (state.view === 'playlists' && !state.detail) ? 'none' : '';
       $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+      $('#btnResetRatings').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       $('#btnGoDuplicates').style.display = (state.view === 'duplicates') ? 'none' : '';
       const firstRender = !renderedOnce;
       renderedOnce = true;
@@ -4075,7 +4090,29 @@
        Sincronización mientras siga pendiente); (4) la restauración
        fuerte —huella exacta y mismo archivo+tamaño— queda intacta:
        vaciar y volver a subir sigue recuperando las calificaciones. */
-    const APP_VERSION = '4.36';
+    /* v4.37 · Pedido de Sando: «como nada más tengo esa carpeta de
+       canciones me gustaría un botón para resetear las calificaciones
+       de las canciones que están cargadas». Nuevo botón «Resetear
+       calificaciones» en la barra de Canciones, junto a «Vaciar
+       biblioteca» y «Borrar las que no me gustan» (visible solo en
+       esa vista, como ellos): con confirmación que dice cuántas
+       cargadas están calificadas y cuántas llevan «Me gusta» y
+       cuántas «No me gusta», deja SIN calificar todas las canciones
+       cargadas —rating null y ratingAt nuevo en cada ficha— y
+       registra la retirada en el mapa de sincronización como
+       descalificación explícita fechada de cada huella, para que el
+       reseteo sobreviva a vaciar y volver a subir esa misma carpeta
+       y viaje a los demás dispositivos en vez de resucitar. Las
+       entradas de canciones no cargadas no se tocan, ni las marcas
+       por copia de Duplicadas ni los «Quedarme con las 2»: no son
+       calificaciones. Sin canciones calificadas, el botón solo
+       avisa. Y como la fila nueva dejaba el último botón de la
+       barra bajo la navegación flotante en el teléfono, la barra
+       de herramientas se compacta un poco a ese ancho (botones y
+       búsqueda más bajos y juntos), siguiendo el criterio de
+       siempre de que ningún botón quede bajo la navegación.
+       Sin tocar la huella, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.37';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5182,6 +5219,71 @@
       });
     }
 
+    /* v4.37 · «Resetear calificaciones»: pedido por Sando —como solo
+       tiene una carpeta de canciones, quiere poder dejar sin calificar
+       de una vez todas las que están cargadas—. El botón vive en la
+       barra de Canciones, junto a «Vaciar biblioteca» y «Borrar las
+       que no me gustan», y pide confirmación con el conteo exacto
+       (cuántas con «Me gusta» y cuántas con «No me gusta»).
+       El reseteo alcanza SOLO a las canciones cargadas en este
+       dispositivo: cada ficha calificada pasa a rating null con su
+       ratingAt nuevo y se guarda con saveTrackMeta, y la retirada
+       entra al mapa de sincronización como descalificación explícita
+       (entrada vacía con la misma marca nueva, conservando «d» y la
+       identidad de archivo, como hace syncNoteRating) — el mapa se
+       guarda una sola vez al final y la subida se programa una sola
+       vez, no una por canción —. Así el reseteo es de verdad: al
+       volver a subir estas mismas canciones no recuperan la
+       calificación anterior (su entrada quedó vacía y fechada) y en
+       los demás dispositivos la entrada nueva, más reciente que sus
+       fichas, también las deja sin calificar al sincronizar. Las
+       entradas del mapa de canciones que NO están cargadas no se
+       tocan, y tampoco las marcas por copia de Duplicadas
+       (dupDislike) ni las decisiones «Quedarme con las 2» (dupKeep):
+       no son calificaciones. Las canciones, sus archivos, la cola y
+       las playlists no se tocan; Favoritas se vacía sola porque se
+       forma con los «Me gusta». Sin ninguna cargada calificada, el
+       botón solo avisa, como «Borrar las que no me gustan». */
+    function resetLoadedRatings(){
+      if(!state.tracks.size){ toast('No hay canciones cargadas todavía'); return; }
+      const rated = Array.from(state.tracks.values()).filter(t => t.rating === 'like' || t.rating === 'dislike');
+      if(!rated.length){ toast('Las canciones cargadas no tienen calificaciones que resetear'); return; }
+      const likes = rated.filter(t => t.rating === 'like').length;
+      const dislikes = rated.length - likes;
+      const n = rated.length;
+      const detail = [];
+      if(likes) detail.push(likes + ' con «Me gusta»');
+      if(dislikes) detail.push(dislikes + ' con «No me gusta»');
+      const text = (n === 1
+        ? 'Se quitará la calificación de la única canción calificada que está cargada (' + detail.join(' y ') + '): quedará sin calificar. '
+        : 'Se quitará la calificación de las ' + n + ' canciones calificadas que están cargadas (' + detail.join(' y ') + '): todas quedarán sin calificar. ') +
+        'Tus canciones, sus archivos y tus playlists no se tocan; Favoritas se quedará vacía porque se forma con los «Me gusta». El reseteo también se sincroniza: al volver a subir estas mismas canciones no recuperarán su calificación anterior, y en tus demás dispositivos también quedarán sin calificar. Esto no se puede deshacer.';
+      confirmModal('¿Resetear las calificaciones?', text, 'Sí, resetearlas', async () => {
+        const now = Date.now();
+        let failed = false;
+        for(const t of rated){
+          t.rating = null;
+          t.ratingAt = now;
+          const ok = await saveTrackMeta(t);
+          if(!ok) failed = true;
+          // La retirada entra al mapa como descalificación explícita
+          // de esa huella (mismo criterio que syncNoteRating al
+          // descalificar a mano), conservando «d» y «f»/«s».
+          const fp = trackFingerprint(t);
+          const prev = ratingsMap[fp];
+          const nd = Math.round(t.duration || 0);
+          const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
+          ratingsMap[fp] = withFileId({ r: '', t: now, d: keepD }, t, prev);
+        }
+        await syncSaveLocal();
+        if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+        if(failed) toast('Alguna calificación no se pudo resetear en este dispositivo.', 4200);
+        else toast(n === 1 ? 'Se reseteó 1 calificación: la canción quedó sin calificar' : 'Se resetearon ' + n + ' calificaciones: todas las canciones cargadas quedaron sin calificar', 3800);
+        syncPlayerUI();
+        render();
+      });
+    }
+
     /* ================= Delegación de clics en el contenido ================= */
     content.addEventListener('click', e => {
       /* v4.18 · Versiones duplicadas: sus botones mandan antes que el
@@ -5384,6 +5486,7 @@
     }
     $('#btnClearLibrary').addEventListener('click', clearLibrary);
     $('#btnDeleteDisliked').addEventListener('click', deleteDislikedTracks);
+    $('#btnResetRatings').addEventListener('click', resetLoadedRatings);
     function addMenu(){
       openSheet('<h3>Agregar música</h3><p class="sub">Los archivos se guardan solo en este dispositivo. Tu música nunca se sube a internet.</p>' +
         '<button class="sheet-item" data-a="files">' + icon('file') + 'Elegir archivos</button>' +
@@ -5431,7 +5534,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
