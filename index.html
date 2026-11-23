@@ -2055,7 +2055,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.38</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.39</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2817,16 +2817,14 @@
       if(added){
         if(syncUser && syncReady){
           try{
-            const snap = await syncDocRef().get();
-            const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
-            const remoteDup = (snap.exists && snap.data() && snap.data().dupMarks) || {};
-            const remoteKeep = (snap.exists && snap.data() && snap.data().dupKeep) || {};
-            syncCloudCount = countRatings(migrateRatingsMap(remote));
-            syncCloudDupCount = countDupMarks(remoteDup);
-            syncCloudKeepCount = countDupKeeps(remoteKeep);
-            ratingsMap = mergeRatings(ratingsMap, remote);
-            dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
-            dupKeepMap = mergeDupKeeps(dupKeepMap, remoteKeep);
+            // v4.39: la lectura fresca de la nube es la de la
+            // subcolección de entradas (más el documento antiguo,
+            // por si quedara algo sin migrar de otra versión), y la
+            // absorción fusiona los tres mapas por marca de tiempo
+            // y fija la base de la nube, igual que en la fusión
+            // inicial del acceso.
+            const cloud = await syncFetchCloud();
+            syncAbsorbCloud(cloud.entries, cloud.legacy);
             await syncSaveLocal();
             await syncSaveDupLocal();
             await syncSaveDupKeepLocal();
@@ -4135,7 +4133,7 @@
        su marca nueva, guardadas con saveTrackMeta). Las canciones,
        sus archivos, la cola y las playlists no se tocan. Sin nada
        que resetear, el botón solo avisa. */
-    const APP_VERSION = '4.38';
+    const APP_VERSION = '4.39';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5557,7 +5555,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38 · la nube pasa de un solo documento con los tres mapas a UN DOCUMENTO POR ENTRADA en la subcolección «entries» del mismo documento, con subida por diferencia en lotes y migración automática del documento antiguo al primer sincronizar, en v4.39) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5578,7 +5576,29 @@
        Ningún error del acceso falla en silencio: se muestra en la hoja y
        en un toast con su mensaje. Si el SDK no carga (sin conexión, CDN
        caído), la app sigue 100% local como siempre, con un aviso honesto
-       en la hoja. */
+       en la hoja.
+       v4.39 · Adiós al límite del documento único: hasta la v4.38 los
+       tres mapas viajaban juntos en UN solo documento de Firestore
+       («users/{uid}/data/ratings»), y un documento tiene un máximo duro
+       de 1 MiB —unas 5.000–10.000 entradas entre calificaciones, marcas
+       y conservadas, contando también las retiradas que nunca se
+       borran—. Desde esta versión cada entrada vive en SU PROPIO
+       documento mini dentro de la subcolección «entries» de ese mismo
+       documento: el límite de 1 MiB pasa a aplicar a cada entrada por
+       separado (una entrada jamás lo llena) y la colección admite
+       millones. Los mapas locales (IndexedDB), las huellas, las marcas
+       de tiempo y la regla de fusión «gana la más reciente» NO cambian:
+       solo cambia cómo se guarda en la nube. La subida ya no reescribe
+       todo: se compara el mapa local con la base de lo que la nube ya
+       tiene (syncCloudEntries) y solo viajan las entradas nuevas o
+       cambiadas, en lotes de hasta 400 operaciones. La migración es
+       automática: en la primera sincronización con esta versión se lee
+       también el documento antiguo, sus mapas se fusionan igual que
+       siempre, todo se escribe como entradas y el documento antiguo
+       queda vaciado (conserva solo la marca «entriesMigrated»); un
+       dispositivo aún en una versión anterior sigue escribiendo en el
+       documento antiguo, y esta versión lo sigue escuchando y migrando
+       lo que ahí aparezca, así que la convivencia no pierde nada. */
     const firebaseConfig = {
       apiKey: "AIzaSyAUgyp7onjZkOYWM9jBmrgSWSLQCkoUG6s",
       authDomain: "sonando-dd064.firebaseapp.com",
@@ -5603,7 +5623,11 @@
     let syncReady = false;      // SDK cargado e inicializado
     let syncFailed = false;     // el SDK no pudo cargar
     let syncLastAt = 0;         // última sincronización (ms)
-    let syncUnsub = null;       // baja del listener en vivo
+    let syncUnsub = null;       // baja del listener en vivo (v4.39: el de la subcolección de entradas)
+    let syncUnsubLegacy = null; // v4.39: baja del listener del documento antiguo
+    let syncCloudEntries = null; // v4.39: los tres mapas TAL Y COMO están en la subcolección «entries» (base de la subida por diferencia); null = aún no leída en esta sesión
+    let syncLegacyMaps = null;   // v4.39: último contenido visto del documento antiguo (sus tres mapas), o null si no se ha leído
+    let syncLegacyPending = false; // v4.39: el documento antiguo aún guarda mapas: hay que migrarlos a entradas y vaciarlo en la próxima subida
     let syncUploadTimer = null;
     let syncLastHash = '';      // hash del último mapa subido o bajado
     let syncApplying = false;   // aplicando cambios que bajaron de la nube
@@ -6564,7 +6588,182 @@
       syncUploadTimer = setTimeout(syncUpload, 1200);
     }
     function syncDocRef(){
+      // v4.39: este documento ya NO guarda los mapas (quedó como
+      // documento padre de la subcolección de entradas y como buzón
+      // de las versiones anteriores, que siguen escribiendo en él).
       return firebase.firestore().doc('users/' + syncUser.uid + '/data/ratings');
+    }
+    /* ============ v4.39 · La nube por entradas (subcolección) ============
+       Cada entrada de los tres mapas vive en su propio documento de
+       la subcolección «entries», bajo el documento de siempre:
+       users/{uid}/data/ratings/entries/{id}. El documento lleva el
+       mapa al que pertenece («map»: 'ratings' | 'dupMarks' |
+       'dupKeep'), la clave dentro de ese mapa («key») y los mismos
+       campos de la entrada en memoria (r/t/d/f/s, m/t o k/t), para
+       que leer la nube sea reconstruir los mapas tal cual. El id del
+       documento es determinista —prefijo del mapa + doble FNV-1a de
+       «mapa|clave», 64 bits en hexadecimal—: la misma entrada produce
+       el mismo id en cualquier dispositivo (las subidas son
+       idempotentes y dos dispositivos escriben el MISMO documento,
+       no duplicados) y ninguna clave, lleve los caracteres que lleve
+       (las claves de copia nacen de nombres de archivo), puede romper
+       la ruta del documento. */
+    function syncEntriesRef(){
+      return firebase.firestore().collection('users/' + syncUser.uid + '/data/ratings/entries');
+    }
+    function syncFnv32(str, seed){
+      let h = seed >>> 0;
+      for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return h >>> 0;
+    }
+    function syncEntryId(mapName, key){
+      const s = mapName + '|' + key;
+      const hex = n => ('0000000' + n.toString(16)).slice(-8);
+      const prefix = mapName === 'ratings' ? 'r' : (mapName === 'dupMarks' ? 'm' : 'k');
+      return prefix + hex(syncFnv32(s, 2166136261)) + hex(syncFnv32(s, 2654435761));
+    }
+    function syncEntryDocData(mapName, key, e){
+      if(mapName === 'ratings'){
+        const d = { map: 'ratings', key: key, r: e.r || '', t: e.t || 0 };
+        if(e.d != null && !isNaN(Number(e.d))) d.d = Math.round(Number(e.d));
+        if(typeof e.f === 'string' && e.f) d.f = e.f;
+        if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) d.s = Number(e.s);
+        return d;
+      }
+      if(mapName === 'dupMarks') return { map: 'dupMarks', key: key, m: e.m ? 1 : 0, t: e.t || 0 };
+      return { map: 'dupKeep', key: key, k: e.k ? 1 : 0, t: e.t || 0 };
+    }
+    function syncEntryFromDoc(d){
+      if(!d || typeof d.key !== 'string') return null;
+      if(d.map === 'ratings'){
+        const e = { r: d.r || '', t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+        if(d.d != null && !isNaN(Number(d.d))) e.d = Math.round(Number(d.d));
+        if(typeof d.f === 'string' && d.f) e.f = d.f;
+        if(d.s != null && !isNaN(Number(d.s)) && Number(d.s) > 0) e.s = Number(d.s);
+        return e;
+      }
+      if(d.map === 'dupMarks') return { m: d.m ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+      if(d.map === 'dupKeep') return { k: d.k ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+      return null;
+    }
+    function syncEntriesFromSnap(snap){
+      const out = { ratings: {}, dupMarks: {}, dupKeep: {} };
+      if(!snap) return out;
+      snap.forEach(doc => {
+        const d = doc.data();
+        const e = d && syncEntryFromDoc(d);
+        if(e && out[d.map]) out[d.map][d.key] = e;
+      });
+      return out;
+    }
+    function syncLegacyFromData(data){
+      if(!data || typeof data !== 'object') return null;
+      return {
+        ratings: (data.ratings && typeof data.ratings === 'object') ? data.ratings : {},
+        dupMarks: (data.dupMarks && typeof data.dupMarks === 'object') ? data.dupMarks : {},
+        dupKeep: (data.dupKeep && typeof data.dupKeep === 'object') ? data.dupKeep : {}
+      };
+    }
+    function syncLegacyHasData(legacy){
+      if(!legacy) return false;
+      return Object.keys(legacy.ratings || {}).length > 0 ||
+             Object.keys(legacy.dupMarks || {}).length > 0 ||
+             Object.keys(legacy.dupKeep || {}).length > 0;
+    }
+    // Lo que «la nube» contiene a efectos de contadores y de fusión:
+    // las entradas, más lo que el documento antiguo aún guarde sin
+    // migrar (fusionado con la misma regla de siempre).
+    function syncCloudView(){
+      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {} };
+      if(!syncLegacyHasData(syncLegacyMaps)) return base;
+      return {
+        ratings: mergeRatings(base.ratings, syncLegacyMaps.ratings),
+        dupMarks: mergeDupMarks(base.dupMarks, syncLegacyMaps.dupMarks),
+        dupKeep: mergeDupKeeps(base.dupKeep, syncLegacyMaps.dupKeep)
+      };
+    }
+    function syncRefreshCloudCounts(){
+      const view = syncCloudView();
+      syncCloudCount = countRatings(migrateRatingsMap(view.ratings));
+      syncCloudDupCount = countDupMarks(view.dupMarks);
+      syncCloudKeepCount = countDupKeeps(view.dupKeep);
+    }
+    function syncCloneMaps(maps){
+      const out = { ratings: {}, dupMarks: {}, dupKeep: {} };
+      for(const name in out){
+        const src = (maps && maps[name]) || {};
+        for(const k in src){ if(src[k]) out[name][k] = Object.assign({}, src[k]); }
+      }
+      return out;
+    }
+    // Lee la nube entera: la subcolección de entradas Y el documento
+    // antiguo (que puede traer datos sin migrar, de esta o de otra
+    // versión). No fusiona nada: de eso se encarga syncAbsorbCloud.
+    async function syncFetchCloud(){
+      const entriesSnap = await syncEntriesRef().get();
+      const entries = syncEntriesFromSnap(entriesSnap);
+      let legacy = null;
+      try{
+        const lsnap = await syncDocRef().get();
+        if(lsnap.exists) legacy = syncLegacyFromData(lsnap.data());
+      }catch(e){ /* sin documento antiguo legible: mandan las entradas */ }
+      return { entries: entries, legacy: legacy };
+    }
+    // Absorbe una lectura de la nube: fija la base de entradas (lo
+    // que la subcolección contiene de verdad), anota el estado del
+    // documento antiguo y fusiona la vista completa de la nube en
+    // los mapas locales, con las reglas de antigüedad de siempre.
+    function syncAbsorbCloud(entries, legacy){
+      syncCloudEntries = syncCloneMaps(entries);
+      syncLegacyMaps = legacy;
+      if(syncLegacyHasData(legacy)) syncLegacyPending = true;
+      const view = syncCloudView();
+      ratingsMap = mergeRatings(ratingsMap, view.ratings);
+      dupMarksMap = mergeDupMarks(dupMarksMap, view.dupMarks);
+      dupKeepMap = mergeDupKeeps(dupKeepMap, view.dupKeep);
+      syncRefreshCloudCounts();
+    }
+    // Firma de UNA entrada para la subida por diferencia: dos
+    // entradas con la misma firma son el mismo dato y no viajan.
+    function syncEntrySig(mapName, e){
+      if(!e) return '';
+      if(mapName === 'ratings') return (e.r || '') + '@' + (e.t || 0) + '#' + (e.d != null ? e.d : '') + '!' + (e.f || '') + ':' + (e.s != null ? e.s : '');
+      if(mapName === 'dupMarks') return (e.m || 0) + '@' + (e.t || 0);
+      return (e.k || 0) + '@' + (e.t || 0);
+    }
+    function syncDiffOps(){
+      const ops = [];
+      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {} };
+      const targets = { ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap };
+      for(const mapName of ['ratings', 'dupMarks', 'dupKeep']){
+        const b = base[mapName] || {};
+        const t = targets[mapName];
+        for(const key in t){
+          if(syncEntrySig(mapName, t[key]) !== syncEntrySig(mapName, b[key])) ops.push({ id: syncEntryId(mapName, key), data: syncEntryDocData(mapName, key, t[key]) });
+        }
+        for(const key in b){
+          if(!(key in t)) ops.push({ id: syncEntryId(mapName, key), data: null });
+        }
+      }
+      return ops;
+    }
+    async function syncRunOps(ops){
+      const col = syncEntriesRef();
+      // Firestore admite hasta 500 operaciones por lote; se trocea a
+      // 400 y los lotes se confirman en orden. Si un lote falla, la
+      // subida entera se da por fallida (como siempre) y la base no
+      // se actualiza: la próxima subida recalcula la diferencia
+      // contra la base anterior y reescribe lo que falte —las
+      // escrituras son idempotentes, así que repetir no duplica—.
+      for(let i = 0; i < ops.length; i += 400){
+        const batch = firebase.firestore().batch();
+        const chunk = ops.slice(i, i + 400);
+        for(const op of chunk){
+          const ref = col.doc(op.id);
+          if(op.data) batch.set(ref, op.data); else batch.delete(ref);
+        }
+        await batch.commit();
+      }
     }
     async function syncUpload(){
       if(!syncUser || !syncReady) return;
@@ -6572,19 +6771,34 @@
       dupMarksMap = sanitizeDupMap(dupMarksMap);
       dupKeepMap = sanitizeDupKeepMap(dupKeepMap);
       const h = syncCombinedHash();
-      if(h === syncLastHash) return;
+      if(h === syncLastHash && !syncLegacyPending) return;
       try{
-        // v4.23: el documento lleva los dos mapas: «ratings» (por
-        // huella) y «dupMarks» (por copia). Los documentos antiguos,
-        // solo con «ratings», se leen igual: dupMarks llega vacío.
-        // v4.35: el documento lleva un tercer mapa, «dupKeep» (las
-        // decisiones «Quedarme con las 2», también por copia); los
-        // documentos sin él se leen igual: dupKeep llega vacío.
-        await syncDocRef().set({ ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap });
-        syncLastHash = h;
-        syncCloudCount = countRatings(ratingsMap);
-        syncCloudDupCount = countDupMarks(dupMarksMap);
-        syncCloudKeepCount = countDupKeeps(dupKeepMap);
+        // v4.39: si en esta sesión aún no se ha leído la nube, se lee
+        // y se fusiona ANTES de subir: la diferencia se calcula
+        // contra lo que la nube tiene de verdad, y ninguna entrada
+        // más nueva de otro dispositivo puede ser pisada por una
+        // subida que no la conocía.
+        if(!syncCloudEntries){
+          const cloud = await syncFetchCloud();
+          syncAbsorbCloud(cloud.entries, cloud.legacy);
+          await syncSaveLocal();
+          await syncSaveDupLocal();
+          await syncSaveDupKeepLocal();
+        }
+        await syncRunOps(syncDiffOps());
+        // Migración del documento antiguo: con las entradas ya
+        // escritas, sus mapas se vacían para que ninguna versión
+        // anterior vuelva a fusionar datos ya migrados como si
+        // fueran nuevos (la fusión es por marca y sería inocua,
+        // pero el documento queda limpio y marcado).
+        if(syncLegacyPending){
+          await syncDocRef().set({ ratings: {}, dupMarks: {}, dupKeep: {}, entriesMigrated: true });
+          syncLegacyPending = false;
+          syncLegacyMaps = { ratings: {}, dupMarks: {}, dupKeep: {} };
+        }
+        syncCloudEntries = syncCloneMaps({ ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap });
+        syncLastHash = syncCombinedHash();
+        syncRefreshCloudCounts();
         syncLastAt = Date.now();
         syncSaveMeta();
         syncRefreshSheet();
@@ -6611,7 +6825,7 @@
     function syncFlushUpload(){
       if(syncUploadTimer){ clearTimeout(syncUploadTimer); syncUploadTimer = null; }
       if(!syncUser || !syncReady || syncApplying) return;
-      if(syncCombinedHash() === syncLastHash) return;
+      if(syncCombinedHash() === syncLastHash && !syncLegacyPending) return;
       syncUpload();
     }
     function loadScript(src){
@@ -6682,7 +6896,11 @@
       syncRefreshSheet();
       if(!u){
         if(syncUnsub){ syncUnsub(); syncUnsub = null; }
+        if(syncUnsubLegacy){ syncUnsubLegacy(); syncUnsubLegacy = null; }
         syncStartedFor = null;
+        syncCloudEntries = null;
+        syncLegacyMaps = null;
+        syncLegacyPending = false;
         syncSaveMeta();
         return;
       }
@@ -6691,25 +6909,26 @@
       syncStartedFor = u.uid;
       await syncInitialMerge();
       if(syncUnsub) syncUnsub();
+      if(syncUnsubLegacy) syncUnsubLegacy();
       try{
-        syncUnsub = syncDocRef().onSnapshot(snap => { syncOnRemote(snap); }, () => {});
+        syncUnsub = syncEntriesRef().onSnapshot(snap => { syncOnRemoteEntries(snap); }, () => {});
+      }catch(e){}
+      try{
+        syncUnsubLegacy = syncDocRef().onSnapshot(snap => { syncOnRemoteLegacy(snap); }, () => {});
       }catch(e){}
     }
     // Al iniciar sesión: leer la nube, fusionar por marca de tiempo,
     // aplicar a las canciones locales, guardar y subir el mapa fusionado.
+    // v4.39: la lectura es syncFetchCloud (entradas + documento
+    // antiguo) y la subida es por diferencia; en la primera
+    // sincronización con esta versión, esa misma subida escribe
+    // todas las entradas y vacía el documento antiguo: la migración
+    // queda hecha sin ningún paso manual.
     async function syncInitialMerge(){
       if(!syncUser) return;
       try{
-        const snap = await syncDocRef().get();
-        const remote = (snap.exists && snap.data() && snap.data().ratings) || {};
-        const remoteDup = (snap.exists && snap.data() && snap.data().dupMarks) || {};
-        const remoteKeep = (snap.exists && snap.data() && snap.data().dupKeep) || {};
-        syncCloudCount = countRatings(migrateRatingsMap(remote));
-        syncCloudDupCount = countDupMarks(remoteDup);
-        syncCloudKeepCount = countDupKeeps(remoteKeep);
-        ratingsMap = mergeRatings(ratingsMap, remote);
-        dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
-        dupKeepMap = mergeDupKeeps(dupKeepMap, remoteKeep);
+        const cloud = await syncFetchCloud();
+        syncAbsorbCloud(cloud.entries, cloud.legacy);
         await syncSaveLocal();
         await syncSaveDupLocal();
         await syncSaveDupKeepLocal();
@@ -6755,29 +6974,25 @@
         syncRefreshSheet();
       }
     }
-    // Cambios que llegan de otro dispositivo: se fusionan igual y NO se
-    // re-sube lo que acaba de bajar (el hash bajado queda registrado).
-    async function syncOnRemote(snap){
-      if(!snap || !snap.exists || !syncUser) return;
-      const remote = (snap.data() && snap.data().ratings) || {};
-      const remoteDup = sanitizeDupMap((snap.data() && snap.data().dupMarks) || {});
-      const remoteKeep = sanitizeDupKeepMap((snap.data() && snap.data().dupKeep) || {});
-      const remoteMigrated = migrateRatingsMap(remote);
-      // v4.23: la comparación «es lo que acabamos de subir» cubre los
-      // dos mapas; un cambio remoto solo de marcas de duplicados ya
-      // no pasa inadvertido.
-      // v4.35: cubre también el mapa de conservadas; un cambio
-      // remoto solo de «Quedarme con las 2» tampoco pasa inadvertido.
+    /* v4.39 · La fusión de un lote remoto —venga de la subcolección
+       de entradas o del documento antiguo— es la de siempre: se
+       fusiona por marca de tiempo, se guarda, se aplica y NO se
+       re-sube lo que acaba de bajar (el hash bajado queda
+       registrado). La comparación «es lo que acabamos de subir»
+       cubre los tres mapas (v4.23/v4.35): un cambio remoto solo de
+       marcas o solo de conservadas tampoco pasa inadvertido. Si la
+       fusión dejó algo local más nuevo que la nube, eso sí sube. */
+    async function syncMergeRemoteMaps(remote){
+      const remoteMigrated = migrateRatingsMap(remote.ratings);
+      const remoteDup = sanitizeDupMap(remote.dupMarks);
+      const remoteKeep = sanitizeDupKeepMap(remote.dupKeep);
       const rh = ratingsHash(remoteMigrated) + '/' + dupMarksHash(remoteDup) + '/' + dupKeepHash(remoteKeep);
-      syncCloudCount = countRatings(remoteMigrated);
-      syncCloudDupCount = countDupMarks(remoteDup);
-      syncCloudKeepCount = countDupKeeps(remoteKeep);
       if(rh === syncLastHash) return; // es lo que acabamos de subir
       syncApplying = true;
       try{
-        ratingsMap = mergeRatings(ratingsMap, remote);
-        dupMarksMap = mergeDupMarks(dupMarksMap, remoteDup);
-        dupKeepMap = mergeDupKeeps(dupKeepMap, remoteKeep);
+        ratingsMap = mergeRatings(ratingsMap, remote.ratings);
+        dupMarksMap = mergeDupMarks(dupMarksMap, remote.dupMarks);
+        dupKeepMap = mergeDupKeeps(dupKeepMap, remote.dupKeep);
         syncLastHash = rh;
         await syncSaveLocal();
         await syncSaveDupLocal();
@@ -6791,6 +7006,33 @@
       syncApplying = false;
       // Si la fusión dejó algo local más nuevo que la nube, sí se sube.
       if(syncCombinedHash() !== rh) syncScheduleUpload();
+      syncRefreshSheet();
+    }
+    // Cambios que llegan de otro dispositivo (v4.39: por la
+    // subcolección de entradas): la foto de la colección ES la nueva
+    // base de la nube, y su contenido se fusiona como siempre.
+    async function syncOnRemoteEntries(snap){
+      if(!snap || !syncUser) return;
+      const entries = syncEntriesFromSnap(snap);
+      syncCloudEntries = syncCloneMaps(entries);
+      syncRefreshCloudCounts();
+      await syncMergeRemoteMaps(entries);
+    }
+    // v4.39 · El documento antiguo sigue escuchado: una versión
+    // anterior en otro dispositivo escribe ahí sus tres mapas, y lo
+    // que aparezca se fusiona igual que lo que baja por entradas y
+    // se migra a la subcolección en la próxima subida (que además
+    // vacía el documento). Cuando el documento está vacío —recién
+    // migrado por esta o por otra instancia— no hay nada que hacer.
+    async function syncOnRemoteLegacy(snap){
+      if(!snap || !syncUser) return;
+      const legacy = syncLegacyFromData(snap.exists ? snap.data() : null);
+      syncLegacyMaps = legacy;
+      syncRefreshCloudCounts();
+      if(!syncLegacyHasData(legacy)){ syncLegacyPending = false; syncRefreshSheet(); return; }
+      syncLegacyPending = true;
+      await syncMergeRemoteMaps(legacy);
+      if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
       syncRefreshSheet();
     }
     // v4.8: el acceso usa signInWithPopup como vía PRINCIPAL en todos los
@@ -6829,7 +7071,11 @@
     }
     async function syncSignOut(){
       if(syncUnsub){ syncUnsub(); syncUnsub = null; }
+      if(syncUnsubLegacy){ syncUnsubLegacy(); syncUnsubLegacy = null; }
       syncStartedFor = null;
+      syncCloudEntries = null;
+      syncLegacyMaps = null;
+      syncLegacyPending = false;
       try{ if(syncReady) await firebase.auth().signOut(); }catch(e){}
       syncUser = null;
       syncSaveMeta();
@@ -7009,7 +7255,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Cada calificación, marca y decisión se guarda en la nube como su propio documento independiente, así que no hay un límite práctico de cuántas puedes sincronizar. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
