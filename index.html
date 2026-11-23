@@ -2055,7 +2055,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.37</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.38</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4112,7 +4112,30 @@
        búsqueda más bajos y juntos), siguiendo el criterio de
        siempre de que ningún botón quede bajo la navegación.
        Sin tocar la huella, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.37';
+    /* v4.38 · Pedido de Sando: «quiero la opción de resetear los
+       datos de sincro». La hoja de Sincronización gana «Resetear
+       datos de sincronización» (en rojo, siempre visible haya
+       sesión o no): con confirmación que dice cuántas calificaciones,
+       marcas de duplicados y versiones conservadas se van a borrar,
+       vacía los TRES mapas de sincronización —el de calificaciones,
+       el de marcas por copia de Duplicadas y el de «Quedarme con
+       las 2»— en este dispositivo y, si hay sesión, también en la
+       nube, incluidas las entradas de canciones que ya no están
+       cargadas (el fondo huérfano que la v4.37 dejaba intacto a
+       propósito). Como la fusión entre dispositivos es por unión
+       con la marca más reciente, borrar sin más resucitaría desde
+       el otro dispositivo: cada entrada con dato queda como
+       descalificación explícita fechada ahora (el mismo mecanismo
+       de la v4.37), así los contadores quedan en cero, ningún
+       rescate puede heredar de esas entradas y el reseteo viaja a
+       los demás dispositivos en vez de deshacerse. Y para que la
+       semilla del arranque (syncLoadLocal) no restaure nada desde
+       las fichas, las canciones cargadas quedan también sin
+       calificar y sin marcas (rating/dupDislike/dupKeep a null con
+       su marca nueva, guardadas con saveTrackMeta). Las canciones,
+       sus archivos, la cola y las playlists no se tocan. Sin nada
+       que resetear, el botón solo avisa. */
+    const APP_VERSION = '4.38';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5534,7 +5557,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -6814,6 +6837,114 @@
       syncRefreshSheet();
       toast('Sesión cerrada. Tus calificaciones quedan como están en este dispositivo.', 3400);
     }
+    /* v4.38 · «Resetear datos de sincronización»: vacía los tres
+       mapas de sincronización (calificaciones, marcas por copia de
+       Duplicadas y «Quedarme con las 2») en este dispositivo y, si
+       hay sesión, también en la nube. No es un borrado a secas:
+       la fusión entre dispositivos es por unión y gana la marca
+       más reciente, así que cada entrada con dato se convierte en
+       una retirada explícita fechada ahora (calificación vacía,
+       marca a 0, conservada a 0), igual que la v4.37 hizo con las
+       calificaciones de las cargadas. Los contadores quedan en
+       cero, los rescates no pueden heredar de entradas vacías y el
+       otro dispositivo, al sincronizar, recibe las retiradas en
+       lugar de devolver los datos. Las fichas cargadas también se
+       limpian (si no, la semilla de syncLoadLocal volvería a meter
+       sus marcas en los mapas al próximo arranque). Las canciones,
+       sus archivos, la cola y las playlists no se tocan. */
+    async function syncResetData(){
+      const nR = countRatings(ratingsMap);
+      const nD = countDupMarks(dupMarksMap);
+      const nK = countDupKeeps(dupKeepMap);
+      let ratedLoaded = 0, dupLoaded = 0, keepLoaded = 0;
+      state.tracks.forEach(t => {
+        if(t.rating === 'like' || t.rating === 'dislike') ratedLoaded++;
+        if(t.dupDislike) dupLoaded++;
+        if(t.dupKeep) keepLoaded++;
+      });
+      if(!nR && !nD && !nK && !ratedLoaded && !dupLoaded && !keepLoaded){
+        toast('No hay datos de sincronización que resetear');
+        return;
+      }
+      const parts = [];
+      if(nR) parts.push(nR + (nR === 1 ? ' calificación' : ' calificaciones'));
+      if(nD) parts.push(nD + (nD === 1 ? ' marca' : ' marcas') + ' de duplicados');
+      if(nK) parts.push(nK + (nK === 1 ? ' versión conservada' : ' versiones conservadas'));
+      let text = 'Se borrarán TODOS los datos de sincronización guardados' +
+        (parts.length ? ' (' + parts.join(', ') + ')' : '') +
+        ', incluidas las calificaciones de canciones que ya no están cargadas. ' +
+        'Las canciones cargadas quedarán sin calificar y sin marcas de Duplicadas, y los grupos conservados volverán a aparecer en Duplicadas. Tus canciones, sus archivos y tus playlists no se tocan. ';
+      text += syncUser
+        ? 'La copia de la nube también se vaciará y el reseteo llegará a tus demás dispositivos al sincronizar. '
+        : 'Sin sesión, el reseteo se aplica solo a este dispositivo; si la nube guardara datos que este dispositivo no conoce, podrían volver al iniciar sesión. ';
+      text += 'Esto no se puede deshacer.';
+      confirmModal('¿Resetear los datos de sincronización?', text, 'Sí, resetear todo', async () => {
+        const now = Date.now();
+        if(syncUploadTimer){ clearTimeout(syncUploadTimer); syncUploadTimer = null; }
+        let failed = false;
+        // Las fichas cargadas se limpian y su retirada queda anotada
+        // en los mapas con la misma marca, aunque el mapa no tuviera
+        // aún esa entrada (la retirada también tiene que viajar).
+        for(const t of state.tracks.values()){
+          const hadRating = !!t.rating, hadDup = !!t.dupDislike, hadKeep = !!t.dupKeep;
+          if(!hadRating && !hadDup && !hadKeep) continue;
+          if(hadRating){ t.rating = null; t.ratingAt = now; }
+          if(hadDup){ t.dupDislike = null; t.dupDislikeAt = now; }
+          if(hadKeep){ t.dupKeep = null; t.dupKeepAt = now; }
+          const ok = await saveTrackMeta(t);
+          if(!ok) failed = true;
+          if(hadRating){
+            const fp = trackFingerprint(t);
+            const prev = ratingsMap[fp];
+            const nd = Math.round(t.duration || 0);
+            const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
+            ratingsMap[fp] = withFileId({ r: '', t: now, d: keepD }, t, prev);
+          }
+          if(hadDup) dupMarksMap[dupCopyKey(t)] = { m: 0, t: now };
+          if(hadKeep) dupKeepMap[dupCopyKey(t)] = { k: 0, t: now };
+        }
+        // Cada entrada con dato de los tres mapas —cargada o
+        // huérfana— queda como retirada explícita fechada ahora.
+        for(const fp in ratingsMap){
+          const e = ratingsMap[fp];
+          if(e && (e.r === 'like' || e.r === 'dislike')){
+            const tomb = { r: '', t: now, d: (e.d != null ? e.d : 0) };
+            if(e.f) tomb.f = e.f;
+            if(e.s != null) tomb.s = e.s;
+            ratingsMap[fp] = tomb;
+          }
+        }
+        for(const k in dupMarksMap){
+          const e = dupMarksMap[k];
+          if(e && e.m) dupMarksMap[k] = { m: 0, t: now };
+        }
+        for(const k in dupKeepMap){
+          const e = dupKeepMap[k];
+          if(e && e.k) dupKeepMap[k] = { k: 0, t: now };
+        }
+        lastImportUndo = [];
+        syncAppliedCount = 0;
+        syncOrphanCount = 0;
+        syncOrphanList = [];
+        await syncSaveLocal();
+        await syncSaveDupLocal();
+        await syncSaveDupKeepLocal();
+        let cloudFailed = false;
+        if(syncUser && syncReady){
+          if(syncApplying){ syncScheduleUpload(); }
+          else {
+            syncLastHash = ''; // forzar la subida del reseteo aunque el hash coincidiera
+            await syncUpload();
+            cloudFailed = syncCombinedHash() !== syncLastHash;
+          }
+        }
+        if(failed) toast('Alguna marca no se pudo resetear en este dispositivo.', 4200);
+        else if(cloudFailed) toast('Datos reseteados en este dispositivo; la copia de la nube no se pudo vaciar ahora y se vaciará en la próxima sincronización.', 4600);
+        else toast('Datos de sincronización reseteados: calificaciones, marcas y versiones conservadas quedaron en cero', 4200);
+        if(typeof syncPlayerUI === 'function') syncPlayerUI();
+        render();
+      });
+    }
     function syncUpdateDot(){
       const d = document.getElementById('syncDot');
       if(d) d.hidden = !syncUser;
@@ -6871,6 +7002,10 @@
           '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
           '<button class="sheet-item" id="syncIn">' + icon('cloud') + 'Iniciar sesión con Google</button>';
       }
+      // v4.38: el reseteo de los datos de sincronización se ofrece
+      // siempre, haya sesión o no: los mapas también viven en este
+      // dispositivo y se pueden vaciar sin la nube.
+      body += '<button class="sheet-item danger" id="syncReset">' + icon('trash') + 'Resetear datos de sincronización</button>';
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
@@ -6884,6 +7019,8 @@
       if(bu) bu.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
       const bo = document.getElementById('syncOut');
       if(bo) bo.addEventListener('click', syncSignOut);
+      const br = document.getElementById('syncReset');
+      if(br) br.addEventListener('click', ()=>{ closeSheet(); syncResetData(); });
     }
     const btnSyncEl = document.getElementById('btnSync');
     if(btnSyncEl) btnSyncEl.addEventListener('click', () => {
