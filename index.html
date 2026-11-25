@@ -2055,7 +2055,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.39</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.40</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4133,7 +4133,33 @@
        su marca nueva, guardadas con saveTrackMeta). Las canciones,
        sus archivos, la cola y las playlists no se tocan. Sin nada
        que resetear, el botón solo avisa. */
-    const APP_VERSION = '4.39';
+    /* v4.40 · Pedido de Sando: marca de dispositivo en la
+       sincronización, para poder borrar lo subido por UN dispositivo
+       concreto. Cada dispositivo tiene un ID aleatorio propio,
+       generado una sola vez y guardado en el kv («deviceId»), junto
+       a los mapas, así que sobrevive a «Vaciar biblioteca» igual que
+       ellos. Cada entrada que este dispositivo escribe en la
+       subcolección «entries» —de cualquiera de los tres mapas—
+       lleva un campo extra «dev» con ese ID: escribir o sobrescribir
+       estampa el ID de quien escribe (el autor más reciente gana),
+       y un reenvío de una entrada intacta conserva el «dev» que la
+       entrada ganadora de la fusión ya trae, que se guarda como dato
+       auxiliar en los mapas locales igual que «f»/«s». Lo subido
+       antes de esta versión no tiene marca y jamás se le inventa un
+       origen. La hoja de Sincronización muestra «Subidas por este
+       dispositivo: N» y gana el botón «Borrar lo subido por este
+       dispositivo»: con confirmación, convierte SOLO las entradas
+       con dato que llevan la marca de este dispositivo en retiradas
+       fechadas (el mecanismo de la v4.38), las aplica al momento en
+       este dispositivo y las sube, para que también desaparezcan de
+       los demás; no toca las entradas sin marca, ni las de otros
+       dispositivos, ni canciones, archivos, cola o playlists. Sin
+       sesión, el botón explica que hay que iniciar sesión, porque
+       las marcas viven en la nube. Las versiones anteriores ignoran
+       el campo «dev» sin romperse, el documento heredado se sigue
+       escuchando igual y la migración de la v4.39 no cambia. Sin
+       tocar la huella, la biblioteca ni el esquema. */
+    const APP_VERSION = '4.40';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5555,7 +5581,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38 · la nube pasa de un solo documento con los tres mapas a UN DOCUMENTO POR ENTRADA en la subcolección «entries» del mismo documento, con subida por diferencia en lotes y migración automática del documento antiguo al primer sincronizar, en v4.39) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38 · la nube pasa de un solo documento con los tres mapas a UN DOCUMENTO POR ENTRADA en la subcolección «entries» del mismo documento, con subida por diferencia en lotes y migración automática del documento antiguo al primer sincronizar, en v4.39 · marca «dev» del dispositivo que subió cada entrada, con contador y borrado de lo subido por este dispositivo, en v4.40) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5598,7 +5624,26 @@
        queda vaciado (conserva solo la marca «entriesMigrated»); un
        dispositivo aún en una versión anterior sigue escribiendo en el
        documento antiguo, y esta versión lo sigue escuchando y migrando
-       lo que ahí aparezca, así que la convivencia no pierde nada. */
+       lo que ahí aparezca, así que la convivencia no pierde nada.
+       v4.40 · Marca de dispositivo: cada dispositivo tiene un ID
+       aleatorio propio, generado una sola vez y guardado en el kv
+       («deviceId»), que sobrevive a «Vaciar biblioteca» como los
+       mapas. Cada entrada que ESTE dispositivo escribe en la
+       subcolección lleva un campo extra «dev» con ese ID: escribir
+       o sobrescribir una entrada estampa el ID de quien escribe (el
+       autor más reciente gana), y un reenvío de una entrada intacta
+       conserva el «dev» que ya trae, porque al fusionar el «dev» de
+       la entrada ganadora se conserva como dato auxiliar en los
+       mapas locales, igual que «f»/«s». Las entradas anteriores a
+       esta versión no tienen «dev» y nunca se les inventa un
+       origen: por eso el borrado por dispositivo solo alcanza a lo
+       subido desde la v4.40. La hoja cuenta cuántas entradas con
+       dato de la nube llevan la marca de este dispositivo y el
+       botón «Borrar lo subido por este dispositivo» las convierte
+       en retiradas fechadas —el mecanismo de la v4.38— para que
+       desaparezcan también de los demás dispositivos, sin tocar
+       las entradas sin marca ni las de otros dispositivos. Las
+       versiones anteriores ignoran el campo «dev» sin romperse. */
     const firebaseConfig = {
       apiKey: "AIzaSyAUgyp7onjZkOYWM9jBmrgSWSLQCkoUG6s",
       authDomain: "sonando-dd064.firebaseapp.com",
@@ -5628,6 +5673,8 @@
     let syncCloudEntries = null; // v4.39: los tres mapas TAL Y COMO están en la subcolección «entries» (base de la subida por diferencia); null = aún no leída en esta sesión
     let syncLegacyMaps = null;   // v4.39: último contenido visto del documento antiguo (sus tres mapas), o null si no se ha leído
     let syncLegacyPending = false; // v4.39: el documento antiguo aún guarda mapas: hay que migrarlos a entradas y vaciarlo en la próxima subida
+    let syncDeviceId = '';      // v4.40: ID aleatorio de ESTE dispositivo (kv «deviceId»); se genera una sola vez y no cambia
+    let syncCloudOwnCount = 0;  // v4.40: entradas con dato en la nube que llevan la marca «dev» de este dispositivo (los tres mapas)
     let syncUploadTimer = null;
     let syncLastHash = '';      // hash del último mapa subido o bajado
     let syncApplying = false;   // aplicando cambios que bajaron de la nube
@@ -5732,6 +5779,9 @@
         // a la migración; sin esto, canonizar la clave la perdería.
         if(typeof e.f === 'string' && e.f) entry.f = e.f;
         if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) entry.s = Number(e.s);
+        // v4.40: la marca de dispositivo («dev») también sobrevive a
+        // la migración, como dato auxiliar de la entrada.
+        if(typeof e.dev === 'string' && e.dev) entry.dev = e.dev;
         const parts = String(k).split('|');
         if(parts.length >= 3){
           const last = parts[parts.length - 1].trim();
@@ -5746,11 +5796,13 @@
           if(entry.d == null && out[nk].d != null) entry.d = out[nk].d;
           if(!entry.f && out[nk].f) entry.f = out[nk].f;
           if(entry.s == null && out[nk].s != null) entry.s = out[nk].s;
+          if(!entry.dev && out[nk].dev) entry.dev = out[nk].dev;
           out[nk] = entry;
         } else {
           if(out[nk].d == null && entry.d != null) out[nk].d = entry.d;
           if(!out[nk].f && entry.f) out[nk].f = entry.f;
           if(out[nk].s == null && entry.s != null) out[nk].s = entry.s;
+          if(!out[nk].dev && entry.dev) out[nk].dev = entry.dev;
         }
       }
       return out;
@@ -5777,6 +5829,35 @@
     async function syncSaveMeta(){
       try{ await dbPut('kv', { signedIn: !!syncUser, email: syncUser ? (syncUser.email || '') : '', lastSync: syncLastAt }, 'syncMeta'); return true; }
       catch(e){ reportSaveError('No se pudo guardar el estado de la sincronización', e); return false; }
+    }
+    /* v4.40 · El ID de este dispositivo: aleatorio, generado una
+       sola vez y guardado en el almacén kv (clave «deviceId»), junto
+       a los mapas de sincronización, así que sobrevive a «Vaciar
+       biblioteca» —que solo vacía canciones, archivos, portadas y
+       playlists— igual que ratingsMap/dupMarksMap/dupKeepMap. Es la
+       marca «dev» que llevan las entradas que este dispositivo sube
+       a la subcolección «entries». */
+    function syncGenDeviceId(){
+      let s = '';
+      try{
+        const buf = new Uint8Array(12);
+        crypto.getRandomValues(buf);
+        s = Array.from(buf).map(b => ('0' + b.toString(16)).slice(-2)).join('');
+      }catch(e){}
+      if(!s) s = Date.now().toString(36) + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+      return 'dev-' + s;
+    }
+    async function syncEnsureDeviceId(){
+      if(syncDeviceId) return syncDeviceId;
+      try{
+        const v = await dbGet('kv', 'deviceId');
+        if(typeof v === 'string' && v) syncDeviceId = v;
+      }catch(e){}
+      if(!syncDeviceId){
+        syncDeviceId = syncGenDeviceId();
+        try{ await dbPut('kv', syncDeviceId, 'deviceId'); }catch(e){}
+      }
+      return syncDeviceId;
     }
     async function syncLoadLocal(){
       let migrated = false;
@@ -5809,6 +5890,9 @@
           // al arrancar y Firebase confirma la sesión (o su ausencia).
         }
       }catch(e){}
+      // v4.40: el ID de este dispositivo queda leído (o generado y
+      // guardado) antes de cualquier subida, para poder estamparlo.
+      await syncEnsureDeviceId();
       // Semilla: las canciones calificadas antes de la v4.7 entran al mapa
       // con marca 0, para que cualquier dato real (de este dispositivo o
       // de la nube, con su marca de tiempo) siempre las gane.
@@ -5970,7 +6054,10 @@
       const out = {};
       for(const k in map){
         const e = map[k]; if(!e) continue;
-        out[k] = { m: (e.m === 1 || e.m === true) ? 1 : 0, t: (typeof e.t === 'number' && e.t > 0) ? e.t : 0 };
+        const o = { m: (e.m === 1 || e.m === true) ? 1 : 0, t: (typeof e.t === 'number' && e.t > 0) ? e.t : 0 };
+        // v4.40: la marca de dispositivo («dev») sobrevive a la limpieza.
+        if(typeof e.dev === 'string' && e.dev) o.dev = e.dev;
+        out[k] = o;
       }
       return out;
     }
@@ -6101,7 +6188,10 @@
       const out = {};
       for(const k in map){
         const e = map[k]; if(!e) continue;
-        out[k] = { k: (e.k === 1 || e.k === true) ? 1 : 0, t: (typeof e.t === 'number' && e.t > 0) ? e.t : 0 };
+        const o = { k: (e.k === 1 || e.k === true) ? 1 : 0, t: (typeof e.t === 'number' && e.t > 0) ? e.t : 0 };
+        // v4.40: la marca de dispositivo («dev») sobrevive a la limpieza.
+        if(typeof e.dev === 'string' && e.dev) o.dev = e.dev;
+        out[k] = o;
       }
       return out;
     }
@@ -6623,15 +6713,29 @@
       return prefix + hex(syncFnv32(s, 2166136261)) + hex(syncFnv32(s, 2654435761));
     }
     function syncEntryDocData(mapName, key, e){
+      // v4.40 · La marca de dispositivo del documento: si la entrada
+      // ya trae un «dev» —es el reenvío intacto de la entrada
+      // ganadora de la fusión, que lo conserva como dato auxiliar—,
+      // se respeta; si no trae —la escribió o la sobrescribió ESTE
+      // dispositivo—, se estampa el ID de este dispositivo (el autor
+      // más reciente gana). Nunca se escribe un «dev» vacío.
+      const dev = (typeof e.dev === 'string' && e.dev) ? e.dev : syncDeviceId;
       if(mapName === 'ratings'){
         const d = { map: 'ratings', key: key, r: e.r || '', t: e.t || 0 };
         if(e.d != null && !isNaN(Number(e.d))) d.d = Math.round(Number(e.d));
         if(typeof e.f === 'string' && e.f) d.f = e.f;
         if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) d.s = Number(e.s);
+        if(dev) d.dev = dev;
         return d;
       }
-      if(mapName === 'dupMarks') return { map: 'dupMarks', key: key, m: e.m ? 1 : 0, t: e.t || 0 };
-      return { map: 'dupKeep', key: key, k: e.k ? 1 : 0, t: e.t || 0 };
+      if(mapName === 'dupMarks'){
+        const d = { map: 'dupMarks', key: key, m: e.m ? 1 : 0, t: e.t || 0 };
+        if(dev) d.dev = dev;
+        return d;
+      }
+      const d = { map: 'dupKeep', key: key, k: e.k ? 1 : 0, t: e.t || 0 };
+      if(dev) d.dev = dev;
+      return d;
     }
     function syncEntryFromDoc(d){
       if(!d || typeof d.key !== 'string') return null;
@@ -6640,10 +6744,22 @@
         if(d.d != null && !isNaN(Number(d.d))) e.d = Math.round(Number(d.d));
         if(typeof d.f === 'string' && d.f) e.f = d.f;
         if(d.s != null && !isNaN(Number(d.s)) && Number(d.s) > 0) e.s = Number(d.s);
+        // v4.40: la marca de dispositivo baja como dato auxiliar;
+        // las entradas anteriores a la v4.40 no la traen y quedan
+        // sin marca: nunca se les inventa un origen.
+        if(typeof d.dev === 'string' && d.dev) e.dev = d.dev;
         return e;
       }
-      if(d.map === 'dupMarks') return { m: d.m ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
-      if(d.map === 'dupKeep') return { k: d.k ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+      if(d.map === 'dupMarks'){
+        const e = { m: d.m ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+        if(typeof d.dev === 'string' && d.dev) e.dev = d.dev;
+        return e;
+      }
+      if(d.map === 'dupKeep'){
+        const e = { k: d.k ? 1 : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+        if(typeof d.dev === 'string' && d.dev) e.dev = d.dev;
+        return e;
+      }
       return null;
     }
     function syncEntriesFromSnap(snap){
@@ -6682,11 +6798,33 @@
         dupKeep: mergeDupKeeps(base.dupKeep, syncLegacyMaps.dupKeep)
       };
     }
+    // v4.40 · Cuántas entradas CON DATO de unos mapas llevan la
+    // marca «dev» de este dispositivo, por mapa y en total: es el
+    // «Subidas por este dispositivo» de la hoja y la cuenta del
+    // borrado por dispositivo. Las retiradas (sin dato) no cuentan
+    // como subidas, igual que los demás contadores de la nube solo
+    // cuentan entradas con dato. Sin ID aún, la cuenta es 0.
+    function countOwnUploadsByMap(maps){
+      const out = { ratings: 0, dupMarks: 0, dupKeep: 0 };
+      if(!syncDeviceId || !maps) return out;
+      const r = maps.ratings || {};
+      for(const k in r){ const e = r[k]; if(e && (e.r === 'like' || e.r === 'dislike') && e.dev === syncDeviceId) out.ratings++; }
+      const dm = maps.dupMarks || {};
+      for(const k in dm){ const e = dm[k]; if(e && e.m === 1 && e.dev === syncDeviceId) out.dupMarks++; }
+      const dk = maps.dupKeep || {};
+      for(const k in dk){ const e = dk[k]; if(e && e.k === 1 && e.dev === syncDeviceId) out.dupKeep++; }
+      return out;
+    }
+    function countOwnUploads(maps){
+      const c = countOwnUploadsByMap(maps);
+      return c.ratings + c.dupMarks + c.dupKeep;
+    }
     function syncRefreshCloudCounts(){
       const view = syncCloudView();
       syncCloudCount = countRatings(migrateRatingsMap(view.ratings));
       syncCloudDupCount = countDupMarks(view.dupMarks);
       syncCloudKeepCount = countDupKeeps(view.dupKeep);
+      syncCloudOwnCount = countOwnUploads(view);
     }
     function syncCloneMaps(maps){
       const out = { ratings: {}, dupMarks: {}, dupKeep: {} };
@@ -6767,6 +6905,7 @@
     }
     async function syncUpload(){
       if(!syncUser || !syncReady) return;
+      await syncEnsureDeviceId(); // v4.40: sin el ID no hay marca que estampar en las subidas
       ratingsMap = migrateRatingsMap(ratingsMap);
       dupMarksMap = sanitizeDupMap(dupMarksMap);
       dupKeepMap = sanitizeDupKeepMap(dupKeepMap);
@@ -7191,6 +7330,109 @@
         render();
       });
     }
+    /* v4.40 · «Borrar lo subido por este dispositivo»: convierte en
+       retiradas fechadas —el mismo mecanismo del reseteo total de la
+       v4.38— SOLO las entradas con dato que llevan la marca «dev» de
+       ESTE dispositivo (las subidas desde la v4.40). Las retiradas se
+       guardan, se aplican al momento a las canciones cargadas de
+       este dispositivo y se suben, así que también desaparecen de
+       los demás dispositivos al sincronizar. Las entradas sin marca
+       (las anteriores a la v4.40) y las subidas por otros
+       dispositivos NO se tocan, y tampoco las canciones, sus
+       archivos, la cola o las playlists. Sin sesión no hay nada que
+       borrar: las marcas viven en la nube, y el botón lo explica. */
+    async function syncDeleteOwnUploads(){
+      if(!syncUser){
+        toast('Inicia sesión para borrar lo subido por este dispositivo: la marca de cada subida vive en la nube.', 4600);
+        return;
+      }
+      await syncEnsureDeviceId();
+      const own = countOwnUploadsByMap(syncCloudView());
+      const total = own.ratings + own.dupMarks + own.dupKeep;
+      if(!total){
+        toast('Este dispositivo todavía no ha subido nada con su marca: solo cuenta lo subido desde la v4.40.', 4400);
+        return;
+      }
+      const parts = [];
+      if(own.ratings) parts.push(own.ratings + (own.ratings === 1 ? ' calificación' : ' calificaciones'));
+      if(own.dupMarks) parts.push(own.dupMarks + (own.dupMarks === 1 ? ' marca' : ' marcas') + ' de duplicados');
+      if(own.dupKeep) parts.push(own.dupKeep + (own.dupKeep === 1 ? ' versión conservada' : ' versiones conservadas'));
+      const text = 'Se borrarán ' + parts.join(', ') + ': solo las entradas que llevan la marca de ESTE dispositivo, subidas desde la v4.40. ' +
+        'Se convertirán en retiradas con fecha, así que también desaparecerán de tus demás dispositivos al sincronizar, y aquí se quitarán al momento de las canciones cargadas. ' +
+        'NO se toca lo subido por otros dispositivos, ni las entradas antiguas sin marca (las de antes de la v4.40), ni tus canciones, sus archivos, tu cola o tus playlists. Esto no se puede deshacer.';
+      confirmModal('¿Borrar lo subido por este dispositivo?', text, 'Sí, borrar lo de este dispositivo', async () => {
+        const now = Date.now();
+        if(syncUploadTimer){ clearTimeout(syncUploadTimer); syncUploadTimer = null; }
+        // Lectura fresca de la nube y fusión, para alcanzar también
+        // lo que este dispositivo subió y en esta sesión aún no
+        // había bajado: tras absorber, la entrada ganadora de cada
+        // clave trae su «dev» como dato auxiliar.
+        let freshView = null;
+        if(syncReady){
+          try{
+            const cloud = await syncFetchCloud();
+            syncAbsorbCloud(cloud.entries, cloud.legacy);
+            freshView = syncCloudView();
+          }catch(e){}
+        }
+        // Una entrada se retira si ELLA lleva la marca de este
+        // dispositivo, o si la vista fresca de la nube dice que la
+        // entrada de esa clave la lleva y la local no es más nueva
+        // (la local pudo perder la marca al reescribirse aquí sin
+        // subir aún; la de la nube es la subida que se está borrando).
+        const isTarget = (mapName, key, e) => {
+          if(!e) return false;
+          const hasData = mapName === 'ratings' ? (e.r === 'like' || e.r === 'dislike') : (mapName === 'dupMarks' ? e.m === 1 : e.k === 1);
+          if(!hasData) return false;
+          if(e.dev === syncDeviceId) return true;
+          const ve = freshView && freshView[mapName] ? freshView[mapName][key] : null;
+          if(!ve || ve.dev !== syncDeviceId || (e.t || 0) > (ve.t || 0)) return false;
+          return mapName === 'ratings' ? (ve.r === 'like' || ve.r === 'dislike') : (mapName === 'dupMarks' ? ve.m === 1 : ve.k === 1);
+        };
+        let n = 0;
+        for(const fp in ratingsMap){
+          const e = ratingsMap[fp];
+          if(isTarget('ratings', fp, e)){
+            const tomb = { r: '', t: now, d: (e.d != null ? e.d : 0) };
+            if(e.f) tomb.f = e.f;
+            if(e.s != null) tomb.s = e.s;
+            ratingsMap[fp] = tomb;
+            n++;
+          }
+        }
+        for(const k in dupMarksMap){
+          if(isTarget('dupMarks', k, dupMarksMap[k])){ dupMarksMap[k] = { m: 0, t: now }; n++; }
+        }
+        for(const k in dupKeepMap){
+          if(isTarget('dupKeep', k, dupKeepMap[k])){ dupKeepMap[k] = { k: 0, t: now }; n++; }
+        }
+        lastImportUndo = [];
+        await syncSaveLocal();
+        await syncSaveDupLocal();
+        await syncSaveDupKeepLocal();
+        // Las retiradas se aplican aquí mismo: las canciones cargadas
+        // pierden al momento las calificaciones y marcas borradas.
+        try{ await syncApplyToTracks(); }catch(e){}
+        try{ await syncApplyDupMarks(); }catch(e){}
+        try{ await syncApplyDupKeeps(); }catch(e){}
+        let cloudFailed = false;
+        if(syncUser && syncReady){
+          if(syncApplying){ syncScheduleUpload(); }
+          else {
+            syncLastHash = ''; // forzar la subida de las retiradas aunque el hash coincidiera
+            await syncUpload();
+            cloudFailed = syncCombinedHash() !== syncLastHash;
+          }
+        }
+        syncRefreshCloudCounts();
+        if(!n) toast('Al final no había nada con la marca de este dispositivo que borrar', 3600);
+        else if(cloudFailed) toast('Se borraron ' + n + (n === 1 ? ' entrada subida' : ' entradas subidas') + ' por este dispositivo en este dispositivo; la nube se actualizará en la próxima sincronización.', 4800);
+        else toast('Se borraron ' + n + (n === 1 ? ' entrada subida' : ' entradas subidas') + ' por este dispositivo', 4200);
+        if(typeof syncPlayerUI === 'function') syncPlayerUI();
+        render();
+        syncRefreshSheet();
+      });
+    }
     function syncUpdateDot(){
       const d = document.getElementById('syncDot');
       if(d) d.hidden = !syncUser;
@@ -7228,6 +7470,7 @@
           '<p class="sync-line">Marcas de duplicados en la nube: ' + syncCloudDupCount + '</p>' +
           '<p class="sync-line">Versiones conservadas («Quedarme con las 2») en este dispositivo: ' + countDupKeeps(dupKeepMap) + '</p>' +
           '<p class="sync-line">Versiones conservadas («Quedarme con las 2») en la nube: ' + syncCloudKeepCount + '</p>' +
+          '<p class="sync-line">Subidas por este dispositivo: ' + syncCloudOwnCount + '</p>' +
           '</div>';
         // v4.27: a petición de Sando, lo que aparecía entre «Marcas de
         // duplicados en la nube» y «Sincronizar ahora» (la lista de
@@ -7248,6 +7491,10 @@
           '<p class="sync-line muted">' + esc(syncFmtLast()) + '</p>' +
           '<button class="sheet-item" id="syncIn">' + icon('cloud') + 'Iniciar sesión con Google</button>';
       }
+      // v4.40: borrar solo lo subido por este dispositivo se ofrece
+      // siempre; sin sesión, el propio botón explica que las marcas
+      // viven en la nube y hay que iniciar sesión.
+      body += '<button class="sheet-item danger" id="syncDelOwn">' + icon('trash') + 'Borrar lo subido por este dispositivo</button>';
       // v4.38: el reseteo de los datos de sincronización se ofrece
       // siempre, haya sesión o no: los mapas también viven en este
       // dispositivo y se pueden vaciar sin la nube.
@@ -7255,7 +7502,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Cada calificación, marca y decisión se guarda en la nube como su propio documento independiente, así que no hay un límite práctico de cuántas puedes sincronizar. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Cada calificación, marca y decisión se guarda en la nube como su propio documento independiente, así que no hay un límite práctico de cuántas puedes sincronizar. Desde la v4.40, cada entrada que sube un dispositivo lleva además su marca, para que puedas borrar solo lo subido por este dispositivo sin tocar lo de los demás ni lo subido antes de esta versión. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
@@ -7265,6 +7512,8 @@
       if(bu) bu.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
       const bo = document.getElementById('syncOut');
       if(bo) bo.addEventListener('click', syncSignOut);
+      const bd = document.getElementById('syncDelOwn');
+      if(bd) bd.addEventListener('click', ()=>{ closeSheet(); syncDeleteOwnUploads(); });
       const br = document.getElementById('syncReset');
       if(br) br.addEventListener('click', ()=>{ closeSheet(); syncResetData(); });
     }
