@@ -2158,13 +2158,24 @@
         .toolbar-main{ flex-wrap:wrap; }
         .toolbar-main .search{ flex:1 1 100%; }
         .toolbar-main select.sort{ flex:1; }
+        /* v4.45 · Las acciones dejan de deslizarse de lado: en la fila
+           única de la v4.43, «Aleatorio sin calificar» quedaba a
+           caballo del borde derecho, cortado a media palabra, y nada
+           en pantalla avisaba de que la fila se deslizaba. Ahora los
+           botones se acomodan en filas de dos, cada uno con su
+           etiqueta completa legible —el texto se parte en dos líneas
+           dentro de su botón si hace falta— y los seis quedan a la
+           vista sin deslizar nada. La sangría hasta el filo de la
+           pantalla ya no hace falta: la fila vive en el ancho normal.
+           En pantallas anchas nada cambia. */
         .toolbar-actions{
-          flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
-          -webkit-overflow-scrolling:touch;
-          margin:0 -16px; padding:2px 16px 4px;
+          flex-wrap:wrap; overflow:visible;
+          margin:0; padding:2px 0 4px;
         }
-        .toolbar-actions::-webkit-scrollbar{ display:none; }
-        .toolbar-actions .btn{ flex:none; white-space:nowrap; }
+        .toolbar-actions .btn{
+          flex:1 1 calc(50% - 4px); white-space:normal;
+          text-align:center; line-height:1.25; height:auto;
+        }
       }
     </style>
     <script>
@@ -2196,7 +2207,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.44</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.45</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4402,7 +4413,7 @@
        teléfono se apretaron un poco los espacios verticales de
        esa vista (banda de marca y tarjeta vacía), como la v4.37
        ya hizo con la barra misma. */
-    const APP_VERSION = '4.44';
+    const APP_VERSION = '4.45';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
