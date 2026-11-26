@@ -182,6 +182,21 @@
       .row .rate{ display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); /* 44px táctiles en la v3.3 */ }
       .row .rate.like{ color:var(--acc); }
       .row .rate.dislike{ color:var(--danger); }
+      /* v4.41 · Estrellas en la fila: tres botones compactos entre la
+         duración y el corazón; llenas en el color de acento y vacías
+         atenuadas. La meta flexible absorbe el ancho extra sin romper
+         la fila, también en el teléfono. */
+      .stars{ display:inline-flex; align-items:center; flex:none; }
+      .star-btn{
+        width:32px; height:32px; min-height:32px; padding:0; flex:none;
+        display:flex; align-items:center; justify-content:center; border-radius:50%;
+        color:var(--muted); opacity:.5; transition:transform .15s ease, opacity .2s ease, color .2s ease;
+      }
+      .star-btn .ic{ width:18px; height:18px; }
+      .star-btn.on{ color:var(--acc); opacity:1; }
+      .star-btn:active{ transform:scale(.85); }
+      @media (prefers-reduced-motion: reduce){ .star-btn{ transition:none; } .star-btn:active{ transform:none; } }
+      @media (max-width:380px){ .row .dur{ display:none; } }
       .row .more{ display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); /* 44px táctiles en la v3.3 */ }
       .cover{
         width:60px; height:60px; border-radius:16px; overflow:hidden; flex:none; position:relative;
@@ -430,6 +445,22 @@
       }
       .np-rate button.like-on{ background:#fff; color:#e23c1e; }
       .np-rate button.dislike-on{ background:rgba(0,0,0,.45); color:#ff8a7a; box-shadow:inset 0 0 0 1.5px #ff8a7a; }
+      /* v4.41 · Estrellas en «Sonando ahora»: tres botones de cristal
+         bajo el Me gusta / No me gusta; llenas en el color de acento
+         del tema y vacías atenuadas sobre el fondo inmersivo. */
+      .np-stars{ display:flex; justify-content:center; gap:10px; margin-top:12px; }
+      .np-stars button{
+        width:48px; height:48px; min-height:48px; border-radius:50%; padding:0;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(255,255,255,.12); color:rgba(255,255,255,.45);
+        backdrop-filter:blur(12px) saturate(1.3); -webkit-backdrop-filter:blur(12px) saturate(1.3);
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
+        transition:transform .16s ease, background .25s ease, color .25s ease;
+      }
+      .np-stars button .ic{ width:26px; height:26px; }
+      .np-stars button.on{ color:var(--acc2); background:rgba(255,255,255,.20); }
+      .np-stars button:active{ transform:scale(.92); }
+      @media (prefers-reduced-motion: reduce){ .np-stars button{ transition:none; } .np-stars button:active{ transform:none; } }
       /* v4.31 · Progreso de calificación en «Sonando ahora»: cuántas
          canciones de la biblioteca ya tienen calificación y cuántas
          faltan, con su barra; lo pinta updateRateProgress() en cada
@@ -704,6 +735,7 @@
         .np-col-main .np-title h2{ font-size:42px; }
         .np-col-main .np-title p{ font-size:19px; }
         .np-col-main .np-rate{ justify-content:flex-start; }
+        .np-col-main .np-stars{ justify-content:flex-start; }
         .np-col-main .np-progress{ margin-left:0; text-align:left; }
         .np-col-main .np-controls{ justify-content:flex-start; }
         .np-col-main .np-actions{ justify-content:flex-start; }
@@ -2055,7 +2087,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.40</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.41</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2174,6 +2206,11 @@
         <div class="np-rate">
           <button id="npLike"><span data-ic="heart"></span>Me gusta</button>
           <button id="npDislike"><span data-ic="heartSlash"></span>No me gusta</button>
+        </div>
+        <div class="np-stars" id="npStars" role="group" aria-label="Estrellas de esta canción">
+          <button data-np-star="1" aria-label="1 estrella" aria-pressed="false"><span data-ic="starO"></span></button>
+          <button data-np-star="2" aria-label="2 estrellas" aria-pressed="false"><span data-ic="starO"></span></button>
+          <button data-np-star="3" aria-label="3 estrellas" aria-pressed="false"><span data-ic="starO"></span></button>
         </div>
         <div class="np-progress" id="npProgress">
           <div class="txt" id="npProgressTxt"></div>
@@ -2299,6 +2336,8 @@
       check:'M9.55 16.05 4.9 11.4a1.68 1.68 0 0 0-2.38 2.38l6.15 6.15a1.68 1.68 0 0 0 2.38 0L21.4 9.58a1.68 1.68 0 0 0-2.38-2.38L9.55 16.05z',
       clock:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z',
       cloud:'M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.99 5.99 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z',
+      star:'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+      starO:'M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z',
       sparkle:'M12 2l2.1 6.9L21 11l-6.9 2.1L12 20l-2.1-6.9L3 11l6.9-2.1zM19.2 15.6l.85 2.75 2.75.85-2.75.85-.85 2.75-.85-2.75-2.75-.85 2.75-.85z'
     };
     function icon(name, cls){
@@ -2780,6 +2819,7 @@
             album: meta.album || 'Álbum desconocido',
             duration: 0,
             rating: null,
+            stars: 0,
             hasCover: !!meta.cover,
             c1: null, c2: null,
             fileName: f.name, size: f.size,
@@ -2828,6 +2868,7 @@
             await syncSaveLocal();
             await syncSaveDupLocal();
             await syncSaveDupKeepLocal();
+            await syncSaveStarsLocal();
           }catch(e){ /* sin nube alcanzable: se aplica el mapa local */ }
         }
         // v4.7: una canción recién agregada hereda su calificación si su
@@ -2844,6 +2885,9 @@
         try{ await syncApplyToTracks(); }catch(e){}
         try{ await syncApplyDupMarks(); }catch(e){}
         try{ await syncApplyDupKeeps(); }catch(e){}
+        // v4.41: las canciones nuevas también heredan sus estrellas
+        // del mapa, con las mismas reglas de identidad y rescate.
+        try{ await syncApplyStarsToTracks(); }catch(e){}
         importHits = syncApplyCollect ? syncApplyCollect.hits.slice() : [];
         syncApplyCollect = null;
       }
@@ -2935,6 +2979,21 @@
       if(age >= 0 && age < RECENT_MS) h += '<span class="badge new">' + icon('clock') + 'Recién agregada</span>';
       return h ? '<div class="badges">' + h + '</div>' : '';
     }
+    /* v4.41 · Las tres estrellas de una canción: llenas hasta su
+       calificación (campo «stars», 0–3) en el color de acento y
+       vacías atenuadas. Tocar la estrella N pone N estrellas y
+       tocar de nuevo la más alta ya marcada las quita (setStars,
+       por la delegación [data-star]). Es solo una calificación
+       más: no toca el «Me gusta» / «No me gusta» ni la rotación. */
+    function starsHTML(t){
+      const s = (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+      let h = '<span class="stars" role="group" aria-label="Estrellas de ' + esc(t.title) + '">';
+      for(let n = 1; n <= 3; n++){
+        const on = n <= s;
+        h += '<button class="star-btn' + (on ? ' on' : '') + '" data-star="' + n + '" data-star-id="' + t.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + (s === n ? 'Quitar las estrellas de ' + esc(t.title) : 'Poner ' + n + (n === 1 ? ' estrella a ' : ' estrellas a ') + esc(t.title)) + '">' + icon(on ? 'star' : 'starO') + '</button>';
+      }
+      return h + '</span>';
+    }
     function songRowHTML(t){
       const playing = t.id === state.currentId;
       const likeCls = t.rating === 'like' ? 'like' : (t.rating === 'dislike' ? 'dislike' : '');
@@ -2947,6 +3006,7 @@
         coverHTML(t) +
         '<div class="meta"><div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + (t.album && t.album !== 'Álbum desconocido' ? ' · ' + esc(t.album) : '') + '</div>' + badgesHTML(t) + '</div>' +
         '<span class="dur">' + fmt(t.duration) + '</span>' +
+        starsHTML(t) +
         '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="' + rateLabel + '">' + icon(heartIcon) + '</button>' +
         '<button class="more" data-more="' + t.id + '" aria-label="Más opciones de ' + esc(t.title) + '">' + icon('more') + '</button></div>';
     }
@@ -3406,6 +3466,7 @@
         '<div class="dup-ver-main">' + coverHTML(t) +
           '<div class="meta"><div class="t" title="' + meta + '">' + meta + '</div><div class="a">' + detail + '</div><div class="dup-tags">' + tags + '</div></div>' +
           '<button class="dup-play" data-dup-play="' + t.id + '" data-dup-ids="' + idsCsv + '" aria-label="Escuchar esta versión de ' + esc(t.title) + '">' + icon('play') + '</button>' +
+          starsHTML(t) +
           '<button class="rate ' + likeCls + '" data-rate="' + t.id + '" aria-label="' + rateLabel + '">' + icon(heartIcon) + '</button>' +
         '</div>' +
         '<div class="dup-actions">' +
@@ -4159,7 +4220,35 @@
        el campo «dev» sin romperse, el documento heredado se sigue
        escuchando igual y la migración de la v4.39 no cambia. Sin
        tocar la huella, la biblioteca ni el esquema. */
-    const APP_VERSION = '4.40';
+    /* v4.41 · Pedido de Sando: «me gustaría calificar de 1 a 3
+       estrellas las canciones y que también se sincronicen esas
+       calificaciones». Cada canción gana una calificación de 0 a 3
+       estrellas (campo «stars» de su ficha, con su marca «starsAt»),
+       independiente por completo del «Me gusta» / «No me gusta»:
+       no cambia ninguna regla de reproducción ni el «Aleatorio sin
+       calificar». Se ponen tocando las tres estrellas de cada fila
+       (y en «Sonando ahora»): tocar la estrella N pone N, y tocar
+       de nuevo la más alta ya marcada las quita todas. Las estrellas
+       se sincronizan con su propio mapa (starsMap en el kv, «stars»
+       en la subcolección «entries») con la misma huella de siempre
+       —que no se toca—, la misma fusión por fecha más reciente, las
+       subidas por diferencia en lotes, los campos auxiliares «f»/«s»
+       y la marca «dev» de la v4.40; su espacio de claves e IDs de
+       documento («s…») no choca con los otros tres mapas y las
+       versiones anteriores lo ignoran sin romperse. Quitar las
+       estrellas escribe una entrada vacía fechada (retiro), igual
+       que al quitar un «Me gusta». Al bajar de la nube o importar,
+       se aplican con las mismas reglas de identidad y rescate que
+       las calificaciones (huella exacta a todas las copias; rescates
+       débiles con las cautelas de la v4.36, sin reescribir ni
+       resubir). La hoja de Sincronización las cuenta como datos de
+       sincronización (conteos propios, «Subidas por este
+       dispositivo» y «Borrar lo subido por este dispositivo»), el
+       reseteo total de la v4.38 las retira como los demás mapas y
+       «Resetear calificaciones» (v4.37) también quita las estrellas
+       de las canciones cargadas, registrado como retiros fechados.
+       Sin letras, sin micrófono, sin temporizador: como siempre. */
+    const APP_VERSION = '4.41';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4539,6 +4628,24 @@
       if(t.rating === 'like') heartBurstFor(id);
     }
 
+    /* v4.41 · Poner o quitar las estrellas de una canción: tocar la
+       estrella N pone N; tocar de nuevo la más alta ya marcada las
+       quita todas (vuelve a 0). La ficha guarda «stars» y su marca
+       «starsAt», y el cambio entra al mapa de estrellas
+       (syncNoteStars) para sincronizarse como las calificaciones.
+       Independencia total: no toca rating, ni la rotación, ni el
+       «Aleatorio sin calificar». */
+    async function setStars(id, n){
+      const t = getTrack(id); if(!t) return;
+      const cur = (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+      t.stars = (cur === n) ? 0 : n;
+      t.starsAt = Date.now();
+      const saved = await saveTrackMeta(t);
+      if(!saved) toast('Tus estrellas no se pudieron guardar en este dispositivo.', 4200);
+      await syncNoteStars(t);
+      syncPlayerUI(); render();
+    }
+
     /* ================= Sincronizar interfaces ================= */
     let npFlip = false, stageFlip = false, lastImmersiveId = null, immersiveTimer = null;
     const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -4800,6 +4907,16 @@
       }
       $('#npLike').classList.toggle('like-on', t.rating === 'like');
       $('#npDislike').classList.toggle('dislike-on', t.rating === 'dislike');
+      // v4.41: las estrellas de «Sonando ahora» reflejan la ficha.
+      const npStarsVal = (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+      $$('#npStars button').forEach(b => {
+        const n = Number(b.dataset.npStar);
+        const on = n <= npStarsVal;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.setAttribute('aria-label', (npStarsVal === n ? 'Quitar las estrellas' : 'Poner ' + n + (n === 1 ? ' estrella' : ' estrellas')));
+        b.innerHTML = icon(on ? 'star' : 'starO');
+      });
       updateRateProgress();
       $('#btnPlay').innerHTML = icon(playing ? 'pause' : 'play');
       $('#btnShuffle').classList.toggle('on', state.shuffle);
@@ -4910,6 +5027,7 @@
     });
     $('#npLike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'like'); });
     $('#npDislike').addEventListener('click', ()=>{ if(state.currentId) setRating(state.currentId, 'dislike'); });
+    $$('#npStars button').forEach(b => b.addEventListener('click', ()=>{ if(state.currentId) setStars(state.currentId, Number(b.dataset.npStar)); }));
     $('#mini').addEventListener('click', openNowPlaying);
     /* v3.7 · Tacto: el mini es un botón para el teclado también —
        Enter o Espacio sobre él abren «Sonando ahora», igual que el
@@ -5290,42 +5408,62 @@
        no son calificaciones. Las canciones, sus archivos, la cola y
        las playlists no se tocan; Favoritas se vacía sola porque se
        forma con los «Me gusta». Sin ninguna cargada calificada, el
-       botón solo avisa, como «Borrar las que no me gustan». */
+       botón solo avisa, como «Borrar las que no me gustan».
+       v4.41 · El reseteo también quita las estrellas de las
+       canciones cargadas (stars a 0 con starsAt nuevo) y registra
+       cada retirada en el mapa de estrellas como entrada vacía
+       fechada, con el mismo criterio que la descalificación. */
     function resetLoadedRatings(){
       if(!state.tracks.size){ toast('No hay canciones cargadas todavía'); return; }
       const rated = Array.from(state.tracks.values()).filter(t => t.rating === 'like' || t.rating === 'dislike');
-      if(!rated.length){ toast('Las canciones cargadas no tienen calificaciones que resetear'); return; }
+      // v4.41: el reseteo también quita las estrellas de las cargadas.
+      const starred = Array.from(state.tracks.values()).filter(t => t.stars === 1 || t.stars === 2 || t.stars === 3);
+      if(!rated.length && !starred.length){ toast('Las canciones cargadas no tienen calificaciones que resetear'); return; }
+      const affected = Array.from(new Set(rated.concat(starred)));
       const likes = rated.filter(t => t.rating === 'like').length;
       const dislikes = rated.length - likes;
-      const n = rated.length;
+      const n = affected.length;
       const detail = [];
       if(likes) detail.push(likes + ' con «Me gusta»');
       if(dislikes) detail.push(dislikes + ' con «No me gusta»');
+      if(starred.length) detail.push(starred.length + (starred.length === 1 ? ' con estrellas' : ' con estrellas'));
       const text = (n === 1
-        ? 'Se quitará la calificación de la única canción calificada que está cargada (' + detail.join(' y ') + '): quedará sin calificar. '
-        : 'Se quitará la calificación de las ' + n + ' canciones calificadas que están cargadas (' + detail.join(' y ') + '): todas quedarán sin calificar. ') +
-        'Tus canciones, sus archivos y tus playlists no se tocan; Favoritas se quedará vacía porque se forma con los «Me gusta». El reseteo también se sincroniza: al volver a subir estas mismas canciones no recuperarán su calificación anterior, y en tus demás dispositivos también quedarán sin calificar. Esto no se puede deshacer.';
+        ? 'Se quitará la calificación de la única canción calificada que está cargada (' + detail.join(' y ') + '): quedará sin calificar y sin estrellas. '
+        : 'Se quitará la calificación de las ' + n + ' canciones calificadas que están cargadas (' + detail.join(' y ') + '): todas quedarán sin calificar y sin estrellas. ') +
+        'Tus canciones, sus archivos y tus playlists no se tocan; Favoritas se quedará vacía porque se forma con los «Me gusta». El reseteo también se sincroniza: al volver a subir estas mismas canciones no recuperarán su calificación ni sus estrellas anteriores, y en tus demás dispositivos también quedarán sin calificar. Esto no se puede deshacer.';
       confirmModal('¿Resetear las calificaciones?', text, 'Sí, resetearlas', async () => {
         const now = Date.now();
         let failed = false;
-        for(const t of rated){
-          t.rating = null;
-          t.ratingAt = now;
+        for(const t of affected){
+          const hadRating = t.rating === 'like' || t.rating === 'dislike';
+          const hadStars = t.stars === 1 || t.stars === 2 || t.stars === 3;
+          if(hadRating){ t.rating = null; t.ratingAt = now; }
+          if(hadStars){ t.stars = 0; t.starsAt = now; }
           const ok = await saveTrackMeta(t);
           if(!ok) failed = true;
           // La retirada entra al mapa como descalificación explícita
           // de esa huella (mismo criterio que syncNoteRating al
           // descalificar a mano), conservando «d» y «f»/«s».
           const fp = trackFingerprint(t);
-          const prev = ratingsMap[fp];
           const nd = Math.round(t.duration || 0);
-          const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
-          ratingsMap[fp] = withFileId({ r: '', t: now, d: keepD }, t, prev);
+          if(hadRating){
+            const prev = ratingsMap[fp];
+            const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
+            ratingsMap[fp] = withFileId({ r: '', t: now, d: keepD }, t, prev);
+          }
+          // v4.41: y la retirada de estrellas entra a su mapa como
+          // entrada vacía fechada, igual que la descalificación.
+          if(hadStars){
+            const prevS = starsMap[fp];
+            const keepDS = nd > 0 ? nd : (prevS && prevS.d != null ? prevS.d : nd);
+            starsMap[fp] = withFileId({ v: 0, t: now, d: keepDS }, t, prevS);
+          }
         }
         await syncSaveLocal();
+        await syncSaveStarsLocal();
         if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
         if(failed) toast('Alguna calificación no se pudo resetear en este dispositivo.', 4200);
-        else toast(n === 1 ? 'Se reseteó 1 calificación: la canción quedó sin calificar' : 'Se resetearon ' + n + ' calificaciones: todas las canciones cargadas quedaron sin calificar', 3800);
+        else toast(n === 1 ? 'Se reseteó 1 calificación: la canción quedó sin calificar y sin estrellas' : 'Se resetearon ' + n + ' calificaciones: todas las canciones cargadas quedaron sin calificar y sin estrellas', 3800);
         syncPlayerUI();
         render();
       });
@@ -5333,6 +5471,10 @@
 
     /* ================= Delegación de clics en el contenido ================= */
     content.addEventListener('click', e => {
+      /* v4.41 · Estrellas: mandan antes que la fila y que el corazón
+         (viven dentro de ambas filas, la normal y la de Duplicadas). */
+      const starBtn = e.target.closest('[data-star]');
+      if(starBtn){ e.stopPropagation(); setStars(starBtn.dataset.starId, Number(starBtn.dataset.star)); return; }
       /* v4.18 · Versiones duplicadas: sus botones mandan antes que el
          resto de la delegación (la fila también lleva el corazón de
          siempre, que sigue por su camino de [data-rate]). */
@@ -5581,7 +5723,7 @@
       }
     });
 
-    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38 · la nube pasa de un solo documento con los tres mapas a UN DOCUMENTO POR ENTRADA en la subcolección «entries» del mismo documento, con subida por diferencia en lotes y migración automática del documento antiguo al primer sincronizar, en v4.39 · marca «dev» del dispositivo que subió cada entrada, con contador y borrado de lo subido por este dispositivo, en v4.40) =================
+    /* ================= Sincronización de calificaciones (v4.7 · flujo de acceso corregido en v4.8 · huella tolerante en v4.9 · borrado protegido y duración autocorregida en v4.12 · aplicación con antigüedad comparada en los dos sentidos y reconciliación al cargar en v4.13 · claves canonizadas al migrar y rescate de entradas huérfanas en v4.14 · aplicación a todas las copias de la huella, veto solo con calificación y rescate por duración en v4.15 · «Sincronizar ahora», vaciado de la subida pendiente al filtrar/ocultar/cerrar, huérfanas listadas por nombre y rescate por título con copias de una sola huella en v4.26 · restauración al importar esperada y con fusión fresca previa, aplicación del mapa local al abrir sin sesión, identidad de archivo «f»/«s» como dato auxiliar con su rescate, y «Sincronizar ahora» que avisa de las sin coincidencia en v4.33 · mapa propio sincronizado y reaplicado para las decisiones «Quedarme con las 2» en v4.35 · rescates por título y por duración con corroboración obligatoria y sin reescritura ni subida de la entrada, e informe de importación con deshacer de las calificaciones heredadas en v4.36 · reseteo de las calificaciones de las canciones cargadas, registrado como descalificación explícita fechada por huella, en v4.37 · reseteo completo de los datos de sincronización —los tres mapas, dispositivo y nube, con retiradas explícitas fechadas y fichas cargadas limpias— en v4.38 · la nube pasa de un solo documento con los tres mapas a UN DOCUMENTO POR ENTRADA en la subcolección «entries» del mismo documento, con subida por diferencia en lotes y migración automática del documento antiguo al primer sincronizar, en v4.39 · marca «dev» del dispositivo que subió cada entrada, con contador y borrado de lo subido por este dispositivo, en v4.40 · calificación de 1 a 3 estrellas por canción en su propio mapa sincronizado (starsMap), independiente del Me gusta / No me gusta, en v4.41) =================
        Las calificaciones (Me gusta / No me gusta) se guardan también en la
        nube con la cuenta de Google, para que sean las mismas en todos los
        dispositivos. La música NUNCA se sube: solo viaja un mapa
@@ -5656,8 +5798,10 @@
     let ratingsMap = {};        // huella (artista|título) -> {r:'like'|'dislike'|'', t:ms, d?:segundos}
     let dupMarksMap = {};       // v4.23: clave por copia (archivo|tamaño) -> {m:1|0, t:ms} — las marcas «No me gusta» de Duplicadas
     let dupKeepMap = {};        // v4.35: clave por copia (la misma dupCopyKey) -> {k:1|0, t:ms} — las decisiones «Quedarme con las 2» de Duplicadas
+    let starsMap = {};          // v4.41: huella (artista|título) -> {v:0|1|2|3, t:ms, d?:segundos} — las estrellas de cada canción
     let syncCloudDupCount = 0;  // v4.23: marcas de duplicados vistas en la nube en la última lectura/fusión
     let syncCloudKeepCount = 0; // v4.35: versiones conservadas vistas en la nube en la última lectura/fusión
+    let syncCloudStarsCount = 0; // v4.41: canciones con estrellas vistas en la nube en la última lectura/fusión
     let syncCloudCount = 0;     // v4.9: calificaciones (like/dislike) vistas en la nube en la última lectura/fusión
     let syncAppliedCount = 0;   // v4.9: canciones cuya calificación vino del mapa en la última aplicación/fusión
     let syncOrphanCount = 0;     // v4.14: entradas con calificación que no casaron con ninguna canción en la última aplicación
@@ -5674,7 +5818,7 @@
     let syncLegacyMaps = null;   // v4.39: último contenido visto del documento antiguo (sus tres mapas), o null si no se ha leído
     let syncLegacyPending = false; // v4.39: el documento antiguo aún guarda mapas: hay que migrarlos a entradas y vaciarlo en la próxima subida
     let syncDeviceId = '';      // v4.40: ID aleatorio de ESTE dispositivo (kv «deviceId»); se genera una sola vez y no cambia
-    let syncCloudOwnCount = 0;  // v4.40: entradas con dato en la nube que llevan la marca «dev» de este dispositivo (los tres mapas)
+    let syncCloudOwnCount = 0;  // v4.40: entradas con dato en la nube que llevan la marca «dev» de este dispositivo (los cuatro mapas desde la v4.41)
     let syncUploadTimer = null;
     let syncLastHash = '';      // hash del último mapa subido o bajado
     let syncApplying = false;   // aplicando cambios que bajaron de la nube
@@ -5883,6 +6027,13 @@
         if(dk && typeof dk === 'object'){
           dupKeepMap = sanitizeDupKeepMap(dk);
         }
+        // v4.41: el mapa de estrellas vive en su propia clave de kv,
+        // junto a los otros tres mapas (sobrevive a «Vaciar
+        // biblioteca» igual que ellos).
+        const sm = await dbGet('kv', 'starsMap');
+        if(sm && typeof sm === 'object'){
+          starsMap = migrateStarsMap(sm);
+        }
         const meta = await dbGet('kv', 'syncMeta');
         if(meta){
           if(typeof meta.lastSync === 'number') syncLastAt = meta.lastSync;
@@ -5933,6 +6084,37 @@
         }
       });
       if(seeded || migrated) syncSaveLocal();
+      // v4.41 · Semilla y reconciliación de estrellas: espejo de la
+      // de calificaciones — las estrellas que viven en las fichas
+      // entran al mapa de estrellas, y una ficha demostrablemente
+      // más nueva que su entrada (starsAt posterior) repara la
+      // entrada; una retirada explícita más reciente manda sobre
+      // la ficha y no se pisa.
+      let starsSeeded = false;
+      state.tracks.forEach(t => {
+        const sv = (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+        if(!sv) return;
+        const fp = trackFingerprint(t);
+        const starsT = (typeof t.starsAt === 'number' && t.starsAt > 0) ? t.starsAt : 0;
+        const dur = Math.round(t.duration || 0);
+        const e = starsMap[fp];
+        if(!e){ starsMap[fp] = withFileId({ v: sv, t: starsT, d: dur }, t); starsSeeded = true; return; }
+        const entryHas = e.v === 1 || e.v === 2 || e.v === 3;
+        const entryT = e.t || 0;
+        const keepD = dur > 0 ? dur : (e.d != null ? e.d : dur);
+        if(!entryHas){
+          if(!(starsT > 0 && entryT > starsT)){
+            starsMap[fp] = withFileId({ v: sv, t: starsT, d: keepD }, t, e); starsSeeded = true;
+          }
+          return;
+        }
+        if(e.v !== sv && starsT > entryT){
+          starsMap[fp] = withFileId({ v: sv, t: starsT, d: keepD }, t, e); starsSeeded = true;
+        } else if(e.v === sv && starsT > entryT){
+          starsMap[fp] = withFileId({ v: sv, t: starsT, d: keepD }, t, e); starsSeeded = true;
+        }
+      });
+      if(starsSeeded) syncSaveStarsLocal();
       // v4.23 · Semilla de marcas de duplicados: las marcas por copia
       // que ya viven en las fichas —incluidas las hechas con la
       // v4.21/v4.22, cuando aún no se sincronizaban— entran al mapa de
@@ -6095,7 +6277,7 @@
     // v4.35: cubre también el mapa de conservadas: un cambio solo de
     // «Quedarme con las 2» sube y baja igual que los demás.
     function syncCombinedHash(){
-      return ratingsHash(ratingsMap) + '/' + dupMarksHash(dupMarksMap) + '/' + dupKeepHash(dupKeepMap);
+      return ratingsHash(ratingsMap) + '/' + dupMarksHash(dupMarksMap) + '/' + dupKeepHash(dupKeepMap) + '/' + starsHash(starsMap);
     }
     async function syncSaveDupLocal(){
       try{ await dbPut('kv', dupMarksMap, 'dupMarksMap'); return true; }
@@ -6636,6 +6818,272 @@
       await syncSaveLocal();
       if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
     }
+    /* ============ v4.41 · Sincronización de las estrellas ============
+       Las estrellas (1 a 3 por canción) viajan en su PROPIO mapa
+       (starsMap aquí, «stars» junto a «ratings», «dupMarks» y
+       «dupKeep» en la subcolección «entries»), con la MISMA huella
+       de siempre —fpNorm(artista)|fpNorm(título), sin tocar— y las
+       mismas reglas que las calificaciones: fusión por marca más
+       reciente, campos auxiliares «d» (duración) y «f»/«s» (archivo),
+       marca «dev» del dispositivo que escribe y aplicación tolerante
+       con los rescates de la v4.36. La entrada guarda el valor en
+       «v» (1, 2 o 3; 0 = retirada fechada, para que quitar las
+       estrellas también viaje). Es un dato independiente: jamás se
+       mezcla con el «Me gusta» / «No me gusta» ni cambia la
+       rotación. */
+    function migrateStarsMap(map){
+      // Canonización de claves idéntica a la de las calificaciones
+      // (v4.14): artista = primera parte, duración final numérica
+      // pasa a «d», título = el resto, todo por fpNorm.
+      if(!map || typeof map !== 'object') return {};
+      const out = {};
+      for(const k in map){
+        const e = map[k]; if(!e) continue;
+        const entry = { v: (e.v === 1 || e.v === 2 || e.v === 3) ? e.v : 0, t: e.t || 0 };
+        if(e.d != null && !isNaN(Number(e.d))) entry.d = Math.round(Number(e.d));
+        if(typeof e.f === 'string' && e.f) entry.f = e.f;
+        if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) entry.s = Number(e.s);
+        if(typeof e.dev === 'string' && e.dev) entry.dev = e.dev;
+        const parts = String(k).split('|');
+        if(parts.length >= 3){
+          const last = parts[parts.length - 1].trim();
+          if(/^-?\d+(\.\d+)?$/.test(last)){
+            if(entry.d == null) entry.d = Math.round(parseFloat(last));
+            parts.pop();
+          }
+        }
+        const nk = fpNorm(parts.shift() || '') + '|' + fpNorm(parts.join('|'));
+        if(!out[nk]){ out[nk] = entry; }
+        else if((entry.t || 0) >= (out[nk].t || 0)){
+          if(entry.d == null && out[nk].d != null) entry.d = out[nk].d;
+          if(!entry.f && out[nk].f) entry.f = out[nk].f;
+          if(entry.s == null && out[nk].s != null) entry.s = out[nk].s;
+          if(!entry.dev && out[nk].dev) entry.dev = out[nk].dev;
+          out[nk] = entry;
+        } else {
+          if(out[nk].d == null && entry.d != null) out[nk].d = entry.d;
+          if(!out[nk].f && entry.f) out[nk].f = entry.f;
+          if(out[nk].s == null && entry.s != null) out[nk].s = entry.s;
+          if(!out[nk].dev && entry.dev) out[nk].dev = entry.dev;
+        }
+      }
+      return out;
+    }
+    function countStars(map){
+      let n = 0;
+      if(!map || typeof map !== 'object') return 0;
+      for(const k in map){ const e = map[k]; if(e && (e.v === 1 || e.v === 2 || e.v === 3)) n++; }
+      return n;
+    }
+    function starsHash(map){
+      const keys = Object.keys(map || {}).sort();
+      let s = '';
+      for(const k of keys){ const e = map[k]; s += k + '=' + (e ? e.v : '') + '@' + (e ? e.t : 0) + '#' + (e && e.d != null ? e.d : '') + '!' + (e && e.f ? e.f : '') + ':' + (e && e.s != null ? e.s : '') + ';'; }
+      return String(hashStr(s));
+    }
+    async function syncSaveStarsLocal(){
+      try{ await dbPut('kv', starsMap, 'starsMap'); return true; }
+      catch(e){ reportSaveError('No se pudo guardar el mapa de estrellas', e); return false; }
+    }
+    function mergeStars(a, b){
+      // Fusión por marca de tiempo, como la de calificaciones: gana
+      // la más reciente; en empate, unas estrellas reales ganan a
+      // una entrada vacía.
+      const A = migrateStarsMap(a);
+      const B = migrateStarsMap(b);
+      const out = {};
+      for(const k in A) out[k] = A[k];
+      for(const k in B){
+        if(!out[k]){ out[k] = B[k]; continue; }
+        const bt = B[k].t || 0, ot = out[k].t || 0;
+        if(bt > ot){ out[k] = B[k]; continue; }
+        if(bt === ot){
+          const bHas = B[k].v === 1 || B[k].v === 2 || B[k].v === 3;
+          const oHas = out[k].v === 1 || out[k].v === 2 || out[k].v === 3;
+          if(bHas || !oHas) out[k] = B[k];
+        }
+      }
+      return out;
+    }
+    // Cada cambio de estrellas pasa por aquí (lo llama setStars):
+    // entra al mapa local siempre, haya sesión o no, y sube si hay
+    // sesión. La entrada usa la misma marca que quedó en la ficha
+    // (starsAt), como syncNoteRating con ratingAt.
+    async function syncNoteStars(t){
+      if(!t) return;
+      const ts = (typeof t.starsAt === 'number' && t.starsAt > 0) ? t.starsAt : Date.now();
+      const fp = trackFingerprint(t);
+      const prev = starsMap[fp];
+      const nd = Math.round(t.duration || 0);
+      const keepD = nd > 0 ? nd : (prev && prev.d != null ? prev.d : nd);
+      const v = (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+      starsMap[fp] = withFileId({ v: v, t: ts, d: keepD }, t, prev);
+      await syncSaveStarsLocal();
+      if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+    }
+    // Aplica el mapa de estrellas a las canciones locales, espejo de
+    // syncApplyToTracks: identidad fuerte por huella exacta (a TODAS
+    // las copias de la huella, como desde la v4.15) y los mismos
+    // rescates débiles —título, archivo y duración— con las cautelas
+    // de la v4.36 (corroboración obligatoria en título y duración, y
+    // sin reescribir ni resubir la entrada en esos dos; el rescate
+    // por archivo, identidad fuerte, sí reescribe bajo la huella
+    // verdadera, igual que en las calificaciones). La antigüedad
+    // manda en los dos sentidos y el borrado va protegido, como en
+    // la v4.12/v4.13: una retirada solo quita las estrellas si es
+    // demostrablemente más reciente que la marca de la ficha.
+    async function syncApplyStarsToTracks(){
+      let changed = false;
+      let repaired = false;
+      starsMap = migrateStarsMap(starsMap);
+      const byFp = {};
+      const byTitle = {};
+      state.tracks.forEach(t => {
+        const fp = trackFingerprint(t);
+        (byFp[fp] = byFp[fp] || []).push(t);
+        const tp = fpNorm(t.title);
+        (byTitle[tp] = byTitle[tp] || []).push(t);
+      });
+      const starsOf = t => (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+      const applyTo = async (fp, e, list) => {
+        const want = (e.v === 1 || e.v === 2 || e.v === 3) ? e.v : 0;
+        for(const t of list){
+          if(want){
+            if(starsOf(t) !== want){
+              const starsT2 = (typeof t.starsAt === 'number' && t.starsAt > 0) ? t.starsAt : 0;
+              if(starsT2 > (e.t || 0)){
+                starsMap[fp] = withFileId({ v: starsOf(t), t: starsT2, d: Math.round(t.duration || 0) || (e.d || 0) }, t, e);
+                repaired = true;
+                continue;
+              }
+              t.stars = want;
+              if(e.t) t.starsAt = e.t;
+              await saveTrackMeta(t); changed = true;
+            } else if(!t.starsAt && e.t){
+              t.starsAt = e.t;
+              await saveTrackMeta(t);
+            }
+            continue;
+          }
+          if(!starsOf(t)) continue;
+          const entryT = e.t || 0;
+          const starsT = (typeof t.starsAt === 'number' && t.starsAt > 0) ? t.starsAt : 0;
+          if(entryT > 0 && starsT > 0 && entryT > starsT){
+            t.stars = 0;
+            t.starsAt = entryT;
+            await saveTrackMeta(t); changed = true;
+          } else {
+            starsMap[fp] = withFileId({ v: starsOf(t), t: Date.now(), d: Math.round(t.duration || 0) }, t, e);
+            repaired = true;
+          }
+        }
+      };
+      const claimed = new Set();
+      const claimedStarred = new Set();
+      const unmatched = [];
+      for(const fp in starsMap){
+        const e = starsMap[fp]; if(!e) continue;
+        const list = byFp[fp];
+        if(list && list.length){
+          list.forEach(t => claimed.add(t.id));
+          if(e.v === 1 || e.v === 2 || e.v === 3) list.forEach(t => claimedStarred.add(t.id));
+          await applyTo(fp, e, list);
+        }
+        else if(e.v === 1 || e.v === 2 || e.v === 3) unmatched.push(fp);
+      }
+      // Rescate por título (con corroboración; sin reescritura).
+      const stillUnmatched = [];
+      for(const fp of unmatched){
+        const e = starsMap[fp]; if(!e){ continue; }
+        const titlePart = fp.slice(fp.indexOf('|') + 1);
+        const cand = byTitle[titlePart];
+        let rescued = false;
+        if(cand && cand.length && !cand.some(t => claimedStarred.has(t.id))){
+          const candFps = new Set(cand.map(t => trackFingerprint(t)));
+          if(candFps.size === 1){
+            const t = cand[0];
+            const block = starsMap[trackFingerprint(t)];
+            if(!(block && (block.v === 1 || block.v === 2 || block.v === 3))){
+              const entryArtist = fp.slice(0, fp.indexOf('|'));
+              const entryDur = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
+              const corroborated = cand.some(x => {
+                if(partialTextMatch(entryArtist, x.artist)) return true;
+                const xd = Math.round(x.duration || 0);
+                return entryDur > 0 && xd > 0 && Math.abs(xd - entryDur) <= 3;
+              });
+              if(corroborated){
+                await applyTo(fp, e, cand);
+                cand.forEach(x => { claimed.add(x.id); claimedStarred.add(x.id); });
+                rescued = true;
+              }
+            }
+          }
+        }
+        if(!rescued) stillUnmatched.push(fp);
+      }
+      // Rescate por archivo (identidad fuerte; reescribe la entrada).
+      const afterFile = [];
+      for(const fp of stillUnmatched){
+        const e = starsMap[fp]; if(!e){ continue; }
+        let rescued = false;
+        if(e.f && e.s){
+          const cand = Array.from(state.tracks.values()).filter(t => {
+            if(claimedStarred.has(t.id)) return false;
+            if((t.fileName || '') !== e.f || (t.size || 0) !== Number(e.s)) return false;
+            const own = starsMap[trackFingerprint(t)];
+            return !(own && (own.v === 1 || own.v === 2 || own.v === 3));
+          });
+          const candFps = new Set(cand.map(t => trackFingerprint(t)));
+          if(cand.length && candFps.size === 1){
+            for(const t of cand) await applyTo(fp, e, [t]);
+            const cur = starsMap[fp] || e;
+            const t0 = cand[0];
+            let freshest = cand[0];
+            for(const x of cand){ if((x.starsAt || 0) > (freshest.starsAt || 0)) freshest = x; }
+            starsMap[trackFingerprint(t0)] = withFileId({
+              v: starsOf(freshest) || cur.v || 0,
+              t: Math.max(cur.t || 0, ...cand.map(x => (typeof x.starsAt === 'number' && x.starsAt > 0) ? x.starsAt : 0)),
+              d: Math.round(t0.duration || 0) || (cur.d || 0)
+            }, t0, cur);
+            delete starsMap[fp];
+            cand.forEach(x => { claimed.add(x.id); claimedStarred.add(x.id); });
+            repaired = true;
+            rescued = true;
+          }
+        }
+        if(!rescued) afterFile.push(fp);
+      }
+      // Rescate por duración (con corroboración; sin reescritura).
+      for(const fp of afterFile){
+        const e = starsMap[fp]; if(!e){ continue; }
+        const d = (e.d != null && !isNaN(Number(e.d))) ? Number(e.d) : 0;
+        if(d > 0){
+          const cand = Array.from(state.tracks.values()).filter(t => {
+            if(claimedStarred.has(t.id)) return false;
+            const td = Math.round(t.duration || 0);
+            if(!(td > 0) || Math.abs(td - d) > 3) return false;
+            const own = starsMap[trackFingerprint(t)];
+            return !(own && (own.v === 1 || own.v === 2 || own.v === 3));
+          });
+          const fps = new Set(cand.map(t => trackFingerprint(t)));
+          if(cand.length && fps.size === 1){
+            const eArtist = fp.slice(0, fp.indexOf('|'));
+            const eTitle = fp.slice(fp.indexOf('|') + 1);
+            const corroborated = d >= 2700 || cand.some(x => partialTextMatch(eTitle, x.title) || partialTextMatch(eArtist, x.artist));
+            if(corroborated){
+              for(const t of cand) await applyTo(fp, e, [t]);
+              cand.forEach(t => { claimed.add(t.id); claimedStarred.add(t.id); });
+            }
+          }
+        }
+      }
+      if(repaired){
+        await syncSaveStarsLocal();
+        if(syncUser && syncReady) syncScheduleUpload();
+      }
+      if(changed){ render(); if(typeof syncPlayerUI === 'function') syncPlayerUI(); }
+      return changed;
+    }
     /* v4.12 · La duración se corrige sola al reproducir: si la duración
        guardada de la canción que suena está en 0 o difiere en más de un
        segundo de la real que reporta el reproductor (el caso típico de
@@ -6663,6 +7111,15 @@
         } else if(t.rating){
           ratingsMap[fp] = withFileId({ r: t.rating, t: (typeof t.ratingAt === 'number' && t.ratingAt > 0) ? t.ratingAt : 0, d: realR }, t);
           await syncSaveLocal();
+          if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
+        }
+        // v4.41: la «d» de la entrada de estrellas se corrige igual.
+        const se = starsMap[fp];
+        if(se){
+          if(se.d !== realR){ se.d = realR; await syncSaveStarsLocal(); if(syncUser && syncReady && !syncApplying) syncScheduleUpload(); }
+        } else if(t.stars === 1 || t.stars === 2 || t.stars === 3){
+          starsMap[fp] = withFileId({ v: t.stars, t: (typeof t.starsAt === 'number' && t.starsAt > 0) ? t.starsAt : 0, d: realR }, t);
+          await syncSaveStarsLocal();
           if(syncUser && syncReady && !syncApplying) syncScheduleUpload();
         }
         if(typeof render === 'function') render();
@@ -6709,7 +7166,11 @@
     function syncEntryId(mapName, key){
       const s = mapName + '|' + key;
       const hex = n => ('0000000' + n.toString(16)).slice(-8);
-      const prefix = mapName === 'ratings' ? 'r' : (mapName === 'dupMarks' ? 'm' : 'k');
+      // v4.41: las estrellas llevan prefijo «s»: su espacio de IDs no
+      // choca con el de calificaciones («r»), marcas («m») ni
+      // conservadas («k»), y las versiones anteriores ignoran esos
+      // documentos sin romperse.
+      const prefix = mapName === 'ratings' ? 'r' : (mapName === 'dupMarks' ? 'm' : (mapName === 'dupKeep' ? 'k' : 's'));
       return prefix + hex(syncFnv32(s, 2166136261)) + hex(syncFnv32(s, 2654435761));
     }
     function syncEntryDocData(mapName, key, e){
@@ -6733,7 +7194,17 @@
         if(dev) d.dev = dev;
         return d;
       }
-      const d = { map: 'dupKeep', key: key, k: e.k ? 1 : 0, t: e.t || 0 };
+      if(mapName === 'dupKeep'){
+        const d = { map: 'dupKeep', key: key, k: e.k ? 1 : 0, t: e.t || 0 };
+        if(dev) d.dev = dev;
+        return d;
+      }
+      // v4.41: las estrellas viajan como los demás mapas, con su
+      // valor en «v» y los mismos auxiliares («d», «f»/«s», «dev»).
+      const d = { map: 'stars', key: key, v: (e.v === 1 || e.v === 2 || e.v === 3) ? e.v : 0, t: e.t || 0 };
+      if(e.d != null && !isNaN(Number(e.d))) d.d = Math.round(Number(e.d));
+      if(typeof e.f === 'string' && e.f) d.f = e.f;
+      if(e.s != null && !isNaN(Number(e.s)) && Number(e.s) > 0) d.s = Number(e.s);
       if(dev) d.dev = dev;
       return d;
     }
@@ -6760,10 +7231,18 @@
         if(typeof d.dev === 'string' && d.dev) e.dev = d.dev;
         return e;
       }
+      if(d.map === 'stars'){
+        const e = { v: (d.v === 1 || d.v === 2 || d.v === 3) ? d.v : 0, t: (typeof d.t === 'number' && d.t > 0) ? d.t : 0 };
+        if(d.d != null && !isNaN(Number(d.d))) e.d = Math.round(Number(d.d));
+        if(typeof d.f === 'string' && d.f) e.f = d.f;
+        if(d.s != null && !isNaN(Number(d.s)) && Number(d.s) > 0) e.s = Number(d.s);
+        if(typeof d.dev === 'string' && d.dev) e.dev = d.dev;
+        return e;
+      }
       return null;
     }
     function syncEntriesFromSnap(snap){
-      const out = { ratings: {}, dupMarks: {}, dupKeep: {} };
+      const out = { ratings: {}, dupMarks: {}, dupKeep: {}, stars: {} };
       if(!snap) return out;
       snap.forEach(doc => {
         const d = doc.data();
@@ -6777,7 +7256,10 @@
       return {
         ratings: (data.ratings && typeof data.ratings === 'object') ? data.ratings : {},
         dupMarks: (data.dupMarks && typeof data.dupMarks === 'object') ? data.dupMarks : {},
-        dupKeep: (data.dupKeep && typeof data.dupKeep === 'object') ? data.dupKeep : {}
+        dupKeep: (data.dupKeep && typeof data.dupKeep === 'object') ? data.dupKeep : {},
+        // v4.41: el documento antiguo nunca guarda estrellas (las
+        // versiones anteriores no las conocen); el mapa va vacío.
+        stars: {}
       };
     }
     function syncLegacyHasData(legacy){
@@ -6790,12 +7272,13 @@
     // las entradas, más lo que el documento antiguo aún guarde sin
     // migrar (fusionado con la misma regla de siempre).
     function syncCloudView(){
-      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {} };
+      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {}, stars: {} };
       if(!syncLegacyHasData(syncLegacyMaps)) return base;
       return {
         ratings: mergeRatings(base.ratings, syncLegacyMaps.ratings),
         dupMarks: mergeDupMarks(base.dupMarks, syncLegacyMaps.dupMarks),
-        dupKeep: mergeDupKeeps(base.dupKeep, syncLegacyMaps.dupKeep)
+        dupKeep: mergeDupKeeps(base.dupKeep, syncLegacyMaps.dupKeep),
+        stars: mergeStars(base.stars, syncLegacyMaps.stars)
       };
     }
     // v4.40 · Cuántas entradas CON DATO de unos mapas llevan la
@@ -6805,7 +7288,7 @@
     // como subidas, igual que los demás contadores de la nube solo
     // cuentan entradas con dato. Sin ID aún, la cuenta es 0.
     function countOwnUploadsByMap(maps){
-      const out = { ratings: 0, dupMarks: 0, dupKeep: 0 };
+      const out = { ratings: 0, dupMarks: 0, dupKeep: 0, stars: 0 };
       if(!syncDeviceId || !maps) return out;
       const r = maps.ratings || {};
       for(const k in r){ const e = r[k]; if(e && (e.r === 'like' || e.r === 'dislike') && e.dev === syncDeviceId) out.ratings++; }
@@ -6813,21 +7296,24 @@
       for(const k in dm){ const e = dm[k]; if(e && e.m === 1 && e.dev === syncDeviceId) out.dupMarks++; }
       const dk = maps.dupKeep || {};
       for(const k in dk){ const e = dk[k]; if(e && e.k === 1 && e.dev === syncDeviceId) out.dupKeep++; }
+      const st = maps.stars || {};
+      for(const k in st){ const e = st[k]; if(e && (e.v === 1 || e.v === 2 || e.v === 3) && e.dev === syncDeviceId) out.stars++; }
       return out;
     }
     function countOwnUploads(maps){
       const c = countOwnUploadsByMap(maps);
-      return c.ratings + c.dupMarks + c.dupKeep;
+      return c.ratings + c.dupMarks + c.dupKeep + c.stars;
     }
     function syncRefreshCloudCounts(){
       const view = syncCloudView();
       syncCloudCount = countRatings(migrateRatingsMap(view.ratings));
       syncCloudDupCount = countDupMarks(view.dupMarks);
       syncCloudKeepCount = countDupKeeps(view.dupKeep);
+      syncCloudStarsCount = countStars(migrateStarsMap(view.stars));
       syncCloudOwnCount = countOwnUploads(view);
     }
     function syncCloneMaps(maps){
-      const out = { ratings: {}, dupMarks: {}, dupKeep: {} };
+      const out = { ratings: {}, dupMarks: {}, dupKeep: {}, stars: {} };
       for(const name in out){
         const src = (maps && maps[name]) || {};
         for(const k in src){ if(src[k]) out[name][k] = Object.assign({}, src[k]); }
@@ -6859,6 +7345,7 @@
       ratingsMap = mergeRatings(ratingsMap, view.ratings);
       dupMarksMap = mergeDupMarks(dupMarksMap, view.dupMarks);
       dupKeepMap = mergeDupKeeps(dupKeepMap, view.dupKeep);
+      starsMap = mergeStars(starsMap, view.stars);
       syncRefreshCloudCounts();
     }
     // Firma de UNA entrada para la subida por diferencia: dos
@@ -6867,13 +7354,14 @@
       if(!e) return '';
       if(mapName === 'ratings') return (e.r || '') + '@' + (e.t || 0) + '#' + (e.d != null ? e.d : '') + '!' + (e.f || '') + ':' + (e.s != null ? e.s : '');
       if(mapName === 'dupMarks') return (e.m || 0) + '@' + (e.t || 0);
-      return (e.k || 0) + '@' + (e.t || 0);
+      if(mapName === 'dupKeep') return (e.k || 0) + '@' + (e.t || 0);
+      return (e.v || 0) + '@' + (e.t || 0) + '#' + (e.d != null ? e.d : '') + '!' + (e.f || '') + ':' + (e.s != null ? e.s : '');
     }
     function syncDiffOps(){
       const ops = [];
-      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {} };
-      const targets = { ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap };
-      for(const mapName of ['ratings', 'dupMarks', 'dupKeep']){
+      const base = syncCloudEntries || { ratings: {}, dupMarks: {}, dupKeep: {}, stars: {} };
+      const targets = { ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap, stars: starsMap };
+      for(const mapName of ['ratings', 'dupMarks', 'dupKeep', 'stars']){
         const b = base[mapName] || {};
         const t = targets[mapName];
         for(const key in t){
@@ -6909,6 +7397,7 @@
       ratingsMap = migrateRatingsMap(ratingsMap);
       dupMarksMap = sanitizeDupMap(dupMarksMap);
       dupKeepMap = sanitizeDupKeepMap(dupKeepMap);
+      starsMap = migrateStarsMap(starsMap);
       const h = syncCombinedHash();
       if(h === syncLastHash && !syncLegacyPending) return;
       try{
@@ -6923,6 +7412,7 @@
           await syncSaveLocal();
           await syncSaveDupLocal();
           await syncSaveDupKeepLocal();
+          await syncSaveStarsLocal();
         }
         await syncRunOps(syncDiffOps());
         // Migración del documento antiguo: con las entradas ya
@@ -6933,9 +7423,9 @@
         if(syncLegacyPending){
           await syncDocRef().set({ ratings: {}, dupMarks: {}, dupKeep: {}, entriesMigrated: true });
           syncLegacyPending = false;
-          syncLegacyMaps = { ratings: {}, dupMarks: {}, dupKeep: {} };
+          syncLegacyMaps = { ratings: {}, dupMarks: {}, dupKeep: {}, stars: {} };
         }
-        syncCloudEntries = syncCloneMaps({ ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap });
+        syncCloudEntries = syncCloneMaps({ ratings: ratingsMap, dupMarks: dupMarksMap, dupKeep: dupKeepMap, stars: starsMap });
         syncLastHash = syncCombinedHash();
         syncRefreshCloudCounts();
         syncLastAt = Date.now();
@@ -7071,9 +7561,11 @@
         await syncSaveLocal();
         await syncSaveDupLocal();
         await syncSaveDupKeepLocal();
+        await syncSaveStarsLocal();
         await syncApplyToTracks();
         await syncApplyDupMarks();
         await syncApplyDupKeeps();
+        await syncApplyStarsToTracks();
         syncLastHash = ''; // forzar la subida del mapa fusionado
         await syncUpload();
         syncLastAt = Date.now();
@@ -7125,20 +7617,24 @@
       const remoteMigrated = migrateRatingsMap(remote.ratings);
       const remoteDup = sanitizeDupMap(remote.dupMarks);
       const remoteKeep = sanitizeDupKeepMap(remote.dupKeep);
-      const rh = ratingsHash(remoteMigrated) + '/' + dupMarksHash(remoteDup) + '/' + dupKeepHash(remoteKeep);
+      const remoteStars = migrateStarsMap(remote.stars);
+      const rh = ratingsHash(remoteMigrated) + '/' + dupMarksHash(remoteDup) + '/' + dupKeepHash(remoteKeep) + '/' + starsHash(remoteStars);
       if(rh === syncLastHash) return; // es lo que acabamos de subir
       syncApplying = true;
       try{
         ratingsMap = mergeRatings(ratingsMap, remote.ratings);
         dupMarksMap = mergeDupMarks(dupMarksMap, remote.dupMarks);
         dupKeepMap = mergeDupKeeps(dupKeepMap, remote.dupKeep);
+        starsMap = mergeStars(starsMap, remote.stars);
         syncLastHash = rh;
         await syncSaveLocal();
         await syncSaveDupLocal();
         await syncSaveDupKeepLocal();
+        await syncSaveStarsLocal();
         await syncApplyToTracks();
         await syncApplyDupMarks();
         await syncApplyDupKeeps();
+        await syncApplyStarsToTracks();
         syncLastAt = Date.now();
         syncSaveMeta();
       }catch(e){}
@@ -7236,29 +7732,36 @@
        lugar de devolver los datos. Las fichas cargadas también se
        limpian (si no, la semilla de syncLoadLocal volvería a meter
        sus marcas en los mapas al próximo arranque). Las canciones,
-       sus archivos, la cola y las playlists no se tocan. */
+       sus archivos, la cola y las playlists no se tocan.
+       v4.41 · El reseteo incluye el cuarto mapa, el de estrellas:
+       sus entradas con dato quedan como retiradas fechadas y las
+       fichas cargadas quedan sin estrellas (stars 0, starsAt
+       nuevo), igual que los demás datos de sincronización. */
     async function syncResetData(){
       const nR = countRatings(ratingsMap);
       const nD = countDupMarks(dupMarksMap);
       const nK = countDupKeeps(dupKeepMap);
-      let ratedLoaded = 0, dupLoaded = 0, keepLoaded = 0;
+      const nS = countStars(starsMap);
+      let ratedLoaded = 0, dupLoaded = 0, keepLoaded = 0, starsLoaded = 0;
       state.tracks.forEach(t => {
         if(t.rating === 'like' || t.rating === 'dislike') ratedLoaded++;
         if(t.dupDislike) dupLoaded++;
         if(t.dupKeep) keepLoaded++;
+        if(t.stars === 1 || t.stars === 2 || t.stars === 3) starsLoaded++;
       });
-      if(!nR && !nD && !nK && !ratedLoaded && !dupLoaded && !keepLoaded){
+      if(!nR && !nD && !nK && !nS && !ratedLoaded && !dupLoaded && !keepLoaded && !starsLoaded){
         toast('No hay datos de sincronización que resetear');
         return;
       }
       const parts = [];
       if(nR) parts.push(nR + (nR === 1 ? ' calificación' : ' calificaciones'));
+      if(nS) parts.push(nS + (nS === 1 ? ' canción con estrellas' : ' canciones con estrellas'));
       if(nD) parts.push(nD + (nD === 1 ? ' marca' : ' marcas') + ' de duplicados');
       if(nK) parts.push(nK + (nK === 1 ? ' versión conservada' : ' versiones conservadas'));
       let text = 'Se borrarán TODOS los datos de sincronización guardados' +
         (parts.length ? ' (' + parts.join(', ') + ')' : '') +
         ', incluidas las calificaciones de canciones que ya no están cargadas. ' +
-        'Las canciones cargadas quedarán sin calificar y sin marcas de Duplicadas, y los grupos conservados volverán a aparecer en Duplicadas. Tus canciones, sus archivos y tus playlists no se tocan. ';
+        'Las canciones cargadas quedarán sin calificar, sin estrellas y sin marcas de Duplicadas, y los grupos conservados volverán a aparecer en Duplicadas. Tus canciones, sus archivos y tus playlists no se tocan. ';
       text += syncUser
         ? 'La copia de la nube también se vaciará y el reseteo llegará a tus demás dispositivos al sincronizar. '
         : 'Sin sesión, el reseteo se aplica solo a este dispositivo; si la nube guardara datos que este dispositivo no conoce, podrían volver al iniciar sesión. ';
@@ -7272,10 +7775,12 @@
         // aún esa entrada (la retirada también tiene que viajar).
         for(const t of state.tracks.values()){
           const hadRating = !!t.rating, hadDup = !!t.dupDislike, hadKeep = !!t.dupKeep;
-          if(!hadRating && !hadDup && !hadKeep) continue;
+          const hadStars = t.stars === 1 || t.stars === 2 || t.stars === 3;
+          if(!hadRating && !hadDup && !hadKeep && !hadStars) continue;
           if(hadRating){ t.rating = null; t.ratingAt = now; }
           if(hadDup){ t.dupDislike = null; t.dupDislikeAt = now; }
           if(hadKeep){ t.dupKeep = null; t.dupKeepAt = now; }
+          if(hadStars){ t.stars = 0; t.starsAt = now; }
           const ok = await saveTrackMeta(t);
           if(!ok) failed = true;
           if(hadRating){
@@ -7287,6 +7792,13 @@
           }
           if(hadDup) dupMarksMap[dupCopyKey(t)] = { m: 0, t: now };
           if(hadKeep) dupKeepMap[dupCopyKey(t)] = { k: 0, t: now };
+          if(hadStars){
+            const fp = trackFingerprint(t);
+            const prevS = starsMap[fp];
+            const nd = Math.round(t.duration || 0);
+            const keepDS = nd > 0 ? nd : (prevS && prevS.d != null ? prevS.d : nd);
+            starsMap[fp] = withFileId({ v: 0, t: now, d: keepDS }, t, prevS);
+          }
         }
         // Cada entrada con dato de los tres mapas —cargada o
         // huérfana— queda como retirada explícita fechada ahora.
@@ -7307,6 +7819,17 @@
           const e = dupKeepMap[k];
           if(e && e.k) dupKeepMap[k] = { k: 0, t: now };
         }
+        // v4.41: cada entrada con estrellas —cargada o huérfana—
+        // queda como retirada explícita fechada, como las demás.
+        for(const fp in starsMap){
+          const e = starsMap[fp];
+          if(e && (e.v === 1 || e.v === 2 || e.v === 3)){
+            const tomb = { v: 0, t: now, d: (e.d != null ? e.d : 0) };
+            if(e.f) tomb.f = e.f;
+            if(e.s != null) tomb.s = e.s;
+            starsMap[fp] = tomb;
+          }
+        }
         lastImportUndo = [];
         syncAppliedCount = 0;
         syncOrphanCount = 0;
@@ -7314,6 +7837,7 @@
         await syncSaveLocal();
         await syncSaveDupLocal();
         await syncSaveDupKeepLocal();
+        await syncSaveStarsLocal();
         let cloudFailed = false;
         if(syncUser && syncReady){
           if(syncApplying){ syncScheduleUpload(); }
@@ -7325,7 +7849,7 @@
         }
         if(failed) toast('Alguna marca no se pudo resetear en este dispositivo.', 4200);
         else if(cloudFailed) toast('Datos reseteados en este dispositivo; la copia de la nube no se pudo vaciar ahora y se vaciará en la próxima sincronización.', 4600);
-        else toast('Datos de sincronización reseteados: calificaciones, marcas y versiones conservadas quedaron en cero', 4200);
+        else toast('Datos de sincronización reseteados: calificaciones, estrellas, marcas y versiones conservadas quedaron en cero', 4200);
         if(typeof syncPlayerUI === 'function') syncPlayerUI();
         render();
       });
@@ -7348,13 +7872,14 @@
       }
       await syncEnsureDeviceId();
       const own = countOwnUploadsByMap(syncCloudView());
-      const total = own.ratings + own.dupMarks + own.dupKeep;
+      const total = own.ratings + own.dupMarks + own.dupKeep + own.stars;
       if(!total){
         toast('Este dispositivo todavía no ha subido nada con su marca: solo cuenta lo subido desde la v4.40.', 4400);
         return;
       }
       const parts = [];
       if(own.ratings) parts.push(own.ratings + (own.ratings === 1 ? ' calificación' : ' calificaciones'));
+      if(own.stars) parts.push(own.stars + (own.stars === 1 ? ' canción con estrellas' : ' canciones con estrellas'));
       if(own.dupMarks) parts.push(own.dupMarks + (own.dupMarks === 1 ? ' marca' : ' marcas') + ' de duplicados');
       if(own.dupKeep) parts.push(own.dupKeep + (own.dupKeep === 1 ? ' versión conservada' : ' versiones conservadas'));
       const text = 'Se borrarán ' + parts.join(', ') + ': solo las entradas que llevan la marca de ESTE dispositivo, subidas desde la v4.40. ' +
@@ -7382,12 +7907,12 @@
         // subir aún; la de la nube es la subida que se está borrando).
         const isTarget = (mapName, key, e) => {
           if(!e) return false;
-          const hasData = mapName === 'ratings' ? (e.r === 'like' || e.r === 'dislike') : (mapName === 'dupMarks' ? e.m === 1 : e.k === 1);
+          const hasData = mapName === 'ratings' ? (e.r === 'like' || e.r === 'dislike') : (mapName === 'dupMarks' ? e.m === 1 : (mapName === 'dupKeep' ? e.k === 1 : (e.v === 1 || e.v === 2 || e.v === 3)));
           if(!hasData) return false;
           if(e.dev === syncDeviceId) return true;
           const ve = freshView && freshView[mapName] ? freshView[mapName][key] : null;
           if(!ve || ve.dev !== syncDeviceId || (e.t || 0) > (ve.t || 0)) return false;
-          return mapName === 'ratings' ? (ve.r === 'like' || ve.r === 'dislike') : (mapName === 'dupMarks' ? ve.m === 1 : ve.k === 1);
+          return mapName === 'ratings' ? (ve.r === 'like' || ve.r === 'dislike') : (mapName === 'dupMarks' ? ve.m === 1 : (mapName === 'dupKeep' ? ve.k === 1 : (ve.v === 1 || ve.v === 2 || ve.v === 3)));
         };
         let n = 0;
         for(const fp in ratingsMap){
@@ -7406,15 +7931,27 @@
         for(const k in dupKeepMap){
           if(isTarget('dupKeep', k, dupKeepMap[k])){ dupKeepMap[k] = { k: 0, t: now }; n++; }
         }
+        for(const fp in starsMap){
+          const e = starsMap[fp];
+          if(isTarget('stars', fp, e)){
+            const tomb = { v: 0, t: now, d: (e.d != null ? e.d : 0) };
+            if(e.f) tomb.f = e.f;
+            if(e.s != null) tomb.s = e.s;
+            starsMap[fp] = tomb;
+            n++;
+          }
+        }
         lastImportUndo = [];
         await syncSaveLocal();
         await syncSaveDupLocal();
         await syncSaveDupKeepLocal();
+        await syncSaveStarsLocal();
         // Las retiradas se aplican aquí mismo: las canciones cargadas
         // pierden al momento las calificaciones y marcas borradas.
         try{ await syncApplyToTracks(); }catch(e){}
         try{ await syncApplyDupMarks(); }catch(e){}
         try{ await syncApplyDupKeeps(); }catch(e){}
+        try{ await syncApplyStarsToTracks(); }catch(e){}
         let cloudFailed = false;
         if(syncUser && syncReady){
           if(syncApplying){ syncScheduleUpload(); }
@@ -7448,7 +7985,7 @@
     }
     function openSyncSheet(){
       let body = '<h3>Sincronización</h3>' +
-        '<p class="sub">Tus calificaciones, iguales en todos tus dispositivos.</p>';
+        '<p class="sub">Tus calificaciones y tus estrellas, iguales en todos tus dispositivos.</p>';
       if(syncFailed){
         body += '<p class="sync-line">No se pudo cargar la sincronización (sin conexión o servicio no disponible). La app sigue funcionando 100% local, como siempre.</p>';
       } else if(!syncAuthResolved){
@@ -7464,6 +8001,8 @@
           '<div class="sync-counts">' +
           '<p class="sync-line">En este dispositivo: ' + nLocal + ' calificaciones</p>' +
           '<p class="sync-line">En la nube: ' + syncCloudCount + ' calificaciones</p>' +
+          '<p class="sync-line">Canciones con estrellas en este dispositivo: ' + countStars(starsMap) + '</p>' +
+          '<p class="sync-line">Canciones con estrellas en la nube: ' + syncCloudStarsCount + '</p>' +
           '<p class="sync-line">Aplicadas en este dispositivo: ' + syncAppliedCount + '</p>' +
           (syncOrphanCount > 0 ? '<p class="sync-line">Sin coincidencia en este dispositivo: ' + syncOrphanCount + '</p>' : '') +
           '<p class="sync-line">Marcas de duplicados en este dispositivo: ' + countDupMarks(dupMarksMap) + '</p>' +
@@ -7502,7 +8041,7 @@
       if(syncLastError && !syncFailed){
         body += '<p class="sync-line" style="color:var(--danger)">' + esc(syncLastError) + '</p>';
       }
-      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Cada calificación, marca y decisión se guarda en la nube como su propio documento independiente, así que no hay un límite práctico de cuántas puedes sincronizar. Desde la v4.40, cada entrada que sube un dispositivo lleva además su marca, para que puedas borrar solo lo subido por este dispositivo sin tocar lo de los demás ni lo subido antes de esta versión. Tu música nunca se sube a internet.</p>';
+      body += '<p class="sync-note">Solo se guardan tus calificaciones (Me gusta / No me gusta) y tus estrellas (de 1 a 3) con artista y título de cada canción; la duración guardada ayuda a encontrar la canción si su título o su artista difieren entre un dispositivo y otro, y el nombre y el tamaño de su archivo ayudan a reconocerla cuando vuelves a agregarla. También se guardan las marcas «No me gusta» que pones a versiones concretas en Duplicadas, identificadas por el nombre y el tamaño de su archivo, para que caigan solo sobre esa misma versión en cada dispositivo y nunca sobre la copia que te quieres quedar. Y se guardan tus decisiones de «Quedarme con las 2», identificadas igual por versión, para que los grupos que conservas sigan ocultos en Duplicadas en todos tus dispositivos y aunque vuelvas a subir las canciones. Cada calificación, estrella, marca y decisión se guarda en la nube como su propio documento independiente, así que no hay un límite práctico de cuántas puedes sincronizar. Desde la v4.40, cada entrada que sube un dispositivo lleva además su marca, para que puedas borrar solo lo subido por este dispositivo sin tocar lo de los demás ni lo subido antes de esta versión. Tu música nunca se sube a internet.</p>';
       openSheet(body);
       const bi = document.getElementById('syncIn');
       if(bi) bi.addEventListener('click', syncSignIn);
@@ -7555,6 +8094,8 @@
         // biblioteca reimportada sin sesión recupera también sus
         // grupos «Quedarme con las 2» ya ocultos.
         try{ await syncApplyDupKeeps(); }catch(e){}
+        // v4.41: y el mapa de estrellas, por la misma razón.
+        try{ await syncApplyStarsToTracks(); }catch(e){}
         if(settings){
           if(typeof settings.volume === 'number') state.volume = settings.volume;
           if(settings.accent && ACCENTS[settings.accent]) applyAccent(settings.accent, false);
@@ -7592,7 +8133,7 @@
         content.innerHTML = '<div class="empty"><div class="art">' + icon('note') + '</div><h2>Algo salió mal al abrir tu biblioteca</h2><p>Tu música sigue guardada en este dispositivo. Cierra y vuelve a abrir la página para intentarlo de nuevo.</p></div>';
       }
     })();
-    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); syncSaveDupLocal(); syncSaveDupKeepLocal(); syncFlushUpload(); }catch(e){} });
+    window.addEventListener('beforeunload', ()=>{ saveSettings(); try{ syncSaveLocal(); syncSaveDupLocal(); syncSaveDupKeepLocal(); syncSaveStarsLocal(); syncFlushUpload(); }catch(e){} });
     // v4.13: al pasar la app a segundo plano se deja el mapa de
     // calificaciones guardado en disco. En el móvil es el momento en
     // que el sistema puede matar la app durante una escucha larga, y
@@ -7601,7 +8142,7 @@
     // pendiente en ese mismo momento (syncFlushUpload): al ocultarse
     // la página suele quedar un margen para que la petición salga, y
     // es la última oportunidad antes de que el sistema la mate.
-    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); syncSaveDupLocal(); syncSaveDupKeepLocal(); syncFlushUpload(); }catch(e){} } });
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden'){ try{ syncSaveLocal(); syncSaveDupLocal(); syncSaveDupKeepLocal(); syncSaveStarsLocal(); syncFlushUpload(); }catch(e){} } });
     </script>
 
     <script>
