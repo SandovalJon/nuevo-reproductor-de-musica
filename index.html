@@ -2093,6 +2093,65 @@
       }
       .veil-mark .ic{ width:42px; height:42px; }
     </style>
+    <style>
+      /* ============ v4.43 · Aire para navegar ============
+         Queja de Sando, con captura de su teléfono: el bloque fijo de
+         arriba (cabecera + «Apariencia» siempre desplegada) se comía
+         casi toda la pantalla y la lista quedaba atrapada en una
+         rendija entre el buscador y el mini-reproductor; el único
+         sitio donde el dedo agarraba para deslizar era del buscador
+         para abajo. Dos arreglos, solo de presentación:
+         1) «Apariencia» se pliega: su título es ahora un botón que
+            abre y cierra el panel. Sin preferencia guardada nace
+            cerrada en pantallas estrechas y abierta en las anchas;
+            al tocarla, la elección se guarda con los demás ajustes
+            visuales (state.appearanceOpen) y se respeta siempre.
+         2) La barra de herramientas se ordena en dos filas claras:
+            arriba buscador + orden + vista, y debajo los botones de
+            acción, que en el teléfono forman una sola fila que se
+            desliza de lado en vez de amontonarse en tres o cuatro
+            líneas antes de la primera canción.
+         Ni datos, ni calificaciones, ni estrellas, ni sincronización
+         cambian; el arreglo de filas de la v4.42 queda intacto. */
+
+      /* 1 · El título de «Apariencia» como botón plegable: la misma
+         tipografía de encabezado de siempre, con su chevrones
+         girando según el estado y 44px de zona de toque. */
+      .appearance-toggle{
+        display:flex; align-items:center; gap:8px; width:100%;
+        min-height:44px; padding:4px 2px; margin:0; text-align:left;
+        border-radius:12px; -webkit-tap-highlight-color:transparent;
+      }
+      .appearance-toggle .appearance-title{ margin:0; }
+      .appearance-toggle .ap-chev{ display:flex; color:var(--muted); transition:transform .25s ease; }
+      .appearance-toggle .ap-chev .ic{ width:20px; height:20px; }
+      .appearance:not(.ap-closed) .ap-chev{ transform:rotate(180deg); }
+      .appearance.ap-closed .appearance-body{ display:none; }
+      @media (prefers-reduced-motion: reduce){ .appearance-toggle .ap-chev{ transition:none; } }
+
+      /* 2 · Barra en dos filas: la principal (buscar, ordenar, vista)
+         y la de acciones. En escritorio las acciones se envuelven
+         como antes si no caben; en el teléfono son una fila única
+         deslizable de lado, sangrada hasta el filo de la pantalla
+         para aprovechar todo el ancho. */
+      .toolbar{ flex-direction:column; align-items:stretch; flex-wrap:nowrap; }
+      .toolbar-main{ display:flex; gap:8px; align-items:center; }
+      .toolbar-main .search{ flex:1; }
+      .toolbar-main select.sort, .toolbar-main .seg{ flex:none; }
+      .toolbar-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .toolbar-actions .shuffle-all{ margin-left:0; }
+      @media (max-width:560px){
+        .toolbar .search{ min-width:0; }
+        .toolbar select.sort{ padding:0 9px; font-size:14px; }
+        .toolbar-actions{
+          flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
+          -webkit-overflow-scrolling:touch;
+          margin:0 -16px; padding:2px 16px 4px;
+        }
+        .toolbar-actions::-webkit-scrollbar{ display:none; }
+        .toolbar-actions .btn{ flex:none; white-space:nowrap; }
+      }
+    </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
          núcleos o poca memoria). Solo activa la clase .perf-lite que
@@ -2122,15 +2181,16 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.42</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.43</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
         </div>
-        <section class="appearance" aria-label="Apariencia">
-        <h2 class="appearance-title">Apariencia</h2>
+        <section class="appearance" id="appearanceSec" aria-label="Apariencia">
+        <button class="appearance-toggle" id="appearanceToggle" aria-expanded="true" aria-controls="appearanceBody"><span class="appearance-title">Apariencia</span><span class="ap-chev" data-ic="chevD"></span></button>
+        <div class="appearance-body" id="appearanceBody">
         <div class="theme-row">
           <span class="theme-lbl" id="themeLbl">Color</span>
           <div class="swatches" role="group" aria-labelledby="themeLbl">
@@ -2177,6 +2237,7 @@
             <span class="theme-name" id="libBgName">Original</span>
           </div>
         </div>
+        </div>
         </section>
       </header>
 
@@ -2190,6 +2251,7 @@
       <main class="main" id="main">
         <div class="wrap">
           <div class="toolbar" id="toolbar">
+            <div class="toolbar-main">
             <label class="search"><span data-ic="search"></span><input id="searchInput" type="search" placeholder="Buscar título, artista o álbum…" autocomplete="off" aria-label="Buscar en la biblioteca" /></label>
             <select class="sort" id="sortSel" aria-label="Ordenar por">
               <option value="recent">Recientes</option>
@@ -2201,12 +2263,15 @@
               <button data-vm="list" class="on" aria-label="Vista de lista"><span data-ic="list"></span></button>
               <button data-vm="grid" aria-label="Vista de cuadrícula"><span data-ic="grid"></span></button>
             </div>
+            </div>
+            <div class="toolbar-actions">
             <button class="btn btn-ghost shuffle-all" id="btnShuffleAll"><span data-ic="shuffle"></span>Todo en aleatorio</button>
             <button class="btn btn-ghost shuffle-unrated" id="btnShuffleUnrated"><span class="btn-ic-badge"><span data-ic="shuffle"></span><i class="btn-badge" aria-hidden="true">?</i></span>Aleatorio sin calificar</button>
             <button class="btn btn-ghost" id="btnGoDuplicates"><span data-ic="copy"></span>Duplicadas</button>
             <button class="btn btn-danger-soft" id="btnClearLibrary"><span data-ic="trash"></span>Vaciar biblioteca</button>
             <button class="btn btn-danger-soft" id="btnDeleteDisliked"><span data-ic="trash"></span>Borrar las que no me gustan</button>
             <button class="btn btn-danger-soft" id="btnResetRatings"><span data-ic="refresh"></span>Resetear calificaciones</button>
+            </div>
           </div>
           <div id="content"></div>
         </div>
@@ -2608,7 +2673,8 @@
       mode: 'oscuro',
       coverSize: 'comodo',
       density: 'comoda',
-      libBg: 'halo'
+      libBg: 'halo',
+      appearanceOpen: null   // v4.43: null = sin preferencia guardada del plegado de «Apariencia»
     };
     const audio = $('#audio');
     audio.volume = 1;
@@ -2666,7 +2732,8 @@
           lastPosition: audio.currentTime || 0,
           sort: state.sort, viewMode: state.viewMode, accent: state.accent,
           mode: state.mode,
-          coverSize: state.coverSize, density: state.density, libBg: state.libBg
+          coverSize: state.coverSize, density: state.density, libBg: state.libBg,
+          appearanceOpen: state.appearanceOpen
         }, 'settings');
       }catch(e){}
     }
@@ -4292,7 +4359,20 @@
        las versiones de Duplicadas; en pantallas anchas nada cambia.
        Solo presentación: datos, calificaciones, estrellas y
        sincronización quedan intactos. */
-    const APP_VERSION = '4.42';
+    /* v4.43 · Aire para navegar: con la captura de su teléfono,
+       Sando mostró que la cabecera fija —con «Apariencia» siempre
+       desplegada— se comía casi toda la pantalla y la lista quedaba
+       atrapada en una rendija entre el buscador y el mini-
+       reproductor: solo se podía deslizar del buscador para abajo.
+       Ahora «Apariencia» se pliega desde su título (cerrada por
+       defecto en pantallas estrechas; la preferencia se guarda en
+       los ajustes como appearanceOpen) y la barra de herramientas
+       va en dos filas: buscar + orden + vista arriba, y las
+       acciones en una fila que en el teléfono se desliza de lado
+       en vez de amontonarse en varias líneas. Solo presentación:
+       datos, calificaciones, estrellas y sincronización quedan
+       intactos, y el arreglo de filas de la v4.42 se conserva. */
+    const APP_VERSION = '4.43';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5651,6 +5731,29 @@
     $$('[data-coversize-btn]').forEach(b => b.addEventListener('click', ()=>{ state.coverSize = b.dataset.coversizeBtn; applyAppearance(true); }));
     $$('[data-density-btn]').forEach(b => b.addEventListener('click', ()=>{ state.density = b.dataset.densityBtn; applyAppearance(true); }));
     $$('[data-libbg-btn]').forEach(b => b.addEventListener('click', ()=>{ state.libBg = b.dataset.libbgBtn; applyAppearance(true); }));
+    /* v4.43 · Plegado de «Apariencia»: sin preferencia guardada, el
+       panel nace cerrado en pantallas estrechas (donde la cabecera
+       fija se comía la lista) y abierto en las anchas; al tocar el
+       título, la elección queda en state.appearanceOpen y se guarda
+       con los demás ajustes visuales. Se aplica ya al cargar el
+       script —con la regla por ancho— y otra vez al arrancar, con
+       la preferencia guardada si la hay. */
+    const appearanceSecEl = document.getElementById('appearanceSec');
+    const appearanceToggleEl = document.getElementById('appearanceToggle');
+    function applyAppearanceFold(save){
+      let open = true;
+      if(typeof state.appearanceOpen === 'boolean') open = state.appearanceOpen;
+      else if(window.matchMedia && window.matchMedia('(max-width: 560px)').matches) open = false;
+      if(appearanceSecEl) appearanceSecEl.classList.toggle('ap-closed', !open);
+      if(appearanceToggleEl) appearanceToggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if(save) saveSettings();
+    }
+    if(appearanceToggleEl) appearanceToggleEl.addEventListener('click', ()=>{
+      const isClosed = !!(appearanceSecEl && appearanceSecEl.classList.contains('ap-closed'));
+      state.appearanceOpen = isClosed;
+      applyAppearanceFold(true);
+    });
+    applyAppearanceFold(false);
     let searchDeb = null;
     $('#searchInput').addEventListener('input', e => {
       clearTimeout(searchDeb);
@@ -8147,7 +8250,9 @@
           if(settings.coverSize) state.coverSize = settings.coverSize;
           if(settings.density) state.density = settings.density;
           if(settings.libBg) state.libBg = settings.libBg;
+          if(typeof settings.appearanceOpen === 'boolean') state.appearanceOpen = settings.appearanceOpen;
           applyAppearance(false);
+          applyAppearanceFold(false);
           if(settings.sort){ state.sort = settings.sort; $('#sortSel').value = settings.sort; }
           if(settings.viewMode){
             state.viewMode = settings.viewMode;
