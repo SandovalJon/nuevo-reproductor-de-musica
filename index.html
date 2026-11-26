@@ -2177,6 +2177,27 @@
           text-align:center; line-height:1.25; height:auto;
         }
       }
+
+      /* v4.46 · La banda del saludo abarca mucho: en el teléfono, el
+         bloque «Sonando / Buenas tardes, Sando / Tu música está
+         lista…» de la v4.4 medía casi 100 px de alto (pastilla de
+         52 px, nombre a 32 px y dos líneas más con sus márgenes) y
+         se comía el arranque de la lista. Ahora, solo en pantallas
+         estrechas, la banda se compacta: pastilla de 38 px, nombre
+         a 21 px, saludo y línea de apoyo un punto más pequeños y
+         con los márgenes y el relleno apretados — pasa a medir
+         unos 73 px, con las tres líneas completas y legibles.
+         En pantallas anchas la banda queda exactamente como hoy.
+         Solo presentación: datos, estrellas y sincronización
+         quedan intactos, y se conserva todo lo de la v4.42–v4.45. */
+      @media (max-width:560px){
+        .brand-band{ gap:10px; padding:8px 12px; border-radius:18px; }
+        .brand-mark{ width:38px; height:38px; border-radius:12px; }
+        .brand-mark .ic{ width:20px; height:20px; }
+        .brand-name{ font-size:21px; line-height:1.05; }
+        .brand-band h2{ font-size:14px; margin-top:1px; line-height:1.2; }
+        .brand-band p{ font-size:12.5px; margin-top:1px; line-height:1.3; }
+      }
     </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
@@ -2207,7 +2228,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.45</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.46</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4413,7 +4434,19 @@
        teléfono se apretaron un poco los espacios verticales de
        esa vista (banda de marca y tarjeta vacía), como la v4.37
        ya hizo con la barra misma. */
-    const APP_VERSION = '4.45';
+    /* v4.46 · La banda del saludo abarca mucho: con la captura de
+       su teléfono, Sando señaló el bloque «Sonando / Buenas
+       tardes, Sando / Tu música está lista. ¿Qué quieres
+       escuchar?» — casi 100 px de alto en el teléfono entre la
+       pastilla de 52 px, el nombre a 32 px y las dos líneas con
+       sus márgenes. Ahora, solo en pantallas estrechas, la banda
+       se compacta (pastilla de 38 px, nombre a 21 px, saludo y
+       apoyo un punto más pequeños, márgenes y relleno apretados)
+       y pasa a medir unos 73 px con las tres líneas completas;
+       en pantallas anchas nada cambia. Solo presentación: se
+       conserva todo lo de la v4.42–v4.45, y datos, estrellas y
+       sincronización quedan intactos. */
+    const APP_VERSION = '4.46';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
