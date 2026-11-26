@@ -184,8 +184,9 @@
       .row .rate.dislike{ color:var(--danger); }
       /* v4.41 · Estrellas en la fila: tres botones compactos entre la
          duración y el corazón; llenas en el color de acento y vacías
-         atenuadas. La meta flexible absorbe el ancho extra sin romper
-         la fila, también en el teléfono. */
+         atenuadas. (En el teléfono bajan a una segunda línea desde
+         la v4.42: la meta flexible NO absorbía el ancho extra y el
+         título colapsaba.) */
       .stars{ display:inline-flex; align-items:center; flex:none; }
       .star-btn{
         width:32px; height:32px; min-height:32px; padding:0; flex:none;
@@ -197,6 +198,40 @@
       .star-btn:active{ transform:scale(.85); }
       @media (prefers-reduced-motion: reduce){ .star-btn{ transition:none; } .star-btn:active{ transform:none; } }
       @media (max-width:380px){ .row .dur{ display:none; } }
+      /* v4.42 · En el teléfono la fila pasa a dos líneas: las estrellas
+         de la v4.41 (96 px fijos) compartían la única línea con la
+         portada, la duración, el corazón y las opciones, y la columna
+         del texto —la única que puede encogerse— colapsaba a unos
+         pocos píxeles: el título no se veía y las estrellas quedaban
+         montadas sobre la insignia «Favorita». Ahora, en pantallas
+         estrechas, la primera línea lleva portada, título/artista/
+         insignias, corazón y opciones, y la segunda lleva la duración
+         y las estrellas con todo su espacio. En pantallas anchas la
+         fila queda exactamente como estaba. Solo presentación: ni los
+         datos ni la sincronización cambian. */
+      @media (max-width:560px){
+        .row[data-song]{
+          display:grid;
+          grid-template-columns:auto minmax(0,1fr) auto auto;
+          grid-template-areas:
+            "cover meta rate more"
+            "cover dur stars stars";
+          gap:3px 13px;
+        }
+        .row[data-song] .cover{ grid-area:cover; }
+        .row[data-song] .meta{ grid-area:meta; }
+        .row[data-song] .dur{ grid-area:dur; align-self:center; }
+        .row[data-song] .stars{ grid-area:stars; justify-self:end; }
+        .row[data-song] .rate{ grid-area:rate; }
+        .row[data-song] .more{ grid-area:more; }
+        /* Las versiones de Duplicadas sufren el mismo aprieto: su
+           línea principal se envuelve y las estrellas bajan a una
+           segunda línea, alineadas bajo el texto. */
+        .dup-ver-main{ flex-wrap:wrap; row-gap:3px; }
+        .dup-ver-main .stars{ order:5; margin-left:73px; }
+        :root[data-coversize="compacto"] .dup-ver-main .stars{ margin-left:59px; }
+        :root[data-coversize="grande"] .dup-ver-main .stars{ margin-left:91px; }
+      }
       .row .more{ display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--muted); /* 44px táctiles en la v3.3 */ }
       .cover{
         width:60px; height:60px; border-radius:16px; overflow:hidden; flex:none; position:relative;
@@ -2087,7 +2122,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.41</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.42</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4248,7 +4283,16 @@
        «Resetear calificaciones» (v4.37) también quita las estrellas
        de las canciones cargadas, registrado como retiros fechados.
        Sin letras, sin micrófono, sin temporizador: como siempre. */
-    const APP_VERSION = '4.41';
+    /* v4.42 · Corrección visual pedida por Sando: en el teléfono las
+       estrellas de la v4.41 se sobreponían a la insignia «Favorita» y
+       el título de la canción dejaba de verse, porque la fila se
+       quedaba sin ancho y la columna del texto colapsaba. En
+       pantallas estrechas la fila de canción pasa a dos líneas (las
+       estrellas bajan a la segunda, con la duración) y lo mismo en
+       las versiones de Duplicadas; en pantallas anchas nada cambia.
+       Solo presentación: datos, calificaciones, estrellas y
+       sincronización quedan intactos. */
+    const APP_VERSION = '4.42';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
