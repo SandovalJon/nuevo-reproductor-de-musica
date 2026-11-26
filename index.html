@@ -2279,7 +2279,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.52</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.53</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4645,7 +4645,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.52';
+    const APP_VERSION = '4.53';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5656,6 +5656,38 @@
       $('#modalCancel').addEventListener('click', closeModal);
       $('#modalOk').addEventListener('click', ()=>{ closeModal(); onOk(); });
     }
+
+    /* ================= v4.53 · Botón «Atrás» de Android =================
+       Hasta la v4.52, pulsar «Atrás» en el celular sacaba de la app sin
+       avisar. Desde esta versión la app deja una entrada centinela en el
+       historial: cada «Atrás» llega como popstate y se atiende por capas,
+       con la misma prioridad que la tecla Escape — primero se cierra lo
+       que esté abierto (un modal, el Escenario, «Sonando ahora», una
+       hoja o el detalle de un artista/playlist) y solo estando en la
+       raíz se pregunta «¿Salir de Sonando?» con el confirmModal de
+       siempre. «Quedarme» cierra el aviso y rearma el centinela, sin que
+       pase nada más; «Salir» desarma el guardia y retrocede de verdad,
+       fuera de la app. Si el historial no se puede tocar (iframe sin
+       permiso), todo queda como antes: sin centinela no hay popstate. */
+    let exitOk = false;
+    function armBackGuard(){ try{ history.pushState({ sonando:'guard' }, ''); }catch(e){} }
+    function askExitApp(){
+      confirmModal('¿Salir de Sonando?', 'Si sales, la música se detiene. ¿Seguro que quieres salir de la app?', 'Salir', ()=>{
+        exitOk = true;
+        history.back();
+      });
+    }
+    window.addEventListener('popstate', ()=>{
+      if(exitOk){ exitOk = false; history.back(); return; }
+      if($('#modal').classList.contains('show')) closeModal();
+      else if($('#stage').classList.contains('open')) closeStage();
+      else if($('#np').classList.contains('open')) $('#np').classList.remove('open');
+      else if(sheet.classList.contains('show')) closeSheet();
+      else if(state.detail){ state.detail = null; render(); $('#main').scrollTop = 0; }
+      else askExitApp();
+      armBackGuard();
+    });
+    armBackGuard();
 
     /* ================= Menú de canción ================= */
     function songMenu(id){
