@@ -2253,7 +2253,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.47</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.48</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4531,7 +4531,19 @@
        filtrado de la vista: ni los datos, ni las estrellas, ni la
        sincronización cambian, y se conserva todo lo de la
        v4.42–v4.46. */
-    const APP_VERSION = '4.47';
+    /* v4.48 · «Todo en aleatorio» respeta el filtro por estrellas,
+       pedido por Sando («si presiono todo en aleatorio del
+       apartado 1-3 estrellas solo se reproduzcan las que veo
+       calificadas respectivamente»): con una pastilla del filtro
+       activa en Canciones, la mezcla se forma solo con las
+       canciones visibles bajo ese filtro (estrellas y búsqueda,
+       las mismas que pinta la lista), y el aviso lo dice («Todo
+       en aleatorio · solo canciones con 3 estrellas»). Sin
+       filtro, mezcla toda la biblioteca como siempre. Solo
+       cambia de dónde sale la cola: ni los datos, ni las
+       estrellas, ni la sincronización cambian, y se conserva
+       todo lo de la v4.42–v4.47. */
+    const APP_VERSION = '4.48';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5941,11 +5953,30 @@
       $$('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
       saveSettings(); render();
     }));
+    /* v4.48 · «Todo en aleatorio» respeta el filtro por estrellas:
+       con una pastilla activa (1, 2 o 3 estrellas, «Con estrellas»
+       o «Sin estrellas») en la vista Canciones, la mezcla se forma
+       SOLO con las canciones que el filtro deja ver —las mismas
+       que pinta renderSongs: filtro de estrellas combinado con la
+       búsqueda—, como pidió Sando («si presiono todo en aleatorio
+       del apartado 1-3 estrellas solo se reproduzcan las que veo
+       calificadas»). Sin filtro activo, el botón mezcla toda la
+       biblioteca, como siempre. Las marcadas con «No me gusta»
+       siguen fuera de la cola (playable, como en cualquier
+       contexto) y el aviso final nombra el filtro aplicado. */
     $('#btnShuffleAll').addEventListener('click', ()=>{
-      const ids = Array.from(state.tracks.keys());
-      if(!playable(ids).length){ toast('Agrega música primero y luego mezclamos todo.'); return; }
+      const starActive = state.starFilter && state.starFilter !== 'all' && state.view === 'songs' && !state.detail;
+      let ids;
+      if(starActive){
+        ids = Array.from(state.tracks.values()).filter(t => matchesSearch(t) && matchesStars(t)).map(t => t.id);
+        if(!ids.length){ toast('No hay canciones ' + starFilterWhat() + ' para mezclar. Quita el filtro para mezclar toda tu biblioteca.'); return; }
+        if(!playable(ids).length){ toast('Las canciones ' + starFilterWhat() + ' tienen «No me gusta» y no entran en la mezcla.'); return; }
+      } else {
+        ids = Array.from(state.tracks.keys());
+        if(!playable(ids).length){ toast('Agrega música primero y luego mezclamos todo.'); return; }
+      }
       playContext(ids, null, { shuffle:true });
-      toast('Todo en aleatorio');
+      toast(starActive ? 'Todo en aleatorio · solo canciones ' + starFilterWhat() : 'Todo en aleatorio');
     });
     /* v4.3 · «Aleatorio sin calificar»: arranque aleatorio filtrado — la
        cola se forma SOLO con las canciones sin «Me gusta» ni «No me gusta»
