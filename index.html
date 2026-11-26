@@ -2279,7 +2279,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.51</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.52</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3141,9 +3141,33 @@
         '<button class="sheet-item" id="keepImportBtn">' + icon('check') + 'Dejarlas así</button>'
       );
       const ub = document.getElementById('undoImportBtn');
-      if(ub) ub.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
+      if(ub) ub.addEventListener('click', ()=>{ closeSheet(); askUndoImportRatings(); });
       const kb = document.getElementById('keepImportBtn');
       if(kb) kb.addEventListener('click', closeSheet);
+    }
+    /* v4.52 · Segunda advertencia antes de quitar las heredadas:
+       hasta la v4.51, pulsar «Quitar…» —en el informe de
+       importación o en la hoja de Sincronización— ejecutaba el
+       deshacer al momento, sin confirmación, a diferencia de los
+       demás borrados de la app. A petición de Sando, ambos
+       botones pasan ahora por este paso intermedio: un
+       confirmModal (el mismo de «Vaciar biblioteca», «Resetear
+       calificaciones», etc.) que dice cuántas se quitarían y
+       recuerda el alcance —solo las heredadas en esta
+       importación y solo si siguen tal como entraron; lo
+       calificado a mano después no se toca—. Con «Cancelar» no
+       se quita nada y el deshacer sigue pendiente (la hoja de
+       Sincronización lo sigue ofreciendo); solo con «Sí,
+       quitarlas» corre undoImportRatings(), sin cambios. */
+    function askUndoImportRatings(){
+      const n = (lastImportUndo || []).length;
+      if(!n){ toast('No había calificaciones heredadas que quitar.', 3800); return; }
+      confirmModal(
+        '¿Quitar las calificaciones heredadas?',
+        'Se quitarán ' + n + (n === 1 ? ' calificación heredada' : ' calificaciones heredadas') + ' de esta importación: solo las que llegaron del mapa en esta tanda y siguen tal como entraron. Lo que calificaste a mano después no se toca.',
+        'Sí, quitarlas',
+        async () => { await undoImportRatings(); }
+      );
     }
     async function undoImportRatings(){
       const hits = lastImportUndo || [];
@@ -4610,7 +4634,18 @@
        cambia. Solo cambia ese texto: ni los datos, ni las
        estrellas, ni la sincronización cambian, y se conserva
        todo lo de la v4.42–v4.50. */
-    const APP_VERSION = '4.51';
+    /* v4.52 · Quitar las calificaciones heredadas de una
+       importación pide ahora una segunda confirmación, a
+       petición de Sando («si presiono quitar, ¿me sale un 2do
+       msj de advertencia?» — no salía): tanto el botón del
+       informe de importación como el de la hoja de
+       Sincronización pasan por askUndoImportRatings(), que
+       muestra el confirmModal de siempre con el conteo exacto
+       y el alcance antes de ejecutar el deshacer. Cancelar no
+       quita nada y el deshacer sigue pendiente. El deshacer en
+       sí, los datos, las estrellas y la sincronización no
+       cambian, y se conserva todo lo de la v4.42–v4.51. */
+    const APP_VERSION = '4.52';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -8469,7 +8504,7 @@
       const bn = document.getElementById('syncNow');
       if(bn) bn.addEventListener('click', syncSyncNow);
       const bu = document.getElementById('syncUndoImport');
-      if(bu) bu.addEventListener('click', async ()=>{ closeSheet(); await undoImportRatings(); });
+      if(bu) bu.addEventListener('click', ()=>{ closeSheet(); askUndoImportRatings(); });
       const bo = document.getElementById('syncOut');
       if(bo) bo.addEventListener('click', syncSignOut);
       const bd = document.getElementById('syncDelOwn');
