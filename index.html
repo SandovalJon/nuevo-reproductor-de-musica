@@ -2253,7 +2253,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.48</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.49</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3406,7 +3406,7 @@
     function greetingText(){
       const h = new Date().getHours();
       const g = h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
-      return g + ', Sando';
+      return g;
     }
     /* v4.4 · Inicio con presencia: el saludo se convierte en la banda
        de marca del inicio — la pastilla del logo (la nota de siempre,
@@ -4543,7 +4543,14 @@
        cambia de dónde sale la cola: ni los datos, ni las
        estrellas, ni la sincronización cambian, y se conserva
        todo lo de la v4.42–v4.47. */
-    const APP_VERSION = '4.48';
+    /* v4.49 · El saludo deja de llevar nombre: a petición de Sando
+       («quiero que el reproductor lo pueda usar todo el mundo»),
+       greetingText() devuelve solo el tramo del día («Buenos días»,
+       «Buenas tardes» o «Buenas noches»), sin «, Sando» al final.
+       Solo cambia el texto del saludo: ni los datos, ni las
+       estrellas, ni la sincronización cambian, y se conserva
+       todo lo de la v4.42–v4.48. */
+    const APP_VERSION = '4.49';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
