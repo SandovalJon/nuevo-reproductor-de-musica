@@ -2279,7 +2279,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.50</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.51</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3447,7 +3447,17 @@
        va en un bloque propio (.greet-hello) debajo de la banda,
        fuera de la tarjeta. La clase .greet queda en el contenedor
        de los dos bloques. */
+    /* v4.51 · La línea del saludo depende del contenido: con la
+       biblioteca vacía (primer ingreso, sin una canción cargada)
+       ya no dice «Tu música está lista», que se contradecía con
+       la tarjeta «Tu escenario está vacío» justo debajo; en su
+       lugar invita a agregar música. Con canciones cargadas, la
+       línea queda exactamente como siempre. */
     function greetHTML(){
+      const hasMusic = state.tracks && state.tracks.size > 0;
+      const line = hasMusic
+        ? 'Tu música está lista. ¿Qué quieres escuchar?'
+        : 'Agrega tu música para empezar a escuchar';
       return '<div class="greet">' +
         '<div class="brand-band">' +
           '<div class="brand-mark" aria-hidden="true">' + icon('note') + '</div>' +
@@ -3455,7 +3465,7 @@
         '</div>' +
         '<div class="greet-hello">' +
           '<h2>' + esc(greetingText()) + '</h2>' +
-          '<p>Tu música está lista. ¿Qué quieres escuchar?</p>' +
+          '<p>' + line + '</p>' +
         '</div></div>';
     }
     function homeHTML(){
@@ -4590,7 +4600,17 @@
        Solo presentación: ni los datos, ni las estrellas, ni la
        sincronización cambian, y se conserva todo lo de la
        v4.42–v4.49. */
-    const APP_VERSION = '4.50';
+    /* v4.51 · La línea del saludo depende del contenido, a
+       petición de Sando («si el usuario entra por primera vez
+       sin haber cargado nada, ¿está lista?»): con la biblioteca
+       vacía, greetHTML() pinta «Agrega tu música para empezar a
+       escuchar» en vez de «Tu música está lista. ¿Qué quieres
+       escuchar?», que se contradecía con la tarjeta «Tu
+       escenario está vacío». Con canciones cargadas la línea no
+       cambia. Solo cambia ese texto: ni los datos, ni las
+       estrellas, ni la sincronización cambian, y se conserva
+       todo lo de la v4.42–v4.50. */
+    const APP_VERSION = '4.51';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
