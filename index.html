@@ -2249,6 +2249,42 @@
         .greet-hello h2{ font-size:21px; line-height:1.15; }
         .greet-hello p{ font-size:13.5px; margin-top:3px; }
       }
+
+      /* v4.54 · «Sonando ahora» cabe en el cel sin deslizar: hasta la
+         v4.53 la columna de la vista sumaba más que el alto del
+         teléfono — el vinilo a 78vw, el título en dos líneas, el
+         Me gusta / No me gusta, las estrellas, el progreso de
+         calificación y la barra de avance empujaban los botones de
+         anterior / play / siguiente fuera de la pantalla, y para
+         cambiar de canción había que deslizar primero. Ahora, solo
+         en el teléfono (la vista de dos columnas del escritorio no
+         se toca), el cuerpo es una columna flexible que no rueda:
+         la zona del vinilo ocupa el alto que sobre tras la barra
+         superior y el bloque de controles, y el disco se limita
+         también por ese alto (conserva su tope de siempre,
+         min(78vw, 360px), y su forma redonda), mientras los
+         márgenes del bloque título→controles se aprietan un punto.
+         Así anterior / play / siguiente se ven sin deslizar,
+         incluso con títulos largos de dos líneas. Lo único que
+         rueda es la columna principal cuando la cola crece: la
+         cola abierta se desliza por dentro sin empujar los
+         controles. Solo presentación: el look inmersivo, los
+         datos, las calificaciones y la sincronización no cambian,
+         y se conserva todo lo de la v4.42–v4.53. */
+      @media (max-width:959px){
+        .np-in{ overflow:hidden; }
+        .np-body{ flex:1; min-height:0; display:flex; flex-direction:column; }
+        .np-col-cover{ flex:1 1 auto; min-height:96px; display:flex; }
+        .np-cover-wrap{ flex:1; min-width:0; min-height:0; padding:8px 0 2px; align-items:center; }
+        .np-cover{ width:auto; height:100%; max-width:min(78vw, 360px); max-height:min(78vw, 360px); }
+        .np-col-main{ flex:0 1 auto; min-height:0; overflow-y:auto; }
+        .np-title{ margin-top:12px; }
+        .np-rate{ margin-top:10px; }
+        .np-stars{ margin-top:10px; }
+        .np-progress{ margin-top:10px; }
+        .seek{ margin-top:14px; }
+        .np-actions{ margin-top:10px; }
+      }
     </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
@@ -2279,7 +2315,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.53</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.54</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4645,7 +4681,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.53';
+    const APP_VERSION = '4.54';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
