@@ -2198,6 +2198,31 @@
         .brand-band h2{ font-size:14px; margin-top:1px; line-height:1.2; }
         .brand-band p{ font-size:12.5px; margin-top:1px; line-height:1.3; }
       }
+
+      /* v4.47 · Filtro por estrellas en Canciones: una fila de
+         pastillas bajo la fila principal de la barra — «Todas»,
+         1, 2 y 3 estrellas, «Con estrellas» y «Sin estrellas» — con
+         el mismo lenguaje visual de las pestañas (la activa en
+         tinta). En el teléfono las pastillas se envuelven en dos
+         filas si no caben, sin deslizar de lado. La línea de conteo
+         (.star-count) anuncia cuántas canciones coinciden con el
+         filtro activo, sobre la lista o la cuadrícula. Solo
+         presentación y filtrado de la vista: ni los datos ni la
+         sincronización cambian. */
+      .toolbar-stars{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+      .toolbar-stars button{
+        display:inline-flex; align-items:center; gap:5px;
+        padding:7px 13px; min-height:38px; border-radius:999px;
+        background:var(--surface); border:1px solid var(--line);
+        font-size:13.5px; font-weight:600; color:var(--muted);
+        box-shadow:var(--shadow-soft);
+        transition:background .25s ease, color .25s ease, transform .18s ease;
+      }
+      .toolbar-stars button .ic{ width:14px; height:14px; color:var(--acc); }
+      .toolbar-stars button:active{ transform:scale(.96); }
+      .toolbar-stars button.on{ background:var(--ink); color:var(--bg); border-color:transparent; }
+      @media (prefers-reduced-motion: reduce){ .toolbar-stars button{ transition:none; } .toolbar-stars button:active{ transform:none; } }
+      .star-count{ margin:0; padding:12px 2px 2px; font-size:13.5px; font-weight:600; color:var(--muted); }
     </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
@@ -2228,7 +2253,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.46</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.47</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2310,6 +2335,14 @@
               <button data-vm="list" class="on" aria-label="Vista de lista"><span data-ic="list"></span></button>
               <button data-vm="grid" aria-label="Vista de cuadrícula"><span data-ic="grid"></span></button>
             </div>
+            </div>
+            <div class="toolbar-stars" id="starFilterRow" role="group" aria-label="Filtrar por estrellas">
+              <button data-sf="all" class="on" aria-pressed="true">Todas</button>
+              <button data-sf="1" aria-pressed="false"><span data-ic="star"></span>1</button>
+              <button data-sf="2" aria-pressed="false"><span data-ic="star"></span>2</button>
+              <button data-sf="3" aria-pressed="false"><span data-ic="star"></span>3</button>
+              <button data-sf="any" aria-pressed="false">Con estrellas</button>
+              <button data-sf="none" aria-pressed="false">Sin estrellas</button>
             </div>
             <div class="toolbar-actions">
             <button class="btn btn-ghost shuffle-all" id="btnShuffleAll"><span data-ic="shuffle"></span>Todo en aleatorio</button>
@@ -2706,6 +2739,7 @@
       view: 'songs',           // songs | artists | playlists | duplicates
       detail: null,            // {type:'artist'|'playlist', key}
       search: '',
+      starFilter: 'all',       // v4.47: filtro por estrellas de la vista Canciones ('all'|'1'|'2'|'3'|'any'|'none'); vive solo en la sesión, como la búsqueda
       sort: 'recent',
       viewMode: 'list',
       // Reproducción
@@ -3118,6 +3152,34 @@
       const q = state.search.toLowerCase();
       return t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q) || t.album.toLowerCase().includes(q);
     }
+    /* v4.47 · Filtro por estrellas: la misma normalización 0–3 que
+       usa starsHTML sobre el campo «stars» de la ficha. Se combina
+       con la búsqueda en renderSongs (una canción pasa si cumple
+       las dos) y vale igual en lista y en cuadrícula, porque el
+       filtrado ocurre antes de pintar cualquiera de las dos. */
+    function trackStars(t){
+      return (t.stars === 1 || t.stars === 2 || t.stars === 3) ? t.stars : 0;
+    }
+    function matchesStars(t){
+      const f = state.starFilter;
+      if(!f || f === 'all') return true;
+      const s = trackStars(t);
+      if(f === 'any') return s > 0;
+      if(f === 'none') return s === 0;
+      return s === Number(f);
+    }
+    function starFilterWhat(){
+      const f = state.starFilter;
+      if(f === 'any') return 'con estrellas';
+      if(f === 'none') return 'sin estrellas';
+      return 'con ' + f + (f === '1' ? ' estrella' : ' estrellas');
+    }
+    function starCountHTML(n){
+      return '<p class="star-count">' + n + (n === 1 ? ' canción ' : ' canciones ') + starFilterWhat() + '</p>';
+    }
+    function emptyStarsHTML(){
+      return '<div class="empty"><div class="art">' + icon('star') + '</div><h2>Sin canciones ' + starFilterWhat() + '</h2><p>Ninguna canción de tu biblioteca coincide con este filtro' + (state.search ? ' y tu búsqueda actual' : '') + '. Quita el filtro para verlas todas de nuevo.</p><div class="cta"><button class="btn btn-acc" data-act="clearStarFilter">Ver todas</button></div></div>';
+    }
     /* Insignias visuales v2.4: solo se calculan con datos que ya existen —
        la marca de «Me gusta» y la fecha en que la canción se agregó. */
     const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
@@ -3306,6 +3368,7 @@
           $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           $('#btnResetRatings').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+          $('#starFilterRow').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
           $('#btnGoDuplicates').style.display = (state.view === 'duplicates') ? 'none' : '';
           content.classList.remove('screen-in', 'screen-fwd', 'screen-back', 'cascade');
           content.classList.add(dir === 'fwd' ? 'view-out-fwd' : 'view-out-back');
@@ -3327,6 +3390,7 @@
       $('#btnClearLibrary').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       $('#btnDeleteDisliked').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       $('#btnResetRatings').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
+      $('#starFilterRow').style.display = (state.view === 'songs' && !state.detail) ? '' : 'none';
       $('#btnGoDuplicates').style.display = (state.view === 'duplicates') ? 'none' : '';
       const firstRender = !renderedOnce;
       renderedOnce = true;
@@ -3380,9 +3444,15 @@
     function renderSongs(){
       const all = Array.from(state.tracks.values());
       if(!all.length){ content.innerHTML = greetHTML() + emptyHTML('library'); bindContent(); return; }
-      const list = sortedTracks(all.filter(matchesSearch));
-      if(!list.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      const head = homeHTML();
+      /* v4.47 · El filtro por estrellas se suma a la búsqueda: la
+         lista (o la cuadrícula) muestra solo las canciones que
+         cumplen las dos cosas. Con un filtro activo no se pinta el
+         inicio (saludo y carriles), igual que al buscar: en su
+         lugar va la línea de conteo del filtro. */
+      const starActive = state.starFilter && state.starFilter !== 'all';
+      const list = sortedTracks(all.filter(t => matchesSearch(t) && matchesStars(t)));
+      if(!list.length){ content.innerHTML = starActive ? emptyStarsHTML() : emptyHTML('search'); bindContent(); return; }
+      const head = starActive ? starCountHTML(list.length) : homeHTML();
       if(state.viewMode === 'grid') paintList(head + '<div class="grid">', list.map(songCardHTML), '</div>', '.grid', null);
       else paintList(head + '<div class="rows">', list.map(songRowHTML), '</div>', '.rows', null);
       bindContent(list.map(t => t.id));
@@ -4446,7 +4516,22 @@
        en pantallas anchas nada cambia. Solo presentación: se
        conserva todo lo de la v4.42–v4.45, y datos, estrellas y
        sincronización quedan intactos. */
-    const APP_VERSION = '4.46';
+    /* v4.47 · Filtro por estrellas en Canciones, pedido por Sando
+       («puedo ver cuales estan calificadas con 1-3 estrellas?»):
+       hasta la v4.46 las estrellas solo se veían fila a fila, sin
+       ninguna forma de juntar las canciones por su calificación.
+       Ahora la barra de Canciones lleva una fila de pastillas —
+       «Todas», 1, 2 y 3 estrellas, «Con estrellas» y «Sin
+       estrellas» — que filtra la lista y la cuadrícula combinada
+       con la búsqueda, con su línea de conteo («12 canciones con
+       3 estrellas») y su estado vacío propio con «Ver todas». La
+       fila solo vive en la vista Canciones sin detalle, como los
+       demás botones propios de esa vista, y el filtro es de la
+       sesión, como la búsqueda: no se guarda en los ajustes. Solo
+       filtrado de la vista: ni los datos, ni las estrellas, ni la
+       sincronización cambian, y se conserva todo lo de la
+       v4.42–v4.46. */
+    const APP_VERSION = '4.47';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5767,6 +5852,7 @@
       else if(act === 'addFolder') $('#folderInput').click();
       else if(act === 'newPlaylist') createPlaylist();
       else if(act === 'back'){ state.detail = null; render(); }
+      else if(act === 'clearStarFilter'){ state.starFilter = 'all'; syncStarFilterUI(); render(); }
       else if(act === 'playDetail'){
         const ids = viewContextIds.slice();
         const first = playable(ids)[0];
@@ -5834,6 +5920,22 @@
       searchDeb = setTimeout(()=>{ state.search = e.target.value.trim(); render(); }, 160);
     });
     $('#sortSel').addEventListener('change', e => { state.sort = e.target.value; saveSettings(); render(); });
+    /* v4.47 · Filtro por estrellas: tocar una pastilla filtra la
+       vista Canciones al momento y se combina con la búsqueda. Es
+       un filtro de la sesión, como la búsqueda: no se guarda en
+       los ajustes ni toca datos ni sincronización. */
+    function syncStarFilterUI(){
+      $$('#starFilterRow button').forEach(x => {
+        const on = x.dataset.sf === state.starFilter;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+    $$('#starFilterRow button').forEach(b => b.addEventListener('click', ()=>{
+      state.starFilter = b.dataset.sf;
+      syncStarFilterUI();
+      render();
+    }));
     $$('#viewSeg button').forEach(b => b.addEventListener('click', ()=>{
       state.viewMode = b.dataset.vm;
       $$('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
