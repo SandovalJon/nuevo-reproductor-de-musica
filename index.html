@@ -2271,19 +2271,40 @@
          controles. Solo presentación: el look inmersivo, los
          datos, las calificaciones y la sincronización no cambian,
          y se conserva todo lo de la v4.42–v4.53. */
+      /* v4.55 · El disco, más grande: con el reparto de la v4.54 el
+         vinilo quedaba reducido a su piso de 96px — en la pantalla
+         se veía chico, sin el peso del look inmersivo de antes.
+         Ahora, solo en el teléfono, la zona del disco tiene un
+         piso de 188px y su tope sube a min(84vw, 380px): el disco
+         crece hasta llenar el alto que sobre, cerca del doble de
+         diámetro que en la v4.54. El espacio sale de apretar un
+         punto más el bloque de controles: el título baja a 31px,
+         las estrellas a botones de 44px, los márgenes entre
+         título, calificación, progreso, avance y controles se
+         recortan unos píxeles y el relleno vertical de la vista
+         se reduce. La columna principal conserva su rodaje
+         interno para cuando la cola crece, así que anterior /
+         play / siguiente se siguen viendo sin deslizar, incluso
+         con títulos largos de tres líneas. Solo presentación: el
+         escritorio, los datos, las calificaciones y la
+         sincronización no cambian, y se conserva todo lo de la
+         v4.42–v4.54. */
       @media (max-width:959px){
-        .np-in{ overflow:hidden; }
+        .np-in{ overflow:hidden; padding-top:calc(6px + env(safe-area-inset-top)); padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
         .np-body{ flex:1; min-height:0; display:flex; flex-direction:column; }
-        .np-col-cover{ flex:1 1 auto; min-height:96px; display:flex; }
+        .np-col-cover{ flex:1 1 auto; min-height:188px; display:flex; }
         .np-cover-wrap{ flex:1; min-width:0; min-height:0; padding:8px 0 2px; align-items:center; }
-        .np-cover{ width:auto; height:100%; max-width:min(78vw, 360px); max-height:min(78vw, 360px); }
+        .np-cover{ width:auto; height:100%; max-width:min(84vw, 380px); max-height:min(84vw, 380px); }
         .np-col-main{ flex:0 1 auto; min-height:0; overflow-y:auto; }
-        .np-title{ margin-top:12px; }
-        .np-rate{ margin-top:10px; }
-        .np-stars{ margin-top:10px; }
-        .np-progress{ margin-top:10px; }
-        .seek{ margin-top:14px; }
-        .np-actions{ margin-top:10px; }
+        .np-title{ margin-top:10px; }
+        .np-title h2{ font-size:31px; }
+        .np-rate{ margin-top:8px; }
+        .np-stars{ margin-top:8px; }
+        .np-stars button{ width:44px; height:44px; min-height:44px; }
+        .np-progress{ margin-top:8px; }
+        .seek{ margin-top:10px; }
+        .np-controls{ margin-top:6px; }
+        .np-actions{ margin-top:8px; }
       }
     </style>
     <script>
@@ -2315,7 +2336,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.54</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.55</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4681,7 +4702,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.54';
+    const APP_VERSION = '4.55';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
