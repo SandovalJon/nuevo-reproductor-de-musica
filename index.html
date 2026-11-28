@@ -2357,15 +2357,15 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.61</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.62</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
           <button class="btn btn-ghost" id="btnInstall" hidden><span data-ic="download"></span>Instalar app</button>
           <button class="btn btn-acc" id="btnAddTop"><span data-ic="plus"></span>Agregar</button>
         </div>
-        <section class="appearance" id="appearanceSec" aria-label="Apariencia">
-        <button class="appearance-toggle" id="appearanceToggle" aria-expanded="true" aria-controls="appearanceBody"><span class="appearance-title">Apariencia</span><span class="ap-chev" data-ic="chevD"></span></button>
+        <section class="appearance ap-closed" id="appearanceSec" aria-label="Apariencia">
+        <button class="appearance-toggle" id="appearanceToggle" aria-expanded="false" aria-controls="appearanceBody"><span class="appearance-title">Apariencia</span><span class="ap-chev" data-ic="chevD"></span></button>
         <div class="appearance-body" id="appearanceBody">
         <div class="theme-row">
           <span class="theme-lbl" id="themeLbl">Color</span>
@@ -4729,7 +4729,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.61';
+    const APP_VERSION = '4.62';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -6186,19 +6186,28 @@
        título, la elección queda en state.appearanceOpen y se guarda
        con los demás ajustes visuales. Se aplica ya al cargar el
        script —con la regla por ancho— y otra vez al arrancar, con
-       la preferencia guardada si la hay. */
+       la preferencia guardada si la hay.
+       v4.62 · Sando, con captura del panel abierto en su PC: «esto
+       tiene que estar guardado por defecto». Ahora el panel nace
+       GUARDADO (plegado) SIEMPRE al cargar la app, en cualquier
+       pantalla y aunque un ajuste viejo lo dejara abierto: la
+       preferencia guardada ya no manda al arrancar. El título sigue
+       abriéndolo y cerrándolo durante la sesión (bandera de sesión
+       appearanceFoldTouched), y esa elección se sigue guardando,
+       pero cada carga nueva empieza con el panel guardado. */
     const appearanceSecEl = document.getElementById('appearanceSec');
     const appearanceToggleEl = document.getElementById('appearanceToggle');
+    let appearanceFoldTouched = false;
     function applyAppearanceFold(save){
-      let open = true;
-      if(typeof state.appearanceOpen === 'boolean') open = state.appearanceOpen;
-      else if(window.matchMedia && window.matchMedia('(max-width: 560px)').matches) open = false;
+      let open = false;
+      if(appearanceFoldTouched && typeof state.appearanceOpen === 'boolean') open = state.appearanceOpen;
       if(appearanceSecEl) appearanceSecEl.classList.toggle('ap-closed', !open);
       if(appearanceToggleEl) appearanceToggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
       if(save) saveSettings();
     }
     if(appearanceToggleEl) appearanceToggleEl.addEventListener('click', ()=>{
       const isClosed = !!(appearanceSecEl && appearanceSecEl.classList.contains('ap-closed'));
+      appearanceFoldTouched = true;
       state.appearanceOpen = isClosed;
       applyAppearanceFold(true);
     });
