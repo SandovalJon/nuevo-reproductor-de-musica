@@ -2357,7 +2357,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.62</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.63</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2477,7 +2477,11 @@
       <button id="miniPrev" aria-label="Anterior"><span data-ic="prev"></span></button>
       <button id="miniPlay" class="play-b" aria-label="Reproducir o pausar"><span data-ic="play"></span></button>
       <button id="miniNext" aria-label="Siguiente"><span data-ic="next"></span></button>
-      <div class="prog"><i id="miniProg"></i></div>
+      <!-- v4.63 · Fuera la línea de progreso del borde inferior del
+           mini (Sando, con captura: «quita esa linea delgada de la
+           parte de abajo»). El progreso sigue visible en «Sonando
+           ahora» y en el Escenario; el mini queda limpio. Las reglas
+           CSS .mini .prog quedan inertes, sin elemento que pintar. -->
     </div>
 
     <!-- Now Playing -->
@@ -4729,7 +4733,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.62';
+    const APP_VERSION = '4.63';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5499,7 +5503,9 @@
          recalcular el layout en cada timeupdate; el dibujo final es
          el mismo, porque el degradado se pinta a todo ancho y luego
          se escala, igual que se veía al recortarlo por ancho. */
-      $('#miniProg').style.transform = 'scaleX(' + (pct / 100) + ')';
+      /* v4.63 · El mini ya no pinta su línea de progreso (retirada
+         a petición de Sando); pct sigue mandando en el seek de
+         «Sonando ahora» y en el Escenario. */
       if(!seeking){ $('#seekRange').value = d ? Math.round(c / d * 1000) : 0; $('#seekRange').style.setProperty('--fill', pct + '%'); setSeekWave(pct); }
       $('#tCur').textContent = fmt(c); $('#tDur').textContent = fmt(d);
       $('#stageProg').style.transform = 'scaleX(' + (pct / 100) + ')';
