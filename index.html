@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.65</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.66</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3600,11 +3600,11 @@
         h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
           favs.trackIds.slice(0, 12).map((id, i) => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
       }
-      const map = groupBy(t => t.artist);
-      const names = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
+      const map = groupByArtist();
+      const names = Array.from(map.values()).map(g => g.name).sort((a,b)=> a.localeCompare(b, 'es'));
       if(names.length){
         h += '<div class="home-sec"><div class="home-sec-head"><h3>Tus artistas</h3></div><div class="rail">' +
-          names.slice(0, 12).map((n, i) => { const ts = map.get(n); const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist' + (i === 0 ? ' hero' : '') + '" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
+          names.slice(0, 12).map((n, i) => { const ts = map.get(artistKey(n)).tracks; const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist' + (i === 0 ? ' hero' : '') + '" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
       }
       return h;
     }
@@ -3633,18 +3633,62 @@
       });
       return map;
     }
+    /* v4.66 · Artistas individuales, pedido de Sando con captura de
+       su vista Artistas: «cuando quiero ver los artistas, solo
+       quiero ver una fufu, un tygas, etc. no midel x tygas, etc.»
+       Hasta la v4.65 la vista agrupaba por el texto completo del
+       campo artista, así que cada colaboración («midel, Tygas»,
+       «Tygas, Arse, R.J.Ä, Elixir») era una fila aparte con 1
+       canción. Ahora el campo se separa en nombres individuales
+       (por comas, punto y coma, «&», « x » y los «feat.»/«ft.»), y
+       cada canción cuenta en la ficha de CADA artista que la
+       firma: la vista Artistas, el carril «Tus artistas» del inicio
+       y la ficha del artista usan esta misma agrupación. La
+       agrupación compara sin mayúsculas ni espacios dobles y
+       muestra la primera grafía vista; un nombre repetido dentro
+       del mismo campo («Lautaro Lopez, …, Lautaro Lopez») cuenta
+       una sola vez. SOLO cambia cómo se agrupa para VER: el campo
+       artista guardado, la huella de sincronización, Duplicadas y
+       las calificaciones no se tocan. */
+    function splitArtists(t){
+      const raw = (t && t.artist ? String(t.artist) : '').trim();
+      if(!raw) return ['Artista desconocido'];
+      const parts = raw.replace(/\b(feat|ft|featuring)\b\.?/gi, ',').split(/[,;&]|\s+x\s+/i);
+      const seen = new Set(); const out = [];
+      parts.forEach(p => {
+        const name = p.replace(/\s+/g, ' ').trim();
+        if(!name) return;
+        const k = name.toLowerCase();
+        if(seen.has(k)) return;
+        seen.add(k); out.push(name);
+      });
+      return out.length ? out : ['Artista desconocido'];
+    }
+    function artistKey(name){ return String(name || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    function groupByArtist(){
+      const map = new Map();
+      Array.from(state.tracks.values()).forEach(t => {
+        splitArtists(t).forEach(name => {
+          const k = artistKey(name);
+          if(!map.has(k)) map.set(k, { name, tracks: [] });
+          map.get(k).tracks.push(t);
+        });
+      });
+      return map;
+    }
+    function trackHasArtist(t, key){ return splitArtists(t).some(n => artistKey(n) === key); }
     function renderArtists(){
       const all = Array.from(state.tracks.values());
       if(!all.length){ content.innerHTML = emptyHTML('library'); bindContent(); return; }
-      const map = groupBy(t => t.artist);
-      let names = Array.from(map.keys()).sort((a,b)=> a.localeCompare(b, 'es'));
-      if(state.search) names = names.filter(n => n.toLowerCase().includes(state.search.toLowerCase()));
-      if(!names.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
-      paintList('', names.map(n => {
-        const ts = map.get(n);
+      const map = groupByArtist();
+      let groups = Array.from(map.values()).sort((a,b)=> a.name.localeCompare(b.name, 'es'));
+      if(state.search) groups = groups.filter(g => g.name.toLowerCase().includes(state.search.toLowerCase()));
+      if(!groups.length){ content.innerHTML = emptyHTML('search'); bindContent(); return; }
+      paintList('', groups.map(g => {
+        const ts = g.tracks;
         const rep = sortedTracks(ts)[0];
-        return '<div class="group-row" data-artist="' + esc(n) + '">' + coverHTML(rep) +
-          '<div class="meta"><div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>' +
+        return '<div class="group-row" data-artist="' + esc(g.name) + '">' + coverHTML(rep) +
+          '<div class="meta"><div class="t">' + esc(g.name) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>' +
           '<span class="chev">' + icon('chevR') + '</span></div>';
       }), '', null, null);
       bindContent();
@@ -4105,7 +4149,10 @@
       const d = state.detail;
       let title = '', sub = '', repTrack = null, tracks = [];
       if(d.type === 'artist'){
-        tracks = Array.from(state.tracks.values()).filter(t => t.artist === d.key);
+        /* v4.66 · La ficha reúne las canciones donde el artista
+           firma, solo o en colaboración (misma separación que la
+           vista Artistas), no solo las de su nombre exacto. */
+        tracks = Array.from(state.tracks.values()).filter(t => trackHasArtist(t, artistKey(d.key)));
         title = d.key; repTrack = sortedTracks(tracks)[0];
         sub = tracks.length + (tracks.length === 1 ? ' canción' : ' canciones');
       } else if(d.type === 'playlist'){
@@ -4745,7 +4792,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.65';
+    const APP_VERSION = '4.66';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
