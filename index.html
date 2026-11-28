@@ -745,7 +745,15 @@
       .sheet{
         position:fixed; left:0; right:0; bottom:0; z-index:71; background:var(--surface); color:var(--ink);
         border-radius:26px 26px 0 0; padding:10px 14px calc(16px + env(safe-area-inset-bottom));
-        transform:translateY(105%); transition:transform .3s cubic-bezier(.32,.72,.24,1); max-height:82dvh; overflow-y:auto;
+        /* v4.64 · Cerrada, la hoja baja su alto COMPLETO más 40px:
+           con el translateY(105%) de antes, en escritorio (donde la
+           hoja flota con bottom:18px) una hoja corta no terminaba de
+           salir y su borde superior se asomaba ~6px bajo el
+           mini-reproductor — la forma oscura que Sando rodeó en rojo
+           en su captura («no me referia a la linea de tiempo, era
+           esto»). El +40px cubre ese bottom y el alcance de su
+           sombra en cualquier pantalla y con cualquier alto. */
+        transform:translateY(calc(100% + 40px)); transition:transform .3s cubic-bezier(.32,.72,.24,1); max-height:82dvh; overflow-y:auto;
         box-shadow:var(--shadow);
       }
       .sheet.show{ transform:translateY(0); }
@@ -2357,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.63</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.64</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4733,7 +4741,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.63';
+    const APP_VERSION = '4.64';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
