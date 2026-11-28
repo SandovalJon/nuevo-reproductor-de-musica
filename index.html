@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.64</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.65</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2485,11 +2485,15 @@
       <button id="miniPrev" aria-label="Anterior"><span data-ic="prev"></span></button>
       <button id="miniPlay" class="play-b" aria-label="Reproducir o pausar"><span data-ic="play"></span></button>
       <button id="miniNext" aria-label="Siguiente"><span data-ic="next"></span></button>
-      <!-- v4.63 · Fuera la línea de progreso del borde inferior del
-           mini (Sando, con captura: «quita esa linea delgada de la
-           parte de abajo»). El progreso sigue visible en «Sonando
-           ahora» y en el Escenario; el mini queda limpio. Las reglas
-           CSS .mini .prog quedan inertes, sin elemento que pintar. -->
+      <!-- v4.65 · La línea de progreso del mini VUELVE, a petición de
+           Sando. Historia: la v4.63 la quitó por una mala lectura de
+           Dise («quita esa linea delgada de la parte de abajo» era en
+           realidad la hoja cerrada que se asomaba bajo el mini, lo
+           que arregló la v4.64); al aclarárselo, Sando eligió
+           «Restaura la línea de progreso del mini». Las reglas CSS
+           .mini .prog nunca se borraron, solo el elemento y su
+           actualización en syncProgress, que aquí regresan. -->
+      <div class="prog"><i id="miniProg"></i></div>
     </div>
 
     <!-- Now Playing -->
@@ -4741,7 +4745,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.64';
+    const APP_VERSION = '4.65';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5511,9 +5515,11 @@
          recalcular el layout en cada timeupdate; el dibujo final es
          el mismo, porque el degradado se pinta a todo ancho y luego
          se escala, igual que se veía al recortarlo por ancho. */
-      /* v4.63 · El mini ya no pinta su línea de progreso (retirada
-         a petición de Sando); pct sigue mandando en el seek de
+      /* v4.65 · La línea de progreso del mini se pinta otra vez
+         (restaurada a petición de Sando tras la aclaración de la
+         v4.63/v4.64); pct sigue mandando también en el seek de
          «Sonando ahora» y en el Escenario. */
+      $('#miniProg').style.transform = 'scaleX(' + (pct / 100) + ')';
       if(!seeking){ $('#seekRange').value = d ? Math.round(c / d * 1000) : 0; $('#seekRange').style.setProperty('--fill', pct + '%'); setSeekWave(pct); }
       $('#tCur').textContent = fmt(c); $('#tDur').textContent = fmt(d);
       $('#stageProg').style.transform = 'scaleX(' + (pct / 100) + ')';
