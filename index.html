@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.68</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.69</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3592,11 +3592,33 @@
           '<p>' + line + '</p>' +
         '</div></div>';
     }
-    /* v4.68 · Las canciones más recientes primero (por addedAt):
-       alimenta el carril «Recientes» del inicio y su contexto de
-       reproducción, para que la cola siga el orden del carril. */
+    /* v4.68 · Nació como «últimas agregadas» (por addedAt).
+       v4.69 · Sando lo corrige: «Recientes» son las últimas
+       REPRODUCIDAS. Cada canción guarda su lastPlayedAt (sello
+       local, fuera de la huella de sincronización, como addedAt)
+       y este helper devuelve las escuchadas, de la más reciente
+       a la más antigua; alimenta el carril del inicio y su
+       contexto de reproducción, para que la cola siga el orden
+       del carril. Sin escuchas registradas no hay carril, igual
+       que Favoritas no aparece sin «Me gusta». */
     function recentTracks(){
-      return Array.from(state.tracks.values()).sort((a,b)=> (b.addedAt || 0) - (a.addedAt || 0));
+      return Array.from(state.tracks.values()).filter(t => t.lastPlayedAt).sort((a,b)=> b.lastPlayedAt - a.lastPlayedAt);
+    }
+
+    /* v4.69 · Al sonar una canción (evento «play» real, no al
+       cargarla en pausa), se le estampa lastPlayedAt y se guarda
+       su ficha. Se ahorra la escritura si la misma canción se
+       reanuda a los pocos segundos (pausa/play, microcortes). */
+    let lastStampedPlay = { id:null, at:0 };
+    function stampLastPlayed(){
+      const t = state.currentId ? getTrack(state.currentId) : null;
+      if(!t) return;
+      const now = Date.now();
+      t.lastPlayedAt = now;
+      if(lastStampedPlay.id !== t.id || now - lastStampedPlay.at > 30000){
+        lastStampedPlay = { id:t.id, at:now };
+        saveTrackMeta(t);
+      }
     }
 
     function homeHTML(){
@@ -3612,10 +3634,11 @@
          pestaña Artistas ya ordenada por artista individual
          (v4.66), el carril duplicaba ese acceso en el inicio.
          v4.68 · En su lugar, a su «en cambio agrega recientes», el
-         inicio gana el carril «Recientes»: las últimas canciones
-         agregadas (addedAt descendente, hasta 12, la primera en
-         grande como los demás carriles). Tocar una tarjeta
-         reproduce en el contexto «Recientes» con ese mismo orden.
+         inicio gana el carril «Recientes» (hasta 12 tarjetas, la
+         primera en grande como los demás carriles); tocar una
+         tarjeta reproduce en el contexto «Recientes» con ese
+         mismo orden. v4.69 · El carril pasa a listar las últimas
+         reproducidas (recentTracks por lastPlayedAt).
          groupByArtist sigue vivo para la vista Artistas. */
       const recents = recentTracks();
       if(recents.length){
@@ -4808,7 +4831,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.68';
+    const APP_VERSION = '4.69';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5592,6 +5615,7 @@
     /* ================= Eventos del reproductor ================= */
     let seeking = false;
     audio.addEventListener('play', syncPlayerUI);
+    audio.addEventListener('play', stampLastPlayed);
     audio.addEventListener('pause', ()=>{ syncPlayerUI(); saveSettings(); });
     audio.addEventListener('timeupdate', ()=>{
       syncProgress();
