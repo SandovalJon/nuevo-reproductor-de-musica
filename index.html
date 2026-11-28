@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.70</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.71</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3608,27 +3608,40 @@
     /* v4.69 · Al sonar una canción (evento «play» real, no al
        cargarla en pausa), se le estampa lastPlayedAt y se guarda
        su ficha. Se ahorra la escritura si la misma canción se
-       reanuda a los pocos segundos (pausa/play, microcortes). */
+       reanuda a los pocos segundos (pausa/play, microcortes).
+       v4.71 · Si la que suena es OTRA canción, el carril
+       «Recientes» visible se reordena en el acto (solo se
+       reescriben sus tarjetas, sin repintar la vista): el clic
+       que arranca la reproducción repinta con el orden anterior
+       a la estampa, y sin esto la tarjeta recién tocada no
+       saltaba al frente hasta el siguiente repintado. */
     let lastStampedPlay = { id:null, at:0 };
     function stampLastPlayed(){
       const t = state.currentId ? getTrack(state.currentId) : null;
       if(!t) return;
       const now = Date.now();
+      const changed = lastStampedPlay.id !== t.id;
       t.lastPlayedAt = now;
-      if(lastStampedPlay.id !== t.id || now - lastStampedPlay.at > 30000){
+      if(changed || now - lastStampedPlay.at > 30000){
         lastStampedPlay = { id:t.id, at:now };
         saveTrackMeta(t);
       }
+      if(changed){
+        const rail = document.getElementById('recRail');
+        if(rail) rail.innerHTML = recRailCardsHTML();
+      }
+    }
+
+    /* v4.71 · Las tarjetas del carril «Recientes», en un solo
+       lugar: las pinta el inicio (homeHTML) y las reescribe la
+       estampa de reproducción cuando cambia la canción. */
+    function recRailCardsHTML(){
+      return recentTracks().slice(0, 12).map((t, i) => '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-recsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>').join('');
     }
 
     function homeHTML(){
       if(state.search) return '';
       let h = greetHTML();
-      const favs = favPlaylist();
-      if(favs.trackIds.length){
-        h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
-          favs.trackIds.slice(0, 12).map((id, i) => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
-      }
       /* v4.67 · El carril «Tus artistas» del inicio se retira, a
          petición de Sando (captura del carril y un «quita»): con la
          pestaña Artistas ya ordenada por artista individual
@@ -3639,11 +3652,18 @@
          tarjeta reproduce en el contexto «Recientes» con ese
          mismo orden. v4.69 · El carril pasa a listar las últimas
          reproducidas (recentTracks por lastPlayedAt).
-         groupByArtist sigue vivo para la vista Artistas. */
+         v4.71 · A su «pon recientes arriba de favoritas», el
+         carril «Recientes» abre el inicio y «Favoritas» va
+         debajo. groupByArtist sigue vivo para la vista Artistas. */
       const recents = recentTracks();
       if(recents.length){
-        h += '<div class="home-sec"><div class="home-sec-head"><h3>Recientes</h3></div><div class="rail">' +
-          recents.slice(0, 12).map((t, i) => '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-recsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>').join('') + '</div></div>';
+        h += '<div class="home-sec"><div class="home-sec-head"><h3>Recientes</h3></div><div class="rail" id="recRail">' +
+          recRailCardsHTML() + '</div></div>';
+      }
+      const favs = favPlaylist();
+      if(favs.trackIds.length){
+        h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
+          favs.trackIds.slice(0, 12).map((id, i) => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
       }
       return h;
     }
@@ -4846,7 +4866,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.70';
+    const APP_VERSION = '4.71';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
