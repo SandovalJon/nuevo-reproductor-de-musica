@@ -978,6 +978,10 @@
       /* Efecto onda (ripple): una ondita de color se expande desde el punto
          de toque en los botones; es solo visual, no toca ningún comportamiento. */
       .rip-host{ position:relative; overflow:hidden; }
+      /* v4.60 · Anfitrión ya posicionado (fijo o absoluto, como el
+         mini-reproductor o la X del Escenario): la onda solo
+         necesita recortar el desborde, SIN tocar su posición. */
+      .rip-host-pos{ overflow:hidden; }
       .ripple{
         position:absolute; border-radius:50%; pointer-events:none; z-index:0;
         background:currentColor; opacity:.22; transform:scale(0);
@@ -2324,7 +2328,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.59</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.60</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4695,7 +4699,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.59';
+    const APP_VERSION = '4.60';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4965,7 +4969,19 @@
       if(!host || host.disabled || host.tagName === 'SELECT') return;
       const rect = host.getBoundingClientRect();
       if(!rect.width || !rect.height) return;
-      host.classList.add('rip-host');
+      /* v4.60 · LA CAUSA del «mini que se hunde»: .rip-host pone
+         position:relative, y en un anfitrión que ya es fijo (el
+         mini-reproductor, role="button") o absoluto (la X del
+         Escenario) eso le ROBABA su posición al primer toque: el
+         mini salía de su sitio, se hundía detrás de la barra de
+         pestañas y el clic se perdía (había que dar dos veces).
+         La clase con position solo se pone si el anfitrión es
+         estático; si ya está posicionado, basta recortar la onda.
+         Y la clase se retira al terminar la onda, como la propia
+         onda, para no dejar rastro en el anfitrión. */
+      const hostPos = window.getComputedStyle ? getComputedStyle(host).position : 'static';
+      const ripCls = hostPos === 'static' ? 'rip-host' : 'rip-host-pos';
+      host.classList.add(ripCls);
       const d = Math.max(rect.width, rect.height) * 2.2;
       const s = document.createElement('span');
       s.className = 'ripple';
@@ -4975,7 +4991,7 @@
       s.style.left = (e.clientX - rect.left - d / 2) + 'px';
       s.style.top = (e.clientY - rect.top - d / 2) + 'px';
       host.appendChild(s);
-      setTimeout(()=>{ s.remove(); }, 650);
+      setTimeout(()=>{ s.remove(); host.classList.remove(ripCls); }, 650);
     }, { passive:true });
     /* Estallido del corazón: chispitas breves alrededor del corazón cuando
        una canción se marca como favorita. Al quitarla, no hay estallido. */
