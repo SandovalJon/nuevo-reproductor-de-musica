@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.67</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.68</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3592,6 +3592,13 @@
           '<p>' + line + '</p>' +
         '</div></div>';
     }
+    /* v4.68 · Las canciones más recientes primero (por addedAt):
+       alimenta el carril «Recientes» del inicio y su contexto de
+       reproducción, para que la cola siga el orden del carril. */
+    function recentTracks(){
+      return Array.from(state.tracks.values()).sort((a,b)=> (b.addedAt || 0) - (a.addedAt || 0));
+    }
+
     function homeHTML(){
       if(state.search) return '';
       let h = greetHTML();
@@ -3603,10 +3610,18 @@
       /* v4.67 · El carril «Tus artistas» del inicio se retira, a
          petición de Sando (captura del carril y un «quita»): con la
          pestaña Artistas ya ordenada por artista individual
-         (v4.66), el carril duplicaba ese acceso en el inicio. El
-         inicio conserva su saludo y el carril de Favoritas; la
-         pestaña Artistas y las fichas no cambian. groupByArtist
-         sigue vivo para la vista Artistas y sus fichas. */
+         (v4.66), el carril duplicaba ese acceso en el inicio.
+         v4.68 · En su lugar, a su «en cambio agrega recientes», el
+         inicio gana el carril «Recientes»: las últimas canciones
+         agregadas (addedAt descendente, hasta 12, la primera en
+         grande como los demás carriles). Tocar una tarjeta
+         reproduce en el contexto «Recientes» con ese mismo orden.
+         groupByArtist sigue vivo para la vista Artistas. */
+      const recents = recentTracks();
+      if(recents.length){
+        h += '<div class="home-sec"><div class="home-sec-head"><h3>Recientes</h3></div><div class="rail">' +
+          recents.slice(0, 12).map((t, i) => '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-recsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>').join('') + '</div></div>';
+      }
       return h;
     }
     function renderSongs(){
@@ -4793,7 +4808,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.67';
+    const APP_VERSION = '4.68';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -6161,6 +6176,13 @@
       if(favSong){
         const snap = coverSnapshot(favSong.querySelector('.cover'));
         playContext(favPlaylist().trackIds, favSong.dataset.favsong, { label:'Favoritas' });
+        flyCoverToPlayer(snap);
+        return;
+      }
+      const recSong = e.target.closest('[data-recsong]');
+      if(recSong){
+        const snap = coverSnapshot(recSong.querySelector('.cover'));
+        playContext(recentTracks().map(t => t.id), recSong.dataset.recsong, { label:'Recientes' });
         flyCoverToPlayer(snap);
         return;
       }
