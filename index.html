@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.66</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.67</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3600,12 +3600,13 @@
         h += '<div class="home-sec"><div class="home-sec-head"><h3>Favoritas</h3><button class="link-btn" data-goto-favs>Ver todas</button></div><div class="rail">' +
           favs.trackIds.slice(0, 12).map((id, i) => { const t = getTrack(id); if(!t) return ''; return '<div class="rail-card' + (i === 0 ? ' hero' : '') + '" data-favsong="' + t.id + '">' + coverHTML(t) + '<div class="t">' + esc(t.title) + '</div><div class="a">' + esc(t.artist) + '</div></div>'; }).join('') + '</div></div>';
       }
-      const map = groupByArtist();
-      const names = Array.from(map.values()).map(g => g.name).sort((a,b)=> a.localeCompare(b, 'es'));
-      if(names.length){
-        h += '<div class="home-sec"><div class="home-sec-head"><h3>Tus artistas</h3></div><div class="rail">' +
-          names.slice(0, 12).map((n, i) => { const ts = map.get(artistKey(n)).tracks; const rep = sortedTracks(ts)[0]; return '<div class="rail-card artist' + (i === 0 ? ' hero' : '') + '" data-artist="' + esc(n) + '">' + coverHTML(rep) + '<div class="t">' + esc(n) + '</div><div class="a">' + ts.length + (ts.length === 1 ? ' canción' : ' canciones') + '</div></div>'; }).join('') + '</div></div>';
-      }
+      /* v4.67 · El carril «Tus artistas» del inicio se retira, a
+         petición de Sando (captura del carril y un «quita»): con la
+         pestaña Artistas ya ordenada por artista individual
+         (v4.66), el carril duplicaba ese acceso en el inicio. El
+         inicio conserva su saludo y el carril de Favoritas; la
+         pestaña Artistas y las fichas no cambian. groupByArtist
+         sigue vivo para la vista Artistas y sus fichas. */
       return h;
     }
     function renderSongs(){
@@ -4792,7 +4793,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.66';
+    const APP_VERSION = '4.67';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
