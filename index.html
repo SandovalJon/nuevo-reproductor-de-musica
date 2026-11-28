@@ -2260,6 +2260,20 @@
         .np-controls{ margin-top:6px; }
         .np-actions{ margin-top:8px; }
       }
+      /* v4.57 · El menú de pestañas, siempre a la mano: hasta la
+         v4.56 la barra Canciones / Artistas / Playlists / Duplicadas
+         (z-index 44) quedaba BAJO «Sonando ahora» y el Escenario
+         (z-index 60): en cuanto la vista grande se abría, el menú
+         desaparecía y había que cerrarla para cambiar de vista.
+         Ahora la barra flota SOBRE esas vistas (z-index 65, todavía
+         bajo las hojas y modales) y tocar una pestaña cierra la
+         vista grande y cambia de vista (el JS de las pestañas).
+         «Sonando ahora» gana relleno inferior para que la barra
+         flotante no tape sus últimos controles. Solo presentación
+         y navegación: datos, calificaciones y sincronización
+         intactos, y se conserva todo lo de la v4.42–v4.56. */
+      .tabs{ z-index:65; }
+      .np-in{ padding-bottom:calc(88px + env(safe-area-inset-bottom)); }
     </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
@@ -2290,7 +2304,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.56</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.57</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -4654,7 +4668,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.56';
+    const APP_VERSION = '4.57';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -4782,7 +4796,18 @@
          canción dentro del mismo toque: entra en el paso diferido
          siguiente, y solo si esta sigue siendo la canción actual. */
       deferUiStep(() => { if(state.currentId === id) render(); });
-      if(autoplay){ try{ await audio.play(); }catch(e){} }
+      if(autoplay){
+        try{ await audio.play(); }catch(e){
+          /* v4.57 · Un solo toque basta: si el primer play() lo
+             rechaza el navegador (la carga del archivo desde
+             IndexedDB interrumpe la petición, o el audio aún no
+             está listo), se reintenta solo en cuanto el audio
+             puede sonar — sin pedirle a Sando un segundo toque. */
+          const retry = ()=>{ audio.play().catch(()=>{}); };
+          if(audio.readyState < 3) audio.addEventListener('canplay', retry, { once:true });
+          else retry();
+        }
+      }
       saveSettings();
     }
     function currentTrack(){ return state.currentId ? getTrack(state.currentId) : null; }
@@ -4836,7 +4861,20 @@
         }
         return;
       }
-      if(audio.paused) audio.play().catch(()=>{}); else audio.pause();
+      if(audio.paused){
+        /* v4.57 · Igual que en loadTrack: un play() rechazado por
+           audio aún no listo se reintenta solo al «canplay», para
+           que el play arranque con UN toque, no con dos. */
+        const p = audio.play();
+        if(p && p.catch) p.catch(()=>{
+          if(audio.readyState < 3){
+            audio.addEventListener('canplay', ()=>{ audio.play().catch(()=>{}); }, { once:true });
+            try{ audio.load(); }catch(e){}
+          } else {
+            audio.play().catch(()=>{});
+          }
+        });
+      } else audio.pause();
     }
     function playNext(id){
       const t = getTrack(id); if(!t) return;
@@ -5417,13 +5455,37 @@
       saveSettings();
     });
     $('#btnPlay').addEventListener('click', togglePlay);
-    $('#miniPlay').addEventListener('click', e => { e.stopPropagation(); togglePlay(); });
+    /* v4.57 · Los controles del mini-reproductor responden al
+       PRIMER toque: hasta la v4.56 solo escuchaban «click», y el
+       toque podía gastarse en abrir «Sonando ahora» (el mini
+       entero es un botón) o llegar tarde, obligando a dar dos
+       veces al play. Ahora anterior / play / siguiente se
+       atienden en «pointerdown» —antes de que el toque pueda
+       abrir la vista grande—, con la propagación cortada desde
+       ese instante; el «click» que sigue al mismo toque se
+       ignora (guarda de 700 ms) y solo actúa si llega sin
+       pointerdown previo (teclado, lector de pantalla). */
+    function miniControl(el, fn){
+      if(!el) return;
+      let lastDown = 0;
+      el.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        lastDown = Date.now();
+        fn();
+      });
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        if(Date.now() - lastDown < 700) return;
+        fn();
+      });
+    }
+    miniControl($('#miniPlay'), togglePlay);
     $('#stagePlay').addEventListener('click', togglePlay);
     $('#btnNext').addEventListener('click', ()=> next(false));
-    $('#miniNext').addEventListener('click', e => { e.stopPropagation(); next(false); });
+    miniControl($('#miniNext'), ()=> next(false));
     $('#stageNext').addEventListener('click', ()=> next(false));
     $('#btnPrev').addEventListener('click', prev);
-    $('#miniPrev').addEventListener('click', e => { e.stopPropagation(); prev(); });
+    miniControl($('#miniPrev'), prev);
     $('#stagePrev').addEventListener('click', prev);
     $('#btnShuffle').addEventListener('click', ()=> setShuffle(!state.shuffle));
     $('#btnRepeat').addEventListener('click', ()=>{
@@ -6030,6 +6092,14 @@
 
     /* ================= Controles superiores ================= */
     $$('#tabs .tab').forEach(b => b.addEventListener('click', ()=>{
+      /* v4.57 · La barra de pestañas ahora flota sobre «Sonando
+         ahora» y el Escenario (CSS de la v4.57): tocar una
+         pestaña desde ahí cierra la vista grande y cambia de
+         vista, sin tocar el audio ni la cola — el menú Canciones
+         / Artistas / Playlists / Duplicadas queda accesible
+         siempre, también mientras suena una canción. */
+      $('#np').classList.remove('open');
+      if($('#stage').classList.contains('open')) closeStage();
       state.view = b.dataset.view; state.detail = null; render();
     }));
     $$('[data-accent-btn]').forEach(b => b.addEventListener('click', ()=> applyAccent(b.dataset.accentBtn, true)));
