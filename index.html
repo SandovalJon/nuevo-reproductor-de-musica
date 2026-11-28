@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.71</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.72</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2564,10 +2564,12 @@
         <p class="stage-artist" id="stageArtist">—</p>
         <div class="stage-spec" id="stageSpec" aria-hidden="true"></div>
         <div class="stage-next" id="stageNextBox" aria-label="A continuación en el Escenario"></div>
-        <div class="stage-queue" id="stageQueue">
-          <div class="stage-queue-lbl" id="stageQueueLbl">A continuación</div>
-          <div class="stage-queue-row" id="stageQueueRow" role="list" aria-labelledby="stageQueueLbl"></div>
-        </div>
+        <!-- v4.72 · El carril «A continuación» del Escenario se
+             retira, a petición de Sando («quita esto del modo
+             pantalla completa», captura del carril): el Escenario
+             conserva su portada, el fondo que rota con la cola, la
+             caja «A continuación» de la siguiente y sus controles;
+             la cola completa sigue en «Sonando ahora». -->
         <div class="stage-prog">
           <div class="bar"><i id="stageProg"></i></div>
           <div class="times"><span id="stageCur">0:00</span><span id="stageDur">0:00</span></div>
@@ -4866,7 +4868,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.71';
+    const APP_VERSION = '4.72';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
@@ -5377,31 +5379,10 @@
       }
       return out;
     }
-    let stageQueueSig = '', stageQueueFirstId = null;
-    function renderStageQueue(){
-      const box = $('#stageQueue'), row = $('#stageQueueRow');
-      if(!box || !row) return;
-      const ups = upcomingQueueTracks(14);
-      if(!ups.length){ box.classList.remove('show'); row.innerHTML = ''; stageQueueSig = ''; stageQueueFirstId = null; return; }
-      const sig = ups.map(t => t.id + (state.coverUrls.has(t.id) ? ':u' : ':g')).join('|');
-      if(sig === stageQueueSig && box.classList.contains('show')) return;
-      const keepScroll = stageQueueFirstId !== null && ups[0].id === stageQueueFirstId;
-      stageQueueSig = sig;
-      stageQueueFirstId = ups[0].id;
-      row.innerHTML = ups.map((t, i) =>
-        '<div class="sq-item' + (i === 0 ? ' is-next' : '') + '" role="listitem" data-sqjump="' + t.id + '" title="' + esc(t.title) + ' · ' + esc(t.artist) + '">' +
-          coverHTML(t) +
-          '<div class="sq-t">' + esc(t.title) + '</div>' +
-          '<div class="sq-a">' + esc(t.artist) + '</div>' +
-          (i === 0 ? '<span class="sq-tag">Siguiente</span>' : '') +
-        '</div>'
-      ).join('');
-      box.classList.add('show');
-      if(!keepScroll) row.scrollLeft = 0;
-      ups.forEach(t => {
-        if(t.hasCover && !state.coverUrls.has(t.id)) ensureCoverUrl(t.id).then(()=>{ if(state.currentId) renderStageQueue(); }).catch(()=>{});
-      });
-    }
+    /* v4.72 · renderStageQueue y su carril del Escenario se
+       retiran con el marcado (ver la nota en el HTML del
+       Escenario); las clases CSS .stage-queue/.sq-item quedan
+       inertes en la hoja, sin ningún elemento que las use. */
     /* Fondo del Escenario que rota: la lista es la portada actual seguida
        de las de la cola; cada ~7 s avanza un paso con el fundido cruzado
        de applyImmersive. El temporizador solo corre con el Escenario
@@ -5610,7 +5591,6 @@
     }
     function renderQueue(){
       updateStageNext();
-      renderStageQueue();
       const box = $('#queueList');
       if(!box) return;
       const upcoming = state.queue.slice(state.qIndex + 1).filter(id => { const t = getTrack(id); return t && !isDisliked(t); });
@@ -5742,13 +5722,6 @@
       const jump = e.target.closest('[data-qjump]');
       if(jump) jumpToQueueIndex(state.queue.indexOf(jump.dataset.qjump));
     });
-    /* Carrusel de la cola del Escenario (v2.9): tocar una portada salta a
-       esa canción, igual que tocarla en la cola de «Sonando ahora». */
-    $('#stageQueueRow').addEventListener('click', e => {
-      const item = e.target.closest('[data-sqjump]');
-      if(item) jumpToQueueIndex(state.queue.indexOf(item.dataset.sqjump));
-    });
-
     /* ================= Modo Escenario ================= */
     function openStage(){
       if(!state.currentId){ toast('Primero elige una canción.'); return; }
