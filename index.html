@@ -2298,6 +2298,35 @@
          superior quedaría asomando justo sobre las pestañas. */
       .np, .stage{ transform:translateY(calc(100% + 88px)); }
       .np.open, .stage.open{ transform:translateY(0); }
+      /* v4.61 · Las pestañas se mudan arriba y el renglón flotante
+         inferior desaparece (pedido de Sando: «pon todos estos
+         apartados en otro lado y quita ese renglon»; eligió
+         «arriba fija en la biblioteca»). La barra deja de ser
+         fija/flotante: es una fila más de la columna de la app,
+         entre la cabecera y la lista, siempre visible en la
+         biblioteca sin tapar contenido; sus botones vuelven a ser
+         pastillas con fondo (como antes de la v2.0) y la activa
+         conserva su degradado. Consecuencias de que abajo ya no
+         haya renglón: el mini-reproductor baja a su sitio natural
+         (10px del suelo, solo), la lista recupera el espacio que
+         la doble barra ocupaba, el aviso (toast) baja con el mini,
+         y «Sonando ahora» y el Escenario vuelven a ser pantalla
+         completa (se deshace el recorte inferior de la v4.59 y su
+         desplazamiento de cierre vuelve al 100% de siempre). */
+      .tabs{
+        position:static; transform:none; left:auto; bottom:auto; z-index:auto;
+        width:100%; max-width:1060px; margin:0 auto; padding:10px 16px 2px; gap:8px;
+        background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;
+        border:0; border-radius:0; box-shadow:none; overflow-x:auto; overflow-y:hidden; flex:none;
+      }
+      html.perf-lite .tabs{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+      .tab{ flex:1; background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow-soft); padding:9px 6px; }
+      .mini{ bottom:calc(10px + env(safe-area-inset-bottom)); }
+      .main{ padding-bottom:24px; scroll-padding-bottom:32px; }
+      body.has-track .main{ padding-bottom:118px; scroll-padding-bottom:126px; }
+      .toast{ bottom:calc(102px + env(safe-area-inset-bottom)); }
+      .np, .stage{ bottom:0; border-bottom-left-radius:0; border-bottom-right-radius:0; transform:translateY(100%); }
+      .np.open, .stage.open{ transform:translateY(0); }
     </style>
     <script>
       /* v3.2 · Fluido: detección temprana de dispositivo modesto (pocos
@@ -2328,7 +2357,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.60</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.61</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -2388,6 +2417,21 @@
         </section>
       </header>
 
+      <!-- v4.61 · Las pestañas viven aquí, entre la cabecera y la
+           lista: fila fija de la biblioteca (no flota, no se va al
+           deslizar la lista). El renglón flotante inferior de la
+           v2.0–v4.60 se retiró a petición de Sando («pon todos
+           estos apartados en otro lado y quita ese renglon»);
+           eligió «arriba fija en la biblioteca», sabiendo que
+           «Sonando ahora» la tapa (se sale con su flecha, como
+           antes de la v4.57). -->
+      <nav class="tabs" id="tabs" aria-label="Vistas de la biblioteca">
+        <button class="tab on" data-view="songs">Canciones</button>
+        <button class="tab" data-view="artists">Artistas</button>
+        <button class="tab" data-view="playlists">Playlists</button>
+        <button class="tab" data-view="duplicates">Duplicadas</button>
+      </nav>
+
       <main class="main" id="main">
         <div class="wrap">
           <div class="toolbar" id="toolbar">
@@ -2425,20 +2469,6 @@
         </div>
       </main>
     </div>
-
-    <!-- v4.58 · La barra de pestañas vive FUERA de .app: dentro, su
-         z-index solo competía en el contexto de apilamiento de .app
-         (z-index 1) y «Sonando ahora» (z-index 60, hermano de .app)
-         la tapaba entera — el z-index 65 de la v4.57 no bastaba.
-         Fuera, como el mini-reproductor, su 65 sí manda sobre la
-         vista grande y el menú queda visible y tocable siempre.
-         Su CSS es de posición fija, así que se ve exactamente igual. -->
-    <nav class="tabs" id="tabs" aria-label="Vistas de la biblioteca">
-      <button class="tab on" data-view="songs">Canciones</button>
-      <button class="tab" data-view="artists">Artistas</button>
-      <button class="tab" data-view="playlists">Playlists</button>
-      <button class="tab" data-view="duplicates">Duplicadas</button>
-    </nav>
 
     <!-- Mini player -->
     <div class="mini" id="mini" role="button" tabindex="0" aria-label="Abrir Sonando ahora">
@@ -4699,7 +4729,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.60';
+    const APP_VERSION = '4.61';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
