@@ -2365,7 +2365,7 @@
       <header class="top">
         <div class="top-in">
           <h1><span class="vh">Sonando</span><span class="top-sub">Tu música vive aquí. Tus calificaciones se sincronizan.</span></h1>
-          <span class="version-tag" id="versionTag" title="Versión de la app">v4.69</span>
+          <span class="version-tag" id="versionTag" title="Versión de la app">v4.70</span>
           <span class="version-tag lib-count" id="libCount" title="Total de canciones en tu biblioteca"><span data-ic="note"></span><span id="libCountTxt">0 canciones</span></span>
           <button class="btn btn-ghost" id="btnSync" aria-label="Sincronización de calificaciones"><span data-ic="cloud"></span>Sincronizar<span class="sync-dot" id="syncDot" hidden></span></button>
           <button class="btn btn-ghost" id="btnUpdate"><span data-ic="refresh"></span>Actualizar app</button>
@@ -3732,9 +3732,24 @@
       }), '', null, null);
       bindContent();
     }
+    /* v4.70 · Favoritas en orden aleatorio por apertura, a
+       petición de Sando («que favoritas tenga un orden aleatorio
+       cada que se abra la app»): la mezcla se calcula una vez al
+       abrir la app y se reutiliza en el carril del inicio, la
+       ficha de Favoritas y su cola de reproducción, para que toda
+       la app vea el mismo orden durante la sesión; al reabrir la
+       app se mezcla de nuevo. Si el conjunto de «Me gusta» cambia
+       a mitad de sesión (marcar o desmarcar), se recalcula. */
+    let favShuffleCache = { sig:'', ids:[] };
     function favPlaylist(){
-      const ids = Array.from(state.tracks.values()).filter(t => t.rating === 'like').sort((a,b)=> b.addedAt - a.addedAt).map(t => t.id);
-      return { id:'__favs', name:'Favoritas', trackIds: ids, auto:true };
+      const liked = Array.from(state.tracks.values()).filter(t => t.rating === 'like').map(t => t.id);
+      const sig = liked.slice().sort().join('|');
+      if(sig !== favShuffleCache.sig){
+        const ids = liked.slice();
+        for(let i = ids.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp; }
+        favShuffleCache = { sig:sig, ids:ids };
+      }
+      return { id:'__favs', name:'Favoritas', trackIds: favShuffleCache.ids.slice(), auto:true };
     }
     function renderPlaylists(){
       const favs = favPlaylist();
@@ -4831,7 +4846,7 @@
        quita nada y el deshacer sigue pendiente. El deshacer en
        sí, los datos, las estrellas y la sincronización no
        cambian, y se conserva todo lo de la v4.42–v4.51. */
-    const APP_VERSION = '4.69';
+    const APP_VERSION = '4.70';
     const versionTagEl = document.getElementById('versionTag');
     if(versionTagEl) versionTagEl.textContent = 'v' + APP_VERSION;
     /* ============ La portada vuela (v2.0): elemento compartido ============ */
